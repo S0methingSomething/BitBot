@@ -1,0 +1,53 @@
+# This workflow defines the automated process for BitBot.
+# It runs on a schedule and can also be triggered manually.
+
+name: BitBot MonetizationVars Decrypt and Post
+
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+  # Runs on a schedule (every 6 hours)
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  build-and-post:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up the Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Step 3: Install dependencies defined in package.json
+      - name: Install Dependencies
+        run: npm install
+
+      # Step 4: Fetch the MonetizationVars file
+      - name: Fetch MonetizationVars File
+        run: curl -o MonetizationVars https://raw.githubusercontent.com/S0methingSomething/BitEdit/refs/heads/main/MonetizationVars.txt
+
+      # Step 5: Run the decryption script
+      # This will create a 'decrypted.json' file
+      - name: Decrypt MonetizationVars
+        run: node decrypt.js
+
+      # Step 6: Run the Reddit bot to post a comment
+      # It reads the 'decrypted.json' and uses secrets for authentication
+      - name: Post to Reddit
+        env:
+          # Pass the GitHub secrets to the script as environment variables
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+          REDDIT_POST_ID: ${{ secrets.REDDIT_POST_ID }}
+        run: node reddit-bot.js
