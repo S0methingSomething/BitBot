@@ -1,7 +1,7 @@
 # This workflow defines the automated process for BitBot.
-# It runs on a schedule and can also be triggered manually.
+# It fetches the latest release from BitEdit, parses it, and posts to Reddit.
 
-name: BitBot MonetizationVars Decrypt and Post
+name: BitBot Release Announcer
 
 on:
   # Allows you to run this workflow manually from the Actions tab
@@ -20,34 +20,62 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up the Node.js environment
+      # Step 2: Set up the Node.js environment and jq
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Install jq
+        run: sudo apt-get install -y jq
 
-      # Step 3: Install dependencies defined in package.json
+      # Step 3: Install Node.js dependencies
       - name: Install Dependencies
         run: npm install
 
-      # Step 4: Fetch the MonetizationVars file
-      - name: Fetch MonetizationVars File
-        run: curl -o MonetizationVars https://raw.githubusercontent.com/S0methingSomething/BitEdit/refs/heads/main/MonetizationVars.txt
+      # Step 4: Fetch Latest Release Info from GitHub API
+      - name: Fetch Latest BitEdit Release
+        id: fetch_release
+        run: |
+          # Use GitHub API to get the release tagged "Latest"
+          RELEASE_JSON=$(curl -s "https://api.github.com/repos/S0methingSomething/BitEdit/releases/tags/Latest")
+          
+          # Extract the release description (body)
+          RELEASE_BODY=$(echo "$RELEASE_JSON" | jq -r '.body')
+          
+          # Extract BitLife version from the body using regex
+          # Looks for patterns like "For BitLife v1.19.1" or "BitLife version 1.19.1"
+          BITLIFE_VERSION=$(echo "$RELEASE_BODY" | grep -oP '(?<=(BitLife\s*v?|compatible with BitLife\s*v?|BitLife version\s*v?))(\d+\.\d+(\.\d+)?)' | head -n 1)
 
-      # Step 5: Run the decryption script
-      # This will create a 'decrypted.json' file
-      - name: Decrypt MonetizationVars
-        run: node decrypt.js
+          if [ -z "$BITLIFE_VERSION" ]; then
+            echo "Could not parse BitLife version from release description. Exiting."
+            exit 1
+          fi
 
-      # Step 6: Run the Reddit bot to post a comment
-      # It reads the 'decrypted.json' and uses secrets for authentication
-      - name: Post to Reddit
+          # Find the download URL for the MonetizationVars asset
+          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name=="MonetizationVars") | .browser_download_url')
+
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "Could not find MonetizationVars download URL in release assets. Exiting."
+            exit 1
+          fi
+
+          # Save the extracted info to the GitHub environment for the next steps
+          echo "BITLIFE_VERSION=$BITLIFE_VERSION" >> $GITHUB_ENV
+          echo "DOWNLOAD_URL=$DOWNLOAD_URL" >> $GITHUB_ENV
+          echo "Release found for BitLife Version: $BITLIFE_VERSION"
+          echo "Download URL: $DOWNLOAD_URL"
+
+      # Step 5: Run the Reddit bot to create a new post
+      - name: Create Reddit Post
         env:
-          # Pass the GitHub secrets to the script as environment variables
+          # Pass GitHub secrets and the variables from the previous step
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-          REDDIT_POST_ID: ${{ secrets.REDDIT_POST_ID }}
+          REDDIT_SUBREDDIT: ${{ secrets.REDDIT_SUBREDDIT }}
+          # These come from the 'fetch_release' step
+          BITLIFE_VERSION: ${{ env.BITLIFE_VERSION }}
+          DOWNLOAD_URL: ${{ env.DOWNLOAD_URL }}
         run: node reddit-bot.js
