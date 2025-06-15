@@ -7,7 +7,7 @@ const {
     REDDIT_CLIENT_ID,
     REDDIT_CLIENT_SECRET,
     REDDIT_USERNAME,
-    REDDIT_PASSWORD, // We need the password for this grant type
+    REDDIT_PASSWORD,
     REDDIT_USER_AGENT,
     REDDIT_SUBREDDIT,
     BITLIFE_VERSION,
@@ -18,12 +18,13 @@ const {
 const TOKEN_URL = 'https://www.reddit.com/api/v1/access_token';
 const API_BASE = 'https://oauth.reddit.com';
 
-// (Helper functions like assertEnv, generatePostBody, etc. remain the same)
+// --- Helper Functions ---
 function assertEnv() {
     const required = { REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_PASSWORD, REDDIT_USER_AGENT, REDDIT_SUBREDDIT, BITLIFE_VERSION, DOWNLOAD_URL };
     const missing = Object.keys(required).filter(key => !required[key]);
     if (missing.length > 0) throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
     console.log("Environment configuration validated successfully.");
+    console.log(`Using User-Agent: ${REDDIT_USER_AGENT}`); // Log the user agent for debugging
 }
 function generatePostBody() {
     return `This is an automated post by [BitBot](https://github.com/S0methingSomething/BitBot).\n\n` +
@@ -32,10 +33,10 @@ function generatePostBody() {
            `This is created by [u/C1oudyLol](https://www.reddit.com/user/C1oudyLol/).\n\n` +
            `**Current status (based on comments):** Working`;
 }
+// Simple delay function
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-/**
- * Gets a Reddit API token using the password grant type.
- */
+// --- Reddit API Interaction ---
 async function getToken() {
     console.log("Requesting API token using password grant type...");
     const body = new URLSearchParams({
@@ -49,8 +50,6 @@ async function getToken() {
     });
     return data.access_token;
 }
-
-// (The rest of the script remains the same)
 function createRedditClient(token) {
     return axios.create({
         baseURL: API_BASE,
@@ -90,19 +89,28 @@ async function postRelease(client, title, text) {
     console.error("Full API Response:", JSON.stringify(data, null, 2));
     throw new Error("Post creation verification failed: Invalid API response from Reddit.");
 }
+
+// --- Main Execution Logic ---
 async function main() {
     try {
+        // Add a small delay to appear less aggressive to Reddit's systems
+        console.log("Waiting for 2 seconds before starting...");
+        await sleep(2000);
+
         assertEnv();
         const token = await getToken();
         const redditClient = createRedditClient(token);
         const newVersion = semver.clean(BITLIFE_VERSION);
         if (!newVersion) throw new Error(`Invalid version format from release: "${BITLIFE_VERSION}"`);
+        
         const lastPostedVersion = await getLatestPostedVersion(redditClient);
+        
         if (!lastPostedVersion || semver.gt(newVersion, lastPostedVersion)) {
             console.log(`New version (${newVersion}) is higher than last posted version (${lastPostedVersion || 'None'}). Posting...`);
             const postTitle = `MonetizationVars for ${newVersion}`;
             const postBody = generatePostBody();
             const newPostUrl = await postRelease(redditClient, postTitle, postBody);
+            
             if (newPostUrl && GITHUB_OUTPUT) {
                 console.log(`Communicating new post URL back to the workflow: ${newPostUrl}`);
                 fs.appendFileSync(GITHUB_OUTPUT, `post_url=${newPostUrl}\n`);
@@ -112,14 +120,16 @@ async function main() {
         } else {
             console.log(`🔸 No post needed. The latest version on Reddit (${lastPostedVersion}) is current.`);
         }
+
     } catch (error) {
         console.error("❌ BitBot failed to run.");
         if (error.response) {
-            console.error(`API Error: ${error.response.status} ${error.response.statusText}`, error.response.data);
+            console.error(`API Error: ${error.response.status} ${error.response.statusText}`);
         } else {
             console.error(error.message);
         }
         process.exit(1);
     }
 }
+
 main();
