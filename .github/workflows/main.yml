@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
+      
       - name: Install jq
         run: sudo apt-get install -y jq
 
@@ -35,8 +35,10 @@ jobs:
         run: |
           RELEASE_JSON=$(curl -s "https://api.github.com/repos/S0methingSomething/BitEdit/releases/tags/Latest")
           RELEASE_BODY=$(echo "$RELEASE_JSON" | jq -r '.body')
-          # Use a more robust regex for version extraction
-          BITLIFE_VERSION=$(echo "$RELEASE_BODY" | grep -oP '(?<=(BitLife\s*v?|compatible with BitLife\s*v?|BitLife version\s*v?))(\d+\.\d+(\.\d+)?)' | head -n 1)
+          
+          # FIXED: This command is compatible with the GitHub Actions runner environment.
+          BITLIFE_VERSION=$(echo "$RELEASE_BODY" | grep -oE '(BitLife v?|compatible with BitLife v?|BitLife version v?)\d+\.\d+(\.\d+)?' | sed -E 's/.*(v|version) ?//')
+
           if [ -z "$BITLIFE_VERSION" ]; then
             echo "Could not parse BitLife version from release description. Exiting."
             exit 1
@@ -53,11 +55,14 @@ jobs:
 
       - name: Create Reddit Post
         env:
+          # Use secrets for private credentials
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
-          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-          REDDIT_SUBREDDIT: ${{ secrets.REDDIT_SUBREDDIT }}
+          # Use variables for public configuration
+          REDDIT_USERNAME: ${{ vars.REDDIT_USERNAME }}
+          REDDIT_USER_AGENT: ${{ vars.REDDIT_USER_AGENT }}
+          REDDIT_SUBREDDIT: ${{ vars.REDDIT_SUBREDDIT }}
+          # Use environment variables from the previous step
           BITLIFE_VERSION: ${{ env.BITLIFE_VERSION }}
           DOWNLOAD_URL: ${{ env.DOWNLOAD_URL }}
         run: node reddit-bot.js
