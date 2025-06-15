@@ -1,144 +1,136 @@
-/*
- * Reddit Bot for BitBot
- * This script authenticates with the Reddit API and posts a comment.
- * It requires environment variables for credentials.
- */
+import axios from 'axios';
+import semver from 'semver';
 
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-
-// --- Configuration ---
+// --- Configuration & Constants ---
 const {
     REDDIT_CLIENT_ID,
     REDDIT_CLIENT_SECRET,
     REDDIT_USERNAME,
-    REDDIT_PASSWORD,
     REDDIT_USER_AGENT,
-    REDDIT_POST_ID
+    REDDIT_SUBREDDIT,
+    BITLIFE_VERSION,
+    DOWNLOAD_URL,
 } = process.env;
 
-const DECRYPTED_FILE_PATH = path.join(__dirname, 'decrypted.json');
-const OAUTH_URL = 'https://www.reddit.com/api/v1/access_token';
-const API_URL_BASE = 'https://oauth.reddit.com';
+const TOKEN_URL = 'https://www.reddit.com/api/v1/access_token';
+const API_BASE = 'https://oauth.reddit.com';
 
-/**
- * Validates that all required environment variables are set.
- */
-function validateConfig() {
-    const requiredVars = {
-        REDDIT_CLIENT_ID,
-        REDDIT_CLIENT_SECRET,
-        REDDIT_USERNAME,
-        REDDIT_PASSWORD,
-        REDDIT_USER_AGENT,
-        REDDIT_POST_ID
-    };
-    const missingVars = Object.keys(requiredVars).filter(key => !requiredVars[key]);
-    if (missingVars.length > 0) {
-        throw new Error(`Missing required environment variables: ${missingVars.join(', ')}. Please configure them as GitHub secrets.`);
+// --- Helper Functions ---
+
+/** Validates that all required environment variables are set. */
+function assertEnv() {
+    const required = { REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_USER_AGENT, REDDIT_SUBREDDIT, BITLIFE_VERSION, DOWNLOAD_URL };
+    const missing = Object.keys(required).filter(key => !required[key]);
+    if (missing.length > 0) {
+        throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
     }
-    console.log("Configuration validated successfully.");
+    console.log("Environment configuration validated successfully.");
 }
 
+/** Generates the post body text. */
+function generatePostBody() {
+    return `This is an automated post by [BitBot](https://github.com/S0methingSomething/BitBot).\n\n` +
+           `**Download link:** [MonetizationVars](${DOWNLOAD_URL})\n\n` +
+           `**Homepage:** [https://github.com/S0methingSomething/BitBot](https://github.com/S0methingSomething/BitBot)\n\n` +
+           `This is created by [u/C1oudyLol](https://www.reddit.com/user/C1oudyLol/).\n\n` +
+           `**Current status (based on comments):** Working`;
+}
+
+// --- Reddit API Interaction ---
+
 /**
- * Authenticates with the Reddit API to get an OAuth token.
+ * Gets a Reddit API token using secure client_credentials grant type.
  * @returns {Promise<string>} The access token.
  */
-async function getAccessToken() {
-    console.log("Attempting to get Reddit API access token...");
-    try {
-        const authString = Buffer.from(`${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`).toString('base64');
-
-        const response = await axios.post(OAUTH_URL, new URLSearchParams({
-            grant_type: 'password',
-            username: REDDIT_USERNAME,
-            password: REDDIT_PASSWORD,
-        }), {
-            headers: {
-                'Authorization': `Basic ${authString}`,
-                'User-Agent': REDDIT_USER_AGENT,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-        });
-
-        console.log("Successfully obtained access token.");
-        return response.data.access_token;
-    } catch (error) {
-        console.error("Error getting access token:", error.response ? error.response.data : error.message);
-        throw new Error("Failed to authenticate with Reddit API.");
-    }
+async function getToken() {
+    console.log("Requesting API token using client credentials...");
+    const body = new URLSearchParams({ grant_type: 'client_credentials' });
+    const auth = Buffer.from(`${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`).toString('base64');
+    const { data } = await axios.post(TOKEN_URL, body, {
+        headers: { Authorization: `Basic ${auth}`, 'User-Agent': REDDIT_USER_AGENT }
+    });
+    return data.access_token;
 }
 
 /**
- * Posts a comment to the specified Reddit post.
+ * Creates a pre-configured Axios instance for making authenticated API calls.
  * @param {string} token - The OAuth access token.
- * @param {string} commentText - The text of the comment to post.
+ * @returns {axios.AxiosInstance} A configured Axios instance.
  */
-async function postComment(token, commentText) {
-    const thingId = REDDIT_POST_ID.startsWith('t3_') ? REDDIT_POST_ID : `t3_${REDDIT_POST_ID}`;
-    console.log(`Posting comment to Reddit post ID: ${thingId}`);
-
-    try {
-        const response = await axios.post(`${API_URL_BASE}/api/comment`, new URLSearchParams({
-            api_type: 'json',
-            text: commentText,
-            thing_id: thingId,
-        }), {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'User-Agent': REDDIT_USER_AGENT,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-        });
-
-        if (response.data.json.errors.length > 0) {
-            throw new Error(`Reddit API returned errors: ${JSON.stringify(response.data.json.errors)}`);
-        }
-
-        console.log("Successfully posted comment to Reddit.");
-        console.log("Comment URL:", response.data.json.data.things[0].data.permalink);
-
-    } catch (error) {
-        console.error("Error posting comment:", error.response ? error.response.data : error.message);
-        throw new Error("Failed to post comment to Reddit.");
-    }
+function createRedditClient(token) {
+    return axios.create({
+        baseURL: API_BASE,
+        headers: { Authorization: `Bearer ${token}`, 'User-Agent': REDDIT_USER_AGENT }
+    });
 }
 
 /**
- * Main function to run the bot.
+ * Finds the version number from the latest post made by the bot.
+ * @param {axios.AxiosInstance} client - The authenticated Axios client.
+ * @returns {Promise<string|null>} The latest version string or null if no post is found.
  */
-async function main() {
-    try {
-        validateConfig();
+async function getLatestPostedVersion(client) {
+    console.log(`Searching for last post by u/${REDDIT_USERNAME} in r/${REDDIT_SUBREDDIT}...`);
+    const { data } = await client.get(`/r/${REDDIT_SUBREDDIT}/search.json`, {
+        params: { q: `author:${REDDIT_USERNAME}`, sort: 'new', restrict_sr: 1, limit: 5 }
+    });
 
-        // Check if the decrypted file exists
-        if (!fs.existsSync(DECRYPTED_FILE_PATH)) {
-            throw new Error(`Decrypted file not found at '${DECRYPTED_FILE_PATH}'. Halting bot.`);
+    const versionRegex = /MonetizationVars for (\d+\.\d+\.\d+.*)/;
+    for (const post of data.data.children) {
+        const match = post.data.title.match(versionRegex);
+        if (match && match[1] && semver.valid(match[1])) {
+            console.log(`Found last valid version: ${match[1]}`);
+            return match[1];
         }
-
-        // Read the decrypted data to report the number of items
-        const decryptedData = JSON.parse(fs.readFileSync(DECRYPTED_FILE_PATH, 'utf-8'));
-        const itemCount = Object.keys(decryptedData).length;
-
-        // Construct the comment
-        const timestamp = new Date().toUTCString();
-        const comment = `🤖 **BitBot Status Update** 🤖\n\n` +
-                        `* **Status:** Decryption Successful\n` +
-                        `* **Items Found:** ${itemCount}\n` +
-                        `* **Timestamp:** ${timestamp}\n\n` +
-                        `--- \n` +
-                        `*This is an automated message.*`;
-
-        // Get token and post comment
-        const token = await getAccessToken();
-        await postComment(token, comment);
-
-    } catch (error) {
-        console.error(`BitBot failed: ${error.message}`);
-        process.exit(1); // Exit with an error code to fail the GitHub Action
     }
+    console.log("No previous valid post found.");
+    return null;
 }
 
-// Run the main function
-main();
+/**
+ * Submits a new release post to the specified subreddit.
+ * @param {axios.AxiosInstance} client - The authenticated Axios client.
+ * @param {string} version - The version to be posted.
+ */
+async function postRelease(client, version) {
+    const title = `MonetizationVars for ${version}`;
+    const text = generatePostBody();
+    console.log(`Submitting new post: "${title}"`);
+
+    await client.post('/api/submit', new URLSearchParams({
+        sr: REDDIT_SUBREDDIT,
+        kind: 'self',
+        title: title,
+        text: text,
+        api_type: 'json'
+    }));
+}
+
+// --- Main Execution ---
+
+try {
+    assertEnv();
+    const token = await getToken();
+    const redditClient = createRedditClient(token);
+    const lastPostedVersion = await getLatestPostedVersion(redditClient);
+    const newVersion = semver.clean(BITLIFE_VERSION); // Clean the version string
+
+    if (!newVersion) {
+        throw new Error(`Invalid version format from GitHub release: "${BITLIFE_VERSION}"`);
+    }
+
+    if (!lastPostedVersion || semver.gt(newVersion, lastPostedVersion)) {
+        await postRelease(redditClient, newVersion);
+        console.log(`✅ Successfully posted new release for version ${newVersion}.`);
+    } else {
+        console.log(`🔸 No post needed. The latest version on Reddit (${lastPostedVersion}) is current.`);
+    }
+} catch (error) {
+    console.error("❌ BitBot failed to run.");
+    if (error.response) {
+        console.error(`API Error: ${error.response.status} ${error.response.statusText}`, error.response.data);
+    } else {
+        console.error(error.message);
+    }
+    process.exit(1);
+}
