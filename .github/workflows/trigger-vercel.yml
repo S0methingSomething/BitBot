@@ -1,0 +1,13 @@
+name: BitBot Vercel Trigger
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  trigger-vercel-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Vercel to run bot
+        run: curl -X GET "${{ secrets.VERCEL_DEPLOYMENT_URL }}"
