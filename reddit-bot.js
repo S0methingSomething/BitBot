@@ -1,27 +1,26 @@
 import axios from 'axios';
 import semver from 'semver';
-import fs from 'fs'; // Import the file system module
+import fs from 'fs';
 
 // --- Configuration & Constants ---
 const {
     REDDIT_CLIENT_ID,
     REDDIT_CLIENT_SECRET,
     REDDIT_USERNAME,
+    REDDIT_PASSWORD, // We need the password for this grant type
     REDDIT_USER_AGENT,
     REDDIT_SUBREDDIT,
     BITLIFE_VERSION,
     DOWNLOAD_URL,
-    // GITHUB_OUTPUT is an environment variable provided by GitHub Actions
     GITHUB_OUTPUT, 
 } = process.env;
 
 const TOKEN_URL = 'https://www.reddit.com/api/v1/access_token';
 const API_BASE = 'https://oauth.reddit.com';
 
-// (Helper functions like assertEnv, generatePostBody, getToken, etc. remain the same)
-// --- Helper Functions ---
+// (Helper functions like assertEnv, generatePostBody, etc. remain the same)
 function assertEnv() {
-    const required = { REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_USER_AGENT, REDDIT_SUBREDDIT, BITLIFE_VERSION, DOWNLOAD_URL };
+    const required = { REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_PASSWORD, REDDIT_USER_AGENT, REDDIT_SUBREDDIT, BITLIFE_VERSION, DOWNLOAD_URL };
     const missing = Object.keys(required).filter(key => !required[key]);
     if (missing.length > 0) throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
     console.log("Environment configuration validated successfully.");
@@ -34,16 +33,24 @@ function generatePostBody() {
            `**Current status (based on comments):** Working`;
 }
 
-// --- Reddit API Interaction ---
+/**
+ * Gets a Reddit API token using the password grant type.
+ */
 async function getToken() {
-    console.log("Requesting API token using client credentials...");
-    const body = new URLSearchParams({ grant_type: 'client_credentials' });
+    console.log("Requesting API token using password grant type...");
+    const body = new URLSearchParams({
+        grant_type: 'password',
+        username: REDDIT_USERNAME,
+        password: REDDIT_PASSWORD,
+    });
     const auth = Buffer.from(`${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`).toString('base64');
     const { data } = await axios.post(TOKEN_URL, body, {
         headers: { Authorization: `Basic ${auth}`, 'User-Agent': REDDIT_USER_AGENT }
     });
     return data.access_token;
 }
+
+// (The rest of the script remains the same)
 function createRedditClient(token) {
     return axios.create({
         baseURL: API_BASE,
@@ -66,11 +73,6 @@ async function getLatestPostedVersion(client) {
     console.log("No previous valid post found.");
     return null;
 }
-
-/**
- * Creates a new post and returns the URL of the created post.
- * @returns {Promise<string>} The URL of the new post.
- */
 async function postRelease(client, title, text) {
     console.log(`Submitting new post: "${title}"`);
     const { data } = await client.post('/api/submit', new URLSearchParams({
@@ -80,18 +82,14 @@ async function postRelease(client, title, text) {
         text,
         api_type: 'json'
     }));
-
     const postData = data?.json?.data?.things?.[0]?.data;
     if (postData && postData.url) {
-        return postData.url; // Return the URL on success
+        return postData.url;
     }
-
     console.error("❌ Post submission response was invalid.");
     console.error("Full API Response:", JSON.stringify(data, null, 2));
     throw new Error("Post creation verification failed: Invalid API response from Reddit.");
 }
-
-// --- Main Execution Logic ---
 async function main() {
     try {
         assertEnv();
@@ -99,19 +97,12 @@ async function main() {
         const redditClient = createRedditClient(token);
         const newVersion = semver.clean(BITLIFE_VERSION);
         if (!newVersion) throw new Error(`Invalid version format from release: "${BITLIFE_VERSION}"`);
-        
         const lastPostedVersion = await getLatestPostedVersion(redditClient);
-
         if (!lastPostedVersion || semver.gt(newVersion, lastPostedVersion)) {
             console.log(`New version (${newVersion}) is higher than last posted version (${lastPostedVersion || 'None'}). Posting...`);
             const postTitle = `MonetizationVars for ${newVersion}`;
             const postBody = generatePostBody();
-            
-            // Capture the returned URL
             const newPostUrl = await postRelease(redditClient, postTitle, postBody);
-            
-            // **NEW VERIFICATION STEP**
-            // If we have a URL, write it to the GitHub Actions output file.
             if (newPostUrl && GITHUB_OUTPUT) {
                 console.log(`Communicating new post URL back to the workflow: ${newPostUrl}`);
                 fs.appendFileSync(GITHUB_OUTPUT, `post_url=${newPostUrl}\n`);
@@ -121,7 +112,6 @@ async function main() {
         } else {
             console.log(`🔸 No post needed. The latest version on Reddit (${lastPostedVersion}) is current.`);
         }
-
     } catch (error) {
         console.error("❌ BitBot failed to run.");
         if (error.response) {
@@ -132,5 +122,4 @@ async function main() {
         process.exit(1);
     }
 }
-
 main();
