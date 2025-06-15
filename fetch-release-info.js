@@ -1,10 +1,16 @@
 import axios from 'axios';
+import { HttpsProxyAgent } from 'hpagent';
 
 const GITHUB_API_URL = "https://api.github.com/repos/S0methingSomething/BitEdit/releases/tags/Latest";
 
-export async function fetchLatestReleaseInfo() {
+export async function fetchLatestReleaseInfo(proxyUrl) {
   console.log("Fetching latest release info from GitHub...");
-  const { data: releaseData } = await axios.get(GITHUB_API_URL);
+
+  const agentConfig = proxyUrl ? {
+    httpsAgent: new HttpsProxyAgent({ keepAlive: true, proxy: proxyUrl }),
+  } : {};
+
+  const { data: releaseData } = await axios.get(GITHUB_API_URL, agentConfig);
   const releaseBody = releaseData.body || "";
 
   const versionRegex = /(?:for BitLife\s*v?|compatible with BitLife\s*v?|BitLife version\s*v?)(\d+\.\d+(\.\d+)?)/i;
