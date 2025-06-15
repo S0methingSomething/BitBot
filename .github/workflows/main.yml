@@ -32,12 +32,12 @@ jobs:
           echo "BITLIFE_VERSION=$(jq -r .BITLIFE_VERSION release-info.json)" >> $GITHUB_ENV
           echo "DOWNLOAD_URL=$(jq -r .DOWNLOAD_URL release-info.json)" >> $GITHUB_ENV
       
-      # The script now communicates its success back to the workflow
       - name: Run Reddit Bot
-        id: reddit_bot_step # Give the step an ID to reference its output
+        id: reddit_bot_step
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }} # Added password secret
           REDDIT_USERNAME: ${{ vars.REDDIT_USERNAME }}
           REDDIT_USER_AGENT: ${{ vars.REDDIT_USER_AGENT }}
           REDDIT_SUBREDDIT: ${{ vars.REDDIT_SUBREDDIT }}
@@ -45,9 +45,6 @@ jobs:
           DOWNLOAD_URL: ${{ env.DOWNLOAD_URL }}
         run: node reddit-bot.js
 
-      # **NEW VERIFICATION STEP**
-      # This step only runs if the previous step successfully created a post
-      # and passed the URL back as an output.
       - name: Verify Post Creation
         if: steps.reddit_bot_step.outputs.post_url
         run: |
