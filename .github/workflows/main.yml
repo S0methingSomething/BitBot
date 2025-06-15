@@ -36,18 +36,21 @@ jobs:
           RELEASE_JSON=$(curl -s "https://api.github.com/repos/S0methingSomething/BitEdit/releases/tags/Latest")
           RELEASE_BODY=$(echo "$RELEASE_JSON" | jq -r '.body')
           
-          # FIXED: This command is compatible with the GitHub Actions runner environment.
-          BITLIFE_VERSION=$(echo "$RELEASE_BODY" | grep -oE '(BitLife v?|compatible with BitLife v?|BitLife version v?)\d+\.\d+(\.\d+)?' | sed -E 's/.*(v|version) ?//')
+          # FINAL CORRECTED COMMAND: This version now accurately mimics the logic from the original index.html
+          # It finds any line containing the version phrase, then extracts only the version number.
+          BITLIFE_VERSION=$(echo "$RELEASE_BODY" | grep -ioE '(for BitLife v|compatible with BitLife v|BitLife version v)[\d\.]+' | sed -E 's/.*v ?//i')
 
           if [ -z "$BITLIFE_VERSION" ]; then
             echo "Could not parse BitLife version from release description. Exiting."
             exit 1
           fi
+          
           DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name=="MonetizationVars") | .browser_download_url')
           if [ -z "$DOWNLOAD_URL" ]; then
             echo "Could not find MonetizationVars download URL in release assets. Exiting."
             exit 1
           fi
+          
           echo "BITLIFE_VERSION=$BITLIFE_VERSION" >> $GITHUB_ENV
           echo "DOWNLOAD_URL=$DOWNLOAD_URL" >> $GITHUB_ENV
           echo "Release found for BitLife Version: $BITLIFE_VERSION"
