@@ -1,5 +1,3 @@
-# This workflow is now more robust by separating parsing logic into a Node.js script.
-
 name: BitBot Release Announcer
 
 on:
@@ -26,20 +24,17 @@ jobs:
       - name: Install jq
         run: sudo apt-get install -y jq
 
-      # Step 1: Run the new script to get release info.
-      # This creates the 'release-info.json' file.
       - name: Fetch and Parse Release Info
         run: node fetch-release-info.js
 
-      # Step 2: Load data from the JSON file into environment variables
-      # This is the reliable bridge between the Node script and the rest of the workflow.
       - name: Load Release Info into Environment
         run: |
           echo "BITLIFE_VERSION=$(jq -r .BITLIFE_VERSION release-info.json)" >> $GITHUB_ENV
           echo "DOWNLOAD_URL=$(jq -r .DOWNLOAD_URL release-info.json)" >> $GITHUB_ENV
       
-      # Step 3: Run the Reddit bot, which now has the correct info.
-      - name: Create Reddit Post
+      # The script now communicates its success back to the workflow
+      - name: Run Reddit Bot
+        id: reddit_bot_step # Give the step an ID to reference its output
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
@@ -49,3 +44,12 @@ jobs:
           BITLIFE_VERSION: ${{ env.BITLIFE_VERSION }}
           DOWNLOAD_URL: ${{ env.DOWNLOAD_URL }}
         run: node reddit-bot.js
+
+      # **NEW VERIFICATION STEP**
+      # This step only runs if the previous step successfully created a post
+      # and passed the URL back as an output.
+      - name: Verify Post Creation
+        if: steps.reddit_bot_step.outputs.post_url
+        run: |
+          echo "✅ Verification successful! Bot confirmed post creation."
+          echo "Post URL: ${{ steps.reddit_bot_step.outputs.post_url }}"
