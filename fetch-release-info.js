@@ -7,7 +7,7 @@ export async function fetchLatestReleaseInfo() {
   const { data: releaseData } = await axios.get(GITHUB_API_URL);
   const releaseBody = releaseData.body || "";
 
-  const versionRegex = /(?:for BitLife\s*v?|compatible with BitLife\s*v?|BitLife version\s*v?)(\d+\.\d+(?:\.\d+)?)/i;
+  const versionRegex = /(?:for BitLife\s*v?|compatible with BitLife\s*v?|BitLife version\s*v?)(\d+\.\d+(\.\d+)?)/i;
   const match = releaseBody.match(versionRegex);
   if (!match || !match[1]) {
     throw new Error("Could not parse version from GitHub release description.");
