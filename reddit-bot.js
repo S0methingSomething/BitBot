@@ -1,5 +1,5 @@
 // reddit-bot.js
-// =============
+// -------------
 // Posts a release thread to Reddit when a higher BitLife version is detected.
 
 import axios from 'axios';
@@ -23,9 +23,8 @@ const TOKEN_URL = 'https://www.reddit.com/api/v1/access_token';
 const API_BASE  = 'https://oauth.reddit.com';
 
 const DEFAULT_HEADERS = {
-  'User-Agent'     : REDDIT_USER_AGENT,
-  'Accept'         : 'application/json',
-  'x-reddit-lo-id' : '1',        // Cloudflare bypass
+  'User-Agent' : REDDIT_USER_AGENT,
+  'Accept'     : 'application/json',
 };
 
 // ────────────────────────── Utilities ─────────────────────────────
@@ -84,20 +83,23 @@ function createRedditClient(token) {
   });
 }
 
-// Uses /new.json + internal header (search is blocked)
+// Looks at the authorised user's own submissions instead of the subreddit feed
 async function getLatestPostedVersion(client) {
-  console.log(`Scanning r/${REDDIT_SUBREDDIT}/new for u/${REDDIT_USERNAME} …`);
+  console.log(`Scanning u/${REDDIT_USERNAME} submitted posts …`);
 
   const { data } = await client.get(
-    `/r/${REDDIT_SUBREDDIT}/new.json`,
-    { params: { limit: 25, raw_json: 1 } },
+    `/user/${REDDIT_USERNAME}/submitted.json`,
+    { params: { limit: 100, raw_json: 1 } },
   );
 
   const versionRegex = /MonetizationVars for (\d+\.\d+\.\d+(?:[-+][\w.-]+)?)/;
 
   for (const post of data.data.children) {
     const p = post.data;
-    if (p.author !== REDDIT_USERNAME) continue;
+
+    // Only consider posts in the target subreddit
+    if (p.subreddit !== REDDIT_SUBREDDIT) continue;
+
     const match = p.title.match(versionRegex);
     if (match && semver.valid(match[1])) {
       console.log(`Found last valid version: ${match[1]}`);
