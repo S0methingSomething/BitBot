@@ -1,13 +1,9 @@
-# This workflow defines the automated process for BitBot.
-# It fetches the latest release from BitEdit, parses it, and posts to Reddit.
+# This workflow is now more robust by separating parsing logic into a Node.js script.
 
 name: BitBot Release Announcer
 
 on:
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
-  # Runs on a schedule (every 6 hours)
   schedule:
     - cron: '0 */6 * * *'
 
@@ -24,48 +20,32 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
       - name: Install Dependencies
         run: npm install
 
-      - name: Fetch Latest BitEdit Release
-        id: fetch_release
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      # Step 1: Run the new script to get release info.
+      # This creates the 'release-info.json' file.
+      - name: Fetch and Parse Release Info
+        run: node fetch-release-info.js
+
+      # Step 2: Load data from the JSON file into environment variables
+      # This is the reliable bridge between the Node script and the rest of the workflow.
+      - name: Load Release Info into Environment
         run: |
-          RELEASE_JSON=$(curl -s "https://api.github.com/repos/S0methingSomething/BitEdit/releases/tags/Latest")
-          RELEASE_BODY=$(echo "$RELEASE_JSON" | jq -r '.body')
-          
-          # FINAL CORRECTED COMMAND: This version now accurately mimics the logic from the original index.html
-          # It finds any line containing the version phrase, then extracts only the version number.
-          BITLIFE_VERSION=$(echo "$RELEASE_BODY" | grep -ioE '(for BitLife v|compatible with BitLife v|BitLife version v)[\d\.]+' | sed -E 's/.*v ?//i')
-
-          if [ -z "$BITLIFE_VERSION" ]; then
-            echo "Could not parse BitLife version from release description. Exiting."
-            exit 1
-          fi
-          
-          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name=="MonetizationVars") | .browser_download_url')
-          if [ -z "$DOWNLOAD_URL" ]; then
-            echo "Could not find MonetizationVars download URL in release assets. Exiting."
-            exit 1
-          fi
-          
-          echo "BITLIFE_VERSION=$BITLIFE_VERSION" >> $GITHUB_ENV
-          echo "DOWNLOAD_URL=$DOWNLOAD_URL" >> $GITHUB_ENV
-          echo "Release found for BitLife Version: $BITLIFE_VERSION"
-          echo "Download URL: $DOWNLOAD_URL"
-
+          echo "BITLIFE_VERSION=$(jq -r .BITLIFE_VERSION release-info.json)" >> $GITHUB_ENV
+          echo "DOWNLOAD_URL=$(jq -r .DOWNLOAD_URL release-info.json)" >> $GITHUB_ENV
+      
+      # Step 3: Run the Reddit bot, which now has the correct info.
       - name: Create Reddit Post
         env:
-          # Use secrets for private credentials
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          # Use variables for public configuration
           REDDIT_USERNAME: ${{ vars.REDDIT_USERNAME }}
           REDDIT_USER_AGENT: ${{ vars.REDDIT_USER_AGENT }}
           REDDIT_SUBREDDIT: ${{ vars.REDDIT_SUBREDDIT }}
-          # Use environment variables from the previous step
           BITLIFE_VERSION: ${{ env.BITLIFE_VERSION }}
           DOWNLOAD_URL: ${{ env.DOWNLOAD_URL }}
         run: node reddit-bot.js
