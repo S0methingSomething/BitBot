@@ -6,18 +6,14 @@ const PORT = process.env.PORT || 3000;
 
 // This file is the entrypoint for LOCAL and REPLIT deployments.
 if (process.env.REPL_ID) {
-    // --- SERVER MODE (for Replit) ---
     const app = express();
-    
     app.get('/', async (req, res) => {
         console.log(`[${new Date().toISOString()}] Replit server received a ping. Starting bot...`);
         res.status(202).send('Accepted: Bot process started in the background.');
         runFullBotProcess().catch(err => console.error("Background bot run failed:", err.message));
     });
-
-    app.listen(PORT, () => console.log(`Replit server listening on port ${PORT}. Ready for pings.`));
+    app.listen(PORT, () => console.log(`Replit server listening on port ${PORT}.`));
 } else {
-    // --- LOCAL MODE (for Termux/PC) ---
     console.log("No server environment detected. Running script once locally.");
     runFullBotProcess().catch(err => {
         console.error("Local run failed.");
