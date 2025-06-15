@@ -1,7 +1,7 @@
 {
   "name": "bitbot",
-  "version": "3.0.0",
-  "description": "A flexible bot to announce releases on Reddit, deployable locally, on Replit, or Vercel.",
+  "version": "4.0.0",
+  "description": "A resilient bot to announce releases on Reddit, with dynamic proxy support.",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -13,6 +13,7 @@
     "axios": "^1.6.8",
     "semver": "^7.6.2",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "hpagent": "^1.2.0"
   }
 }
