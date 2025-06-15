@@ -1,12 +1,10 @@
-// This file is the entrypoint specifically for Vercel Serverless Functions.
 import { runFullBotProcess } from '../run-bot.js';
 
+// This file is the entrypoint specifically for Vercel Serverless Functions.
 export default async function handler(request, response) {
   try {
     console.log(`[${new Date().toISOString()}] Vercel cron job triggered. Starting bot logic...`);
-    
     const result = await runFullBotProcess();
-    
     console.log(`[${new Date().toISOString()}] Bot logic finished.`);
     response.status(200).json({ status: 'OK', message: result });
   } catch (error) {
