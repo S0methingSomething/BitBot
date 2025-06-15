@@ -1,19 +1,20 @@
 import axios from 'axios';
 import semver from 'semver';
+import { HttpsProxyAgent } from 'hpagent';
 
 const TOKEN_URL = 'https://www.reddit.com/api/v1/access_token';
 const API_BASE  = 'https://oauth.reddit.com';
 
-export async function runRedditLogic(config, releaseInfo) {
+export async function runRedditLogic(config, releaseInfo, proxyUrl) {
   console.log("--- Starting Reddit Bot Logic ---");
   assertConfig(config);
 
   const newVersion = semver.clean(releaseInfo.BITLIFE_VERSION);
   if (!newVersion) throw new Error(`Invalid version string from GitHub: "${releaseInfo.BITLIFE_VERSION}"`);
 
-  const token = await getRedditToken(config);
-  const client = createRedditClient(token, config.REDDIT_USER_AGENT);
-  const lastVersion = await getLatestPostedVersion(client, config);
+  const token = await getRedditToken(config, proxyUrl);
+  const client = createRedditClient(token, config.REDDIT_USER_AGENT, proxyUrl);
+  const lastVersion = await getLatestPostedVersion(client);
 
   if (!lastVersion || semver.gt(newVersion, lastVersion)) {
     console.log(`New version (${newVersion}) > last (${lastVersion || 'none'}). Posting...`);
@@ -34,28 +35,21 @@ export async function runRedditLogic(config, releaseInfo) {
 }
 
 function assertConfig(config) {
-    const required = [
-        'REDDIT_CLIENT_ID', 'REDDIT_CLIENT_SECRET', 'REDDIT_USERNAME', 
-        'REDDIT_PASSWORD', 'REDDIT_SUBREDDIT', 'REDDIT_USER_AGENT'
-    ];
+    const required = ['REDDIT_CLIENT_ID', 'REDDIT_CLIENT_SECRET', 'REDDIT_USERNAME', 'REDDIT_PASSWORD', 'REDDIT_SUBREDDIT', 'REDDIT_USER_AGENT'];
     const missing = required.filter(key => !config[key]);
-    if (missing.length > 0) {
-        throw new Error(`Missing required configuration: ${missing.join(', ')}`);
-    }
+    if (missing.length > 0) throw new Error(`Missing required configuration: ${missing.join(', ')}`);
     console.log('Reddit bot configuration validated.');
 }
 
 function generatePostBody(downloadUrl, username) {
-  return (
-    `This is an automated post by [BitBot](https://github.com/S0methingSomething/BitBot).\n\n` +
+  return `This is an automated post by [BitBot](https://github.com/S0methingSomething/BitBot).\n\n` +
     `**Download link:** [MonetizationVars](${downloadUrl})\n\n` +
     `**Homepage:** [https://github.com/S0methingSomething/BitBot](https://github.com/S0methingSomething/BitBot)\n\n` +
     `Created by [u/${username}](https://www.reddit.com/user/${username}/).\n\n` +
-    `**Current status (based on comments):** Working`
-  );
+    `**Current status (based on comments):** Working`;
 }
 
-async function getRedditToken(config) {
+async function getRedditToken(config, proxyUrl) {
   console.log('Requesting Reddit API token...');
   const auth = Buffer.from(`${config.REDDIT_CLIENT_ID}:${config.REDDIT_CLIENT_SECRET}`).toString('base64');
   const body = new URLSearchParams({
@@ -64,23 +58,28 @@ async function getRedditToken(config) {
     password:   config.REDDIT_PASSWORD,
     scope:      'identity read submit',
   });
+  
+  const agentConfig = proxyUrl ? { httpsAgent: new HttpsProxyAgent({ proxy: proxyUrl }) } : {};
+  
   const { data } = await axios.post(TOKEN_URL, body, {
     headers: { 'User-Agent': config.REDDIT_USER_AGENT, Authorization: `Basic ${auth}` },
+    ...agentConfig
   });
   return data.access_token;
 }
 
-function createRedditClient(token, userAgent) {
+function createRedditClient(token, userAgent, proxyUrl) {
   return axios.create({
     baseURL: API_BASE,
     headers: { 'User-Agent': userAgent, Authorization: `Bearer ${token}` },
+    httpsAgent: proxyUrl ? new HttpsProxyAgent({ proxy: proxyUrl }) : undefined,
   });
 }
 
-async function getLatestPostedVersion(client, config) {
-    console.log(`Searching for last post by u/${config.REDDIT_USERNAME} in r/${config.REDDIT_SUBREDDIT}...`);
-    const { data } = await client.get(`/r/${config.REDDIT_SUBREDDIT}/search.json`, {
-        params: { q: `author:${config.REDDIT_USERNAME}`, sort: 'new', restrict_sr: 1, limit: 5 }
+async function getLatestPostedVersion(client) {
+    console.log(`Searching for last post...`);
+    const { data } = await client.get(`/r/${process.env.REDDIT_SUBREDDIT}/search.json`, {
+        params: { q: `author:${process.env.REDDIT_USERNAME}`, sort: 'new', restrict_sr: 1, limit: 5 }
     });
     const versionRegex = /MonetizationVars for (\d+\.\d+\.\d+.*)/;
     for (const post of data.data.children) {
