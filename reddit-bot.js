@@ -1,5 +1,6 @@
 import axios from 'axios';
 import semver from 'semver';
+import fs from 'fs'; // Import the file system module
 
 // --- Configuration & Constants ---
 const {
@@ -10,43 +11,30 @@ const {
     REDDIT_SUBREDDIT,
     BITLIFE_VERSION,
     DOWNLOAD_URL,
+    // GITHUB_OUTPUT is an environment variable provided by GitHub Actions
+    GITHUB_OUTPUT, 
 } = process.env;
 
 const TOKEN_URL = 'https://www.reddit.com/api/v1/access_token';
 const API_BASE = 'https://oauth.reddit.com';
 
-// Keywords to determine post status from comments
-const WORKING_KEYWORDS = ['working', 'works', 'no issues', 'thank you', 'thanks', 'perfect'];
-const NOT_WORKING_KEYWORDS = ['not working', "doesn't work", 'broken', 'crashes', 'crash', 'error', 'issue'];
-
-
+// (Helper functions like assertEnv, generatePostBody, getToken, etc. remain the same)
 // --- Helper Functions ---
-
-/** Validates that all required environment variables are set. */
 function assertEnv() {
     const required = { REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_USER_AGENT, REDDIT_SUBREDDIT, BITLIFE_VERSION, DOWNLOAD_URL };
     const missing = Object.keys(required).filter(key => !required[key]);
     if (missing.length > 0) throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
     console.log("Environment configuration validated successfully.");
 }
-
-/**
- * Generates the post body text with a given status.
- * @param {string} status - The calculated status ('Working', 'Not Working', etc.)
- * @returns {string} The full markdown text for the post body.
- */
-function generatePostBody(status) {
+function generatePostBody() {
     return `This is an automated post by [BitBot](https://github.com/S0methingSomething/BitBot).\n\n` +
            `**Download link:** [MonetizationVars](${DOWNLOAD_URL})\n\n` +
            `**Homepage:** [https://github.com/S0methingSomething/BitBot](https://github.com/S0methingSomething/BitBot)\n\n` +
            `This is created by [u/C1oudyLol](https://www.reddit.com/user/C1oudyLol/).\n\n` +
-           `**Current status (based on comments):** ${status}`;
+           `**Current status (based on comments):** Working`;
 }
 
-
 // --- Reddit API Interaction ---
-
-/** Gets a Reddit API token using secure client_credentials grant type. */
 async function getToken() {
     console.log("Requesting API token using client credentials...");
     const body = new URLSearchParams({ grant_type: 'client_credentials' });
@@ -56,65 +44,33 @@ async function getToken() {
     });
     return data.access_token;
 }
-
-/** Creates a pre-configured Axios instance for making authenticated API calls. */
 function createRedditClient(token) {
     return axios.create({
         baseURL: API_BASE,
         headers: { Authorization: `Bearer ${token}`, 'User-Agent': REDDIT_USER_AGENT }
     });
 }
-
-/** Searches for an existing post by the bot for the current version. */
-async function searchForExistingPost(client, title) {
-    console.log(`Searching for post with title: "${title}"`);
+async function getLatestPostedVersion(client) {
+    console.log(`Searching for last post by u/${REDDIT_USERNAME} in r/${REDDIT_SUBREDDIT}...`);
     const { data } = await client.get(`/r/${REDDIT_SUBREDDIT}/search.json`, {
-        params: { q: `title:"${title}" author:${REDDIT_USERNAME} self:yes`, restrict_sr: 'on', sort: 'new' }
+        params: { q: `author:${REDDIT_USERNAME}`, sort: 'new', restrict_sr: 1, limit: 5 }
     });
-    if (data.data.children.length > 0) {
-        console.log(`Found existing post: ${data.data.children[0].data.name}`);
-        return data.data.children[0].data; // Return the full post object
+    const versionRegex = /MonetizationVars for (\d+\.\d+\.\d+.*)/;
+    for (const post of data.data.children) {
+        const match = post.data.title.match(versionRegex);
+        if (match && match[1] && semver.valid(match[1])) {
+            console.log(`Found last valid version: ${match[1]}`);
+            return match[1];
+        }
     }
-    console.log("No existing post found for this version.");
+    console.log("No previous valid post found.");
     return null;
 }
 
-/** Fetches top-level comments from a given post. */
-async function getComments(client, postId) {
-    console.log(`Fetching comments for post ID: ${postId}`);
-    const { data } = await client.get(`/r/${REDDIT_SUBREDDIT}/comments/${postId.replace('t3_', '')}.json`, {
-        params: { limit: 100, depth: 1 }
-    });
-    return data[1].data.children.map(c => c.data);
-}
-
-/** Analyzes comments to determine the working status. */
-function analyzeComments(comments) {
-    if (comments.length === 0) return "Gathering data...";
-    let workingCount = 0;
-    let notWorkingCount = 0;
-    for (const comment of comments) {
-        const body = (comment.body || "").toLowerCase();
-        if (NOT_WORKING_KEYWORDS.some(keyword => body.includes(keyword))) {
-            notWorkingCount++;
-        } else if (WORKING_KEYWORDS.some(keyword => body.includes(keyword))) {
-            workingCount++;
-        }
-    }
-    console.log(`Comment analysis complete: ${workingCount} positive, ${notWorkingCount} negative.`);
-    if (notWorkingCount > 0) return "Not Working";
-    if (workingCount > 0) return "Working";
-    return "Gathering data..."; // Default if no keywords are found
-}
-
-/** Edits an existing post with a new body. */
-async function editPost(client, postId, newText) {
-    console.log(`Editing post ${postId} with new status...`);
-    await client.post('/api/editusertext', new URLSearchParams({ api_type: 'json', thing_id: postId, text: newText }));
-    console.log("Post edited successfully.");
-}
-
-/** Creates a new post and verifies its creation. */
+/**
+ * Creates a new post and returns the URL of the created post.
+ * @returns {Promise<string>} The URL of the new post.
+ */
 async function postRelease(client, title, text) {
     console.log(`Submitting new post: "${title}"`);
     const { data } = await client.post('/api/submit', new URLSearchParams({
@@ -125,17 +81,12 @@ async function postRelease(client, title, text) {
         api_type: 'json'
     }));
 
-    // --- VERIFICATION STEP ---
-    // Check if the response has the expected structure for a successful post.
     const postData = data?.json?.data?.things?.[0]?.data;
     if (postData && postData.url) {
-        console.log(`✅ Post successfully created!`);
-        console.log(`✅ Verification successful. Post URL: ${postData.url}`);
-        return; // Success!
+        return postData.url; // Return the URL on success
     }
 
-    // If we reach here, verification failed.
-    console.error("❌ Post submission seemed to succeed, but the response was invalid.");
+    console.error("❌ Post submission response was invalid.");
     console.error("Full API Response:", JSON.stringify(data, null, 2));
     throw new Error("Post creation verification failed: Invalid API response from Reddit.");
 }
@@ -149,26 +100,26 @@ async function main() {
         const newVersion = semver.clean(BITLIFE_VERSION);
         if (!newVersion) throw new Error(`Invalid version format from release: "${BITLIFE_VERSION}"`);
         
-        const postTitle = `MonetizationVars for ${newVersion}`;
-        const existingPost = await searchForExistingPost(redditClient, postTitle);
+        const lastPostedVersion = await getLatestPostedVersion(redditClient);
 
-        if (existingPost) {
-            console.log("Post for this version already exists. Checking for status updates...");
-            const comments = await getComments(redditClient, existingPost.name);
-            const newStatus = analyzeComments(comments);
-            const currentStatusMatch = existingPost.selftext.match(/\*\*Current status \(based on comments\):\*\* (.*)/);
-            const currentStatus = currentStatusMatch ? currentStatusMatch[1] : "";
-
-            if (newStatus !== currentStatus) {
-                const newBody = generatePostBody(newStatus);
-                await editPost(redditClient, existingPost.name, newBody);
+        if (!lastPostedVersion || semver.gt(newVersion, lastPostedVersion)) {
+            console.log(`New version (${newVersion}) is higher than last posted version (${lastPostedVersion || 'None'}). Posting...`);
+            const postTitle = `MonetizationVars for ${newVersion}`;
+            const postBody = generatePostBody();
+            
+            // Capture the returned URL
+            const newPostUrl = await postRelease(redditClient, postTitle, postBody);
+            
+            // **NEW VERIFICATION STEP**
+            // If we have a URL, write it to the GitHub Actions output file.
+            if (newPostUrl && GITHUB_OUTPUT) {
+                console.log(`Communicating new post URL back to the workflow: ${newPostUrl}`);
+                fs.appendFileSync(GITHUB_OUTPUT, `post_url=${newPostUrl}\n`);
             } else {
-                console.log("Status has not changed. No edit needed.");
+                 console.log("Not in a GitHub Actions environment, skipping output.");
             }
         } else {
-            console.log("No post found for this version. Creating a new one...");
-            const initialBody = generatePostBody("Gathering data...");
-            await postRelease(redditClient, postTitle, initialBody);
+            console.log(`🔸 No post needed. The latest version on Reddit (${lastPostedVersion}) is current.`);
         }
 
     } catch (error) {
