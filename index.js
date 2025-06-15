@@ -23,10 +23,13 @@ async function runFullBotProcess() {
 }
 
 // Check if this is being run in a server environment like Replit or Vercel
-if (process.env.VERCEL_URL || process.env.REPL_ID) {
+// VERCEL_URL is a system-provided environment variable on Vercel
+// REPL_ID is a system-provided environment variable on Replit
+if (process.env.VERCEL || process.env.REPL_ID) {
     // --- SERVER MODE (for Vercel/Replit) ---
     const app = express();
     
+    // The main endpoint for cron jobs or pings
     app.get('/', async (req, res) => {
         console.log(`[${new Date().toISOString()}] Server received a request. Starting bot...`);
         try {
@@ -37,13 +40,17 @@ if (process.env.VERCEL_URL || process.env.REPL_ID) {
             res.status(500).send(`Bot run failed: ${error.message}`);
         }
     });
-
+    
+    // For Vercel, we export the app instance.
+    // For Replit, it needs to listen on a port.
     if (process.env.REPL_ID) {
         app.listen(config.PORT, () => {
             console.log(`Server listening on port ${config.PORT}...`);
         });
     }
 
+    // For Vercel, the file needs to export the express app
+    // Note: If deploying to Vercel, rename this file to /api/index.js
     export default app;
 
 } else {
