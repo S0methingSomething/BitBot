@@ -4,7 +4,6 @@ import semver from 'semver';
 const TOKEN_URL = 'https://www.reddit.com/api/v1/access_token';
 const API_BASE  = 'https://oauth.reddit.com';
 
-// This function now contains the entire sequence of Reddit operations.
 export async function runRedditLogic(config, releaseInfo) {
   console.log("--- Starting Reddit Bot Logic ---");
   assertConfig(config);
@@ -34,7 +33,6 @@ export async function runRedditLogic(config, releaseInfo) {
   }
 }
 
-// --- Helper Functions ---
 function assertConfig(config) {
     const required = [
         'REDDIT_CLIENT_ID', 'REDDIT_CLIENT_SECRET', 'REDDIT_USERNAME', 
