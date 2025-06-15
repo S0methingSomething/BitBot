@@ -15,33 +15,38 @@ const {
 const TOKEN_URL = 'https://www.reddit.com/api/v1/access_token';
 const API_BASE = 'https://oauth.reddit.com';
 
+// Keywords to determine post status from comments
+const WORKING_KEYWORDS = ['working', 'works', 'no issues', 'thank you', 'thanks', 'perfect'];
+const NOT_WORKING_KEYWORDS = ['not working', "doesn't work", 'broken', 'crashes', 'crash', 'error', 'issue'];
+
+
 // --- Helper Functions ---
 
 /** Validates that all required environment variables are set. */
 function assertEnv() {
     const required = { REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_USER_AGENT, REDDIT_SUBREDDIT, BITLIFE_VERSION, DOWNLOAD_URL };
     const missing = Object.keys(required).filter(key => !required[key]);
-    if (missing.length > 0) {
-        throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-    }
+    if (missing.length > 0) throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
     console.log("Environment configuration validated successfully.");
 }
 
-/** Generates the post body text. */
-function generatePostBody() {
+/**
+ * Generates the post body text with a given status.
+ * @param {string} status - The calculated status ('Working', 'Not Working', etc.)
+ * @returns {string} The full markdown text for the post body.
+ */
+function generatePostBody(status) {
     return `This is an automated post by [BitBot](https://github.com/S0methingSomething/BitBot).\n\n` +
            `**Download link:** [MonetizationVars](${DOWNLOAD_URL})\n\n` +
            `**Homepage:** [https://github.com/S0methingSomething/BitBot](https://github.com/S0methingSomething/BitBot)\n\n` +
            `This is created by [u/C1oudyLol](https://www.reddit.com/user/C1oudyLol/).\n\n` +
-           `**Current status (based on comments):** Working`;
+           `**Current status (based on comments):** ${status}`;
 }
+
 
 // --- Reddit API Interaction ---
 
-/**
- * Gets a Reddit API token using secure client_credentials grant type.
- * @returns {Promise<string>} The access token.
- */
+/** Gets a Reddit API token using secure client_credentials grant type. */
 async function getToken() {
     console.log("Requesting API token using client credentials...");
     const body = new URLSearchParams({ grant_type: 'client_credentials' });
@@ -52,11 +57,7 @@ async function getToken() {
     return data.access_token;
 }
 
-/**
- * Creates a pre-configured Axios instance for making authenticated API calls.
- * @param {string} token - The OAuth access token.
- * @returns {axios.AxiosInstance} A configured Axios instance.
- */
+/** Creates a pre-configured Axios instance for making authenticated API calls. */
 function createRedditClient(token) {
     return axios.create({
         baseURL: API_BASE,
@@ -64,73 +65,121 @@ function createRedditClient(token) {
     });
 }
 
-/**
- * Finds the version number from the latest post made by the bot.
- * @param {axios.AxiosInstance} client - The authenticated Axios client.
- * @returns {Promise<string|null>} The latest version string or null if no post is found.
- */
-async function getLatestPostedVersion(client) {
-    console.log(`Searching for last post by u/${REDDIT_USERNAME} in r/${REDDIT_SUBREDDIT}...`);
+/** Searches for an existing post by the bot for the current version. */
+async function searchForExistingPost(client, title) {
+    console.log(`Searching for post with title: "${title}"`);
     const { data } = await client.get(`/r/${REDDIT_SUBREDDIT}/search.json`, {
-        params: { q: `author:${REDDIT_USERNAME}`, sort: 'new', restrict_sr: 1, limit: 5 }
+        params: { q: `title:"${title}" author:${REDDIT_USERNAME} self:yes`, restrict_sr: 'on', sort: 'new' }
     });
-
-    const versionRegex = /MonetizationVars for (\d+\.\d+\.\d+.*)/;
-    for (const post of data.data.children) {
-        const match = post.data.title.match(versionRegex);
-        if (match && match[1] && semver.valid(match[1])) {
-            console.log(`Found last valid version: ${match[1]}`);
-            return match[1];
-        }
+    if (data.data.children.length > 0) {
+        console.log(`Found existing post: ${data.data.children[0].data.name}`);
+        return data.data.children[0].data; // Return the full post object
     }
-    console.log("No previous valid post found.");
+    console.log("No existing post found for this version.");
     return null;
 }
 
-/**
- * Submits a new release post to the specified subreddit.
- * @param {axios.AxiosInstance} client - The authenticated Axios client.
- * @param {string} version - The version to be posted.
- */
-async function postRelease(client, version) {
-    const title = `MonetizationVars for ${version}`;
-    const text = generatePostBody();
-    console.log(`Submitting new post: "${title}"`);
+/** Fetches top-level comments from a given post. */
+async function getComments(client, postId) {
+    console.log(`Fetching comments for post ID: ${postId}`);
+    const { data } = await client.get(`/r/${REDDIT_SUBREDDIT}/comments/${postId.replace('t3_', '')}.json`, {
+        params: { limit: 100, depth: 1 }
+    });
+    return data[1].data.children.map(c => c.data);
+}
 
-    await client.post('/api/submit', new URLSearchParams({
+/** Analyzes comments to determine the working status. */
+function analyzeComments(comments) {
+    if (comments.length === 0) return "Gathering data...";
+    let workingCount = 0;
+    let notWorkingCount = 0;
+    for (const comment of comments) {
+        const body = (comment.body || "").toLowerCase();
+        if (NOT_WORKING_KEYWORDS.some(keyword => body.includes(keyword))) {
+            notWorkingCount++;
+        } else if (WORKING_KEYWORDS.some(keyword => body.includes(keyword))) {
+            workingCount++;
+        }
+    }
+    console.log(`Comment analysis complete: ${workingCount} positive, ${notWorkingCount} negative.`);
+    if (notWorkingCount > 0) return "Not Working";
+    if (workingCount > 0) return "Working";
+    return "Gathering data..."; // Default if no keywords are found
+}
+
+/** Edits an existing post with a new body. */
+async function editPost(client, postId, newText) {
+    console.log(`Editing post ${postId} with new status...`);
+    await client.post('/api/editusertext', new URLSearchParams({ api_type: 'json', thing_id: postId, text: newText }));
+    console.log("Post edited successfully.");
+}
+
+/** Creates a new post and verifies its creation. */
+async function postRelease(client, title, text) {
+    console.log(`Submitting new post: "${title}"`);
+    const { data } = await client.post('/api/submit', new URLSearchParams({
         sr: REDDIT_SUBREDDIT,
         kind: 'self',
-        title: title,
-        text: text,
+        title,
+        text,
         api_type: 'json'
     }));
+
+    // --- VERIFICATION STEP ---
+    // Check if the response has the expected structure for a successful post.
+    const postData = data?.json?.data?.things?.[0]?.data;
+    if (postData && postData.url) {
+        console.log(`✅ Post successfully created!`);
+        console.log(`✅ Verification successful. Post URL: ${postData.url}`);
+        return; // Success!
+    }
+
+    // If we reach here, verification failed.
+    console.error("❌ Post submission seemed to succeed, but the response was invalid.");
+    console.error("Full API Response:", JSON.stringify(data, null, 2));
+    throw new Error("Post creation verification failed: Invalid API response from Reddit.");
 }
 
-// --- Main Execution ---
+// --- Main Execution Logic ---
+async function main() {
+    try {
+        assertEnv();
+        const token = await getToken();
+        const redditClient = createRedditClient(token);
+        const newVersion = semver.clean(BITLIFE_VERSION);
+        if (!newVersion) throw new Error(`Invalid version format from release: "${BITLIFE_VERSION}"`);
+        
+        const postTitle = `MonetizationVars for ${newVersion}`;
+        const existingPost = await searchForExistingPost(redditClient, postTitle);
 
-try {
-    assertEnv();
-    const token = await getToken();
-    const redditClient = createRedditClient(token);
-    const lastPostedVersion = await getLatestPostedVersion(redditClient);
-    const newVersion = semver.clean(BITLIFE_VERSION); // Clean the version string
+        if (existingPost) {
+            console.log("Post for this version already exists. Checking for status updates...");
+            const comments = await getComments(redditClient, existingPost.name);
+            const newStatus = analyzeComments(comments);
+            const currentStatusMatch = existingPost.selftext.match(/\*\*Current status \(based on comments\):\*\* (.*)/);
+            const currentStatus = currentStatusMatch ? currentStatusMatch[1] : "";
 
-    if (!newVersion) {
-        throw new Error(`Invalid version format from GitHub release: "${BITLIFE_VERSION}"`);
-    }
+            if (newStatus !== currentStatus) {
+                const newBody = generatePostBody(newStatus);
+                await editPost(redditClient, existingPost.name, newBody);
+            } else {
+                console.log("Status has not changed. No edit needed.");
+            }
+        } else {
+            console.log("No post found for this version. Creating a new one...");
+            const initialBody = generatePostBody("Gathering data...");
+            await postRelease(redditClient, postTitle, initialBody);
+        }
 
-    if (!lastPostedVersion || semver.gt(newVersion, lastPostedVersion)) {
-        await postRelease(redditClient, newVersion);
-        console.log(`✅ Successfully posted new release for version ${newVersion}.`);
-    } else {
-        console.log(`🔸 No post needed. The latest version on Reddit (${lastPostedVersion}) is current.`);
+    } catch (error) {
+        console.error("❌ BitBot failed to run.");
+        if (error.response) {
+            console.error(`API Error: ${error.response.status} ${error.response.statusText}`, error.response.data);
+        } else {
+            console.error(error.message);
+        }
+        process.exit(1);
     }
-} catch (error) {
-    console.error("❌ BitBot failed to run.");
-    if (error.response) {
-        console.error(`API Error: ${error.response.status} ${error.response.statusText}`, error.response.data);
-    } else {
-        console.error(error.message);
-    }
-    process.exit(1);
 }
+
+main();
