@@ -1,16 +1,18 @@
 {
-  "name": "bitbot",
-  "version": "2.0.0",
-  "description": "A bot to announce new MonetizationVars releases on Reddit.",
-  "main": "reddit-bot.js",
+  "name": "bitbot-replit",
+  "version": "3.0.0",
+  "description": "A Replit bot to announce new MonetizationVars releases on Reddit.",
+  "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node reddit-bot.js"
+    "start": "node index.js"
   },
   "author": "",
-  "license": "GPL-3.0",
+  "license": "GPL-3.0-or-later",
   "dependencies": {
     "axios": "^1.6.8",
-    "semver": "^7.6.2"
+    "semver": "^7.6.2",
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5"
   }
 }
