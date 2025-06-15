@@ -1,7 +1,8 @@
-name: BitBot Release Announcer
+name: BitBot Self-Hosted Runner
 
 on:
   workflow_dispatch:
+  # This schedule is off by default on forks. Users must enable it.
   schedule:
     - cron: '0 */6 * * *'
 
@@ -21,32 +22,13 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Fetch and Parse Release Info
-        run: node fetch-release-info.js
-
-      - name: Load Release Info into Environment
-        run: |
-          echo "BITLIFE_VERSION=$(jq -r .BITLIFE_VERSION release-info.json)" >> $GITHUB_ENV
-          echo "DOWNLOAD_URL=$(jq -r .DOWNLOAD_URL release-info.json)" >> $GITHUB_ENV
-      
-      - name: Run Reddit Bot
-        id: reddit_bot_step
+      - name: Run Bot Logic
+        # This runs the 'index.js' file in local mode
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }} # Added password secret
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USERNAME: ${{ vars.REDDIT_USERNAME }}
           REDDIT_USER_AGENT: ${{ vars.REDDIT_USER_AGENT }}
           REDDIT_SUBREDDIT: ${{ vars.REDDIT_SUBREDDIT }}
-          BITLIFE_VERSION: ${{ env.BITLIFE_VERSION }}
-          DOWNLOAD_URL: ${{ env.DOWNLOAD_URL }}
-        run: node reddit-bot.js
-
-      - name: Verify Post Creation
-        if: steps.reddit_bot_step.outputs.post_url
-        run: |
-          echo "✅ Verification successful! Bot confirmed post creation."
-          echo "Post URL: ${{ steps.reddit_bot_step.outputs.post_url }}"
+        run: node index.js
