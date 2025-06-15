@@ -1,8 +1,7 @@
 /*
  * BitEdit - MonetizationVars Decryptor (Node.js version)
- * This script is for manual use or reference. It is not run by the bot.
+ * This script is for manual use or reference.
  * Original logic credits go to yntha (https://github.com/yntha/bitlife-edit).
- * Licensed under GPLv3.
  */
 
 import fs from 'fs';
@@ -27,16 +26,12 @@ function base64ToUtf8String(b64) { return Buffer.from(b64, 'base64').toString('u
 function base64DecodeAndXOR(b64, key) { let dec; try { dec = base64ToUtf8String(b64); } catch (e) { throw e; } let x = ""; for (let i=0; i<dec.length; i++) {x += String.fromCharCode(dec.charCodeAt(i) ^ key.charCodeAt(i % key.length));} return x; }
 function decryptInt(base64String) { try { const bytes = Buffer.from(base64String, 'base64'); if (bytes.length !== USER_SERIALIZED_INT32_TOTAL_LENGTH) return null; const prefixBytesFromFile = bytes.slice(0, USER_SERIALIZED_INT32_PREFIX.length); const suffixByteFromFile = bytes[bytes.length - 1]; if (!arraysEqual(prefixBytesFromFile, USER_SERIALIZED_INT32_PREFIX) || suffixByteFromFile !== USER_SERIALIZED_INT32_SUFFIX[0]) return null; return bytes.readInt32LE(USER_SERIALIZED_INT32_PREFIX.length); } catch (e) { return null; } }
 
-/**
- * Main function to decrypt the MonetizationVars file.
- */
 function decryptFile(inputFilePath, outputFilePath) {
     console.log(`Starting decryption of '${inputFilePath}'...`);
     if (!fs.existsSync(inputFilePath)) {
         console.error(`Error: Input file not found at '${inputFilePath}'.`);
         process.exit(1);
     }
-
     const fileContent = fs.readFileSync(inputFilePath, 'utf-8');
     const obfuscatedKey = getObfuscatedKey(DEFAULT_CIPHER_KEY);
     const itemMap = {};
@@ -62,6 +57,15 @@ function decryptFile(inputFilePath, outputFilePath) {
             console.error(`Error processing line: ${line}`, e);
             process.exit(1);
         }
+    }
+    fs.writeFileSync(outputFilePath, JSON.stringify(itemMap, null, 2));
+    console.log(`Decryption successful. Output saved to '${outputFilePath}'.`);
+}
+
+// To run this manually: node decrypt.js <input-file> <output-file>
+if (process.argv[2] && process.argv[3]) {
+    decryptFile(process.argv[2], process.argv[3]);
+}        }
     }
     fs.writeFileSync(outputFilePath, JSON.stringify(itemMap, null, 2));
     console.log(`Decryption successful. Output saved to '${outputFilePath}'.`);
