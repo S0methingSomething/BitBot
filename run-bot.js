@@ -2,7 +2,7 @@ import { fetchLatestReleaseInfo } from './fetch-release-info.js';
 import { runRedditLogic }        from './reddit-bot.js';
 import { getProxyList }          from './proxy-manager.js';
 
-const MAX_RETRIES       = 5;                               // number of proxy attempts
+const MAX_RETRIES       = 1;                               // number of proxy attempts
 const GITHUB_DIRECT_IP  = process.env.GITHUB_DIRECT_IP;    // e.g. "140.82.113.6"
 
 export async function runFullBotProcess () {
