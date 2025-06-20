@@ -25,32 +25,56 @@ jobs:
         uses: antifree/json-to-variables@v1
         with:
           filename: 'config.json'
-      - name: Get Latest Source Release
+
+      - name: Get Latest Source Release Data (via API)
         id: source_release
-        uses: pozetroninc/github-action-get-latest-release@v0.7.0
-        with:
-          repository: ${{ env.sourceRepo }}
+        run: |
+          RELEASE_DATA=$(curl -sL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ env.sourceRepo }}/releases/latest")
+          
+          TAG_NAME=$(echo "$RELEASE_DATA" | jq -r .tag_name)
+          BODY=$(echo "$RELEASE_DATA" | jq -r .body)
+          
+          if [[ "$TAG_NAME" == "null" || -z "$TAG_NAME" ]]; then
+            echo "::error::Could not fetch latest release data from ${{ env.sourceRepo }}. API response might be empty or invalid."
+            exit 1
+          fi
+
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          # Use a delimiter for the multi-line body content
+          EOF=$(openssl rand -hex 16)
+          echo "body<<$EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
+      
       - name: Parse Version
         id: parse_version
         run: |
           VERSION=$(echo "${{ steps.source_release.outputs.body }}" | grep -oP '(?<=v)\d+\.\d+\.\d+')
-          if [[ -z "$VERSION" ]]; then echo "::error::Could not parse version."; exit 1; fi
+          if [[ -z "$VERSION" ]]; then echo "::error::Could not parse version from release body."; exit 1; fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Get Latest Bot Release
         id: bot_release
         run: TAG=$(curl -sL "https://api.github.com/repos/${{ env.botRepo }}/releases/latest" | jq -r .tag_name) && echo "tag=$TAG" >> $GITHUB_OUTPUT
+
       - name: Compare Versions
         id: compare_versions
         run: |
           if [[ "${{ steps.parse_version.outputs.version }}" == "${{ steps.bot_release.outputs.tag }}" ]]; then echo "No new version. Stopping."; exit 1; fi
           echo "version=${{ steps.parse_version.outputs.version }}" >> $GITHUB_OUTPUT
+
       - name: Create working directory
         run: mkdir -p ./dist
+
       - name: Download & Process File
         run: |
-          ASSET_ID=$(curl -sL "https://api.github.com/repos/${{ env.sourceRepo }}/releases/tags/${{ steps.source_release.outputs.tag_name }}/assets" | jq --arg NAME "${{ env.assetName }}" '.[] | select(.name == $NAME) | .id')
+          ASSET_ID=$(curl -sL -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ env.sourceRepo }}/releases/tags/${{ steps.source_release.outputs.tag_name }}/assets" | jq --arg NAME "${{ env.assetName }}" '.[] | select(.name == $NAME) | .id')
           curl -sL -J -H "Accept: application/octet-stream" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o "./dist/original_${{ env.assetName }}" "https://api.github.com/repos/${{ env.sourceRepo }}/releases/assets/$ASSET_ID"
           node process_vars.js ./dist/original_${{ env.assetName }} ./dist/${{ env.assetName }}
+
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -60,6 +84,7 @@ jobs:
           tag_name: ${{ steps.compare_versions.outputs.version }}
           release_name: "Patched MonetizationVars for BitLife v${{ steps.compare_versions.outputs.version }}"
           body: "Automated release of the pre-patched `${{ env.assetName }}` file. All boolean values have been set to true."
+
       - name: Upload Patched File to Release
         uses: actions/upload-release-asset@v1
         env:
@@ -68,6 +93,7 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist/${{ env.assetName }}
           asset_name: ${{ env.assetName }}
+
   post_and_handoff:
     name: 2. Post to Reddit & Update State
     needs: check_and_patch
