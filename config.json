@@ -1,15 +1,16 @@
 {
   "_comments": {
     "github": "Configure which repositories the bot monitors and updates",
-    "reddit": "Settings for posting and managing Reddit content",
-    "messages": "Text formats for automated GitHub releases and commits",
-    "skipContent": "Markers for ignoring tutorial sections in template files",
-    "feedback": "How the bot determines community feedback status",
+    "reddit": "Settings for posting and managing Reddit content", 
+    "placeholderMappings": "Map template placeholders to actual values",
+    "messages": "Text formats for automated GitHub releases",
+    "skipContent": "Ignore tutorial sections when processing files",
+    "feedback": "How the bot determines if something is working",
     "timing": "How often the bot checks for updates (in seconds)"
   },
   "github": {
     "sourceRepo": "S0methingSomething/BitEdit",
-    "botRepo": "YourUsername/BitBot",
+    "botRepo": "YourUsername/BitBot", 
     "assetFileName": "MonetizationVars"
   },
   "reddit": {
@@ -18,6 +19,15 @@
     "postTitle": "{{asset_name}} v{{version}}",
     "botName": "BitBot",
     "creator": "C1oudyLol"
+  },
+  "placeholderMappings": {
+    "version": "version",
+    "directDownloadUrl": "direct_download_url",
+    "botName": "bot_name",
+    "botRepo": "bot_repo",
+    "assetName": "asset_name",
+    "creatorUsername": "username",
+    "status": "initial_status"
   },
   "messages": {
     "releaseTitle": "{{asset_name}} v{{version}}",
@@ -32,23 +42,11 @@
   "feedback": {
     "labels": {
       "working": "Working",
-      "broken": "Potentially Not Working",
+      "broken": "Potentially Not Working", 
       "unknown": "Not enough feedback..."
     },
-    "workingKeywords": [
-      "working",
-      "works for me",
-      "no issues",
-      "perfect",
-      "thanks"
-    ],
-    "notWorkingKeywords": [
-      "not working",
-      "broken",
-      "doesnt work",
-      "error",
-      "crash"
-    ],
+    "workingKeywords": ["working", "works for me", "no issues", "perfect", "thanks"],
+    "notWorkingKeywords": ["not working", "broken", "doesnt work", "error", "crash"],
     "minFeedbackCount": 2
   },
   "timing": {
