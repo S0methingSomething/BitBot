@@ -17,40 +17,28 @@ Available Placeholders:
 | {{initial_status}}    | The default status for a new post ("Not enough feedback...").  |
 <!-- TUTORIAL-END -->
 
-*Automated post by [{{bot_name}}](https://github.com/{{bot_repo}})*
+This is an automated post by [{{bot_name}}](https://github.com/{{bot_repo}}).
 
 ---
 
-## 📥 **Quick Download**
+## 🚀 New Release v{{version}}
 
-**[⬇️ Download {{asset_name}} v{{version}} (Pre-Patched)]({{direct_download_url}})**
+**Direct Download:**  
+[📦 Download `{{asset_name}}`](https://github.com/{{bot_repo}}/releases/latest)
 
-> **Important:** Ensure the downloaded file is renamed to exactly `{{asset_name}}` before use.
-
----
-
-## ✨ **What's Included**
-
-This release contains a pre-patched version of {{asset_name}} with:
-- ✅ All boolean-based features enabled (`true`)
-- 🔧 Ready-to-use configuration
-- 📦 Compatible with the latest version
-
-## 🚀 **Installation**
-
-1. Download the file using the link above
-2. Rename it to `{{asset_name}}` (exact match required)
-3. Replace your existing file
-4. You're ready to go!
+*The file is already patched to unlock all available IAP'S.  
+Make sure the downloaded file is named **exactly** `{{asset_name}}` before using it.*
 
 ---
 
-## 📊 **Community Feedback**
-
-**Current Status:** {{initial_status}}
-
-*Found this helpful? Let us know in the comments below!*
+### About This Bot
+Created and maintained by **u/{{creator_username}}**.  
+Source code, changelogs, and issues are all on GitHub:  
+<https://github.com/{{bot_repo}}>
 
 ---
 
-<sub>Created by u/{{creator_username}} | [View Source](https://github.com/{{bot_repo}}) | [Report Issues](https://github.com/{{bot_repo}}/issues)</sub>
+### Community Feedback
+**Current status:** {{initial_status}}  
+Leave a comment below if something isn’t working, or if you have suggestions!
+
