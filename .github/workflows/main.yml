@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.compare_versions.outputs.version }}
-      release_url: ${{ steps.create_release.outputs.html_url }}
+      direct_download_url: ${{ steps.create_and_upload.outputs.direct_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node.js
@@ -27,19 +27,10 @@ jobs:
       - name: Get Latest Source Release Data
         id: source_release
         run: |
-          RELEASE_DATA=$(curl -sL \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ env.sourceRepo }}/releases/latest")
-          
+          RELEASE_DATA=$(curl -sL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ env.sourceRepo }}/releases/latest")
           TAG_NAME=$(echo "$RELEASE_DATA" | jq -r .tag_name)
           BODY=$(echo "$RELEASE_DATA" | jq -r .body)
-          
-          if [[ "$TAG_NAME" == "null" || -z "$TAG_NAME" ]]; then
-            echo "::error::Could not fetch latest release data from ${{ env.sourceRepo }}."
-            exit 1
-          fi
-
+          if [[ "$TAG_NAME" == "null" || -z "$TAG_NAME" ]]; then echo "::error::Could not fetch latest release data."; exit 1; fi
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           EOF=$(openssl rand -hex 16)
           echo "body<<$EOF" >> $GITHUB_OUTPUT
@@ -65,27 +56,42 @@ jobs:
         run: |
           ASSET_ID=$(curl -sL -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ env.sourceRepo }}/releases/latest" | jq --arg NAME "${{ env.assetName }}" '.assets[] | select(.name == $NAME) | .id')
           if [[ -z "$ASSET_ID" || "$ASSET_ID" == "null" ]]; then echo "::error::Could not find asset named '${{ env.assetName }}'."; exit 1; fi
-          
           curl -sL -J -H "Accept: application/octet-stream" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o "./dist/original_${{ env.assetName }}" "https://api.github.com/repos/${{ env.sourceRepo }}/releases/assets/$ASSET_ID"
           node process_vars.js ./dist/original_${{ env.assetName }} ./dist/${{ env.assetName }}
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.compare_versions.outputs.version }}
-          release_name: "${{ env.assetName }} v${{ steps.compare_versions.outputs.version }}"
-          body: "Automated release of the pre-patched `${{ env.assetName }}` file. All boolean values have been set to true."
-      - name: Upload Patched File to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/${{ env.assetName }}
-          asset_name: ${{ env.assetName }}_v${{ steps.compare_versions.outputs.version }}
-          asset_content_type: application/octet-stream
+      - name: Create Release and Upload Asset
+        id: create_and_upload
+        run: |
+          # Step 1: Create the release
+          RELEASE_NAME="${{ env.assetName }} v${{ steps.compare_versions.outputs.version }}"
+          RELEASE_BODY="Automated release of the pre-patched \`${{ env.assetName }}\` file. All boolean values have been set to true."
+          
+          CREATE_DATA=$(printf '{"tag_name": "%s", "name": "%s", "body": "%s"}' \
+            "${{ steps.compare_versions.outputs.version }}" "$RELEASE_NAME" "$RELEASE_BODY")
+            
+          RELEASE_RESPONSE=$(curl -sL \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d "$CREATE_DATA" \
+            "https://api.github.com/repos/${{ env.botRepo }}/releases")
+          
+          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | jq -r .upload_url)
+          if [[ "$UPLOAD_URL" == "null" || -z "$UPLOAD_URL" ]]; then echo "::error::Failed to create release."; exit 1; fi
+
+          # Step 2: Upload the asset to the new release
+          ASSET_NAME="${{ env.assetName }}"
+          ASSET_PATH="./dist/${ASSET_NAME}"
+          UPLOAD_URL_TEMPLATE=$(echo $UPLOAD_URL | sed 's/{?name,label}//')
+
+          curl -sL \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "@$ASSET_PATH" \
+            "$UPLOAD_URL_TEMPLATE?name=$ASSET_NAME"
+            
+          echo "direct_url=https://github.com/${{ env.botRepo }}/releases/download/${{ steps.compare_versions.outputs.version }}/${ASSET_NAME}" >> $GITHUB_OUTPUT
   post_and_handoff:
     name: 2. Post to Reddit & Update State
     needs: check_and_patch
@@ -103,7 +109,7 @@ jobs:
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        run: python post_to_reddit.py "${{ needs.check_and_patch.outputs.new_version }}"
+        run: python post_to_reddit.py "${{ needs.check_and_patch.outputs.new_version }}" "${{ needs.check_and_patch.outputs.direct_download_url }}"
       - name: Commit state file with new Post ID
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
