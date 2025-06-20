@@ -17,20 +17,40 @@ Available Placeholders:
 | {{initial_status}}    | The default status for a new post ("Not enough feedback...").  |
 <!-- TUTORIAL-END -->
 
-This is an automated post by [{{bot_name}}](https://github.com/{{bot_repo}}).
+*Automated post by [{{bot_name}}](https://github.com/{{bot_repo}})*
 
 ---
 
-### **Download Link**
+## 📥 **Quick Download**
 
-You can download the pre-patched file from the official release page:
+**[⬇️ Download {{asset_name}} v{{version}} (Pre-Patched)]({{direct_download_url}})**
 
-**[Download {{asset_name}} (Patched for v{{version}})](https://github.com/{{bot_repo}}/releases/latest)**
-
-This file has been pre-patched to set all available boolean-based features to `true`. **Please ensure the downloaded file is named exactly `{{asset_name}}` before use.**
+> **Important:** Ensure the downloaded file is renamed to exactly `{{asset_name}}` before use.
 
 ---
 
-This bot was created by u/{{creator_username}}.
+## ✨ **What's Included**
 
-**Current Status (based on comments):** {{initial_status}}
+This release contains a pre-patched version of {{asset_name}} with:
+- ✅ All boolean-based features enabled (`true`)
+- 🔧 Ready-to-use configuration
+- 📦 Compatible with the latest version
+
+## 🚀 **Installation**
+
+1. Download the file using the link above
+2. Rename it to `{{asset_name}}` (exact match required)
+3. Replace your existing file
+4. You're ready to go!
+
+---
+
+## 📊 **Community Feedback**
+
+**Current Status:** {{initial_status}}
+
+*Found this helpful? Let us know in the comments below!*
+
+---
+
+<sub>Created by u/{{creator_username}} | [View Source](https://github.com/{{bot_repo}}) | [Report Issues](https://github.com/{{bot_repo}}/issues)</sub>
