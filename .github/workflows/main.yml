@@ -20,16 +20,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Read config.json values
+      - name: Read config.json into environment variables
         id: config
-        uses: antifree/json-to-variables@v1.3.0
+        uses: antifree/json-to-variables@v1
         with:
           filename: 'config.json'
       - name: Get Latest Source Release
         id: source_release
         uses: pozetroninc/github-action-get-latest-release@v0.7.0
         with:
-          repository: ${{ steps.config.outputs.sourceRepo }}
+          repository: ${{ env.sourceRepo }}
       - name: Parse Version
         id: parse_version
         run: |
@@ -38,7 +38,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - name: Get Latest Bot Release
         id: bot_release
-        run: TAG=$(curl -sL "https://api.github.com/repos/${{ steps.config.outputs.botRepo }}/releases/latest" | jq -r .tag_name) && echo "tag=$TAG" >> $GITHUB_OUTPUT
+        run: TAG=$(curl -sL "https://api.github.com/repos/${{ env.botRepo }}/releases/latest" | jq -r .tag_name) && echo "tag=$TAG" >> $GITHUB_OUTPUT
       - name: Compare Versions
         id: compare_versions
         run: |
@@ -48,9 +48,9 @@ jobs:
         run: mkdir -p ./dist
       - name: Download & Process File
         run: |
-          ASSET_ID=$(curl -sL "https://api.github.com/repos/${{ steps.config.outputs.sourceRepo }}/releases/tags/${{ steps.source_release.outputs.tag_name }}/assets" | jq --arg NAME "${{ steps.config.outputs.assetName }}" '.[] | select(.name == $NAME) | .id')
-          curl -sL -J -H "Accept: application/octet-stream" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o "./dist/original_${{ steps.config.outputs.assetName }}" "https://api.github.com/repos/${{ steps.config.outputs.sourceRepo }}/releases/assets/$ASSET_ID"
-          node process_vars.js ./dist/original_${{ steps.config.outputs.assetName }} ./dist/${{ steps.config.outputs.assetName }}
+          ASSET_ID=$(curl -sL "https://api.github.com/repos/${{ env.sourceRepo }}/releases/tags/${{ steps.source_release.outputs.tag_name }}/assets" | jq --arg NAME "${{ env.assetName }}" '.[] | select(.name == $NAME) | .id')
+          curl -sL -J -H "Accept: application/octet-stream" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o "./dist/original_${{ env.assetName }}" "https://api.github.com/repos/${{ env.sourceRepo }}/releases/assets/$ASSET_ID"
+          node process_vars.js ./dist/original_${{ env.assetName }} ./dist/${{ env.assetName }}
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -59,15 +59,15 @@ jobs:
         with:
           tag_name: ${{ steps.compare_versions.outputs.version }}
           release_name: "Patched MonetizationVars for BitLife v${{ steps.compare_versions.outputs.version }}"
-          body: "Automated release of the pre-patched `${{ steps.config.outputs.assetName }}` file. All boolean values have been set to true."
+          body: "Automated release of the pre-patched `${{ env.assetName }}` file. All boolean values have been set to true."
       - name: Upload Patched File to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/${{ steps.config.outputs.assetName }}
-          asset_name: ${{ steps.config.outputs.assetName }}
+          asset_path: ./dist/${{ env.assetName }}
+          asset_name: ${{ env.assetName }}
   post_and_handoff:
     name: 2. Post to Reddit & Update State
     needs: check_and_patch
