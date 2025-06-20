@@ -25,7 +25,10 @@ jobs:
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: python check_comments.py
       - name: Commit and Push State File
-        uses: stefanzweifel/git-auto-commit-action@v5
+        run: |
+          COMMIT_MSG=$(jq -r '.messages.updateCommit' config.json)
+          echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
+      - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(bot): update comment checker state [skip ci]"
+          commit_message: ${{ env.COMMIT_MSG }}
           file_pattern: "bot_state.json"
