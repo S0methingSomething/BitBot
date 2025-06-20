@@ -30,10 +30,19 @@ jobs:
       - name: Get Latest Source Release Data
         id: source_release
         run: |
-          RELEASE_DATA=$(curl -sL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ env.sourceRepo }}/releases/latest")
+          RELEASE_DATA=$(curl -sL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ env.sourceRepo }}/releases/latest")
+          
           TAG_NAME=$(echo "$RELEASE_DATA" | jq -r .tag_name)
           BODY=$(echo "$RELEASE_DATA" | jq -r .body)
-          if [[ "$TAG_NAME" == "null" || -z "$TAG_NAME" ]]; then echo "::error::Could not fetch latest release data."; exit 1; fi
+          
+          if [[ "$TAG_NAME" == "null" || -z "$TAG_NAME" ]]; then
+            echo "::error::Could not fetch latest release data from ${{ env.sourceRepo }}."
+            exit 1
+          fi
+
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           EOF=$(openssl rand -hex 16)
           echo "body<<$EOF" >> $GITHUB_OUTPUT
@@ -63,6 +72,7 @@ jobs:
         run: |
           ASSET_ID=$(curl -sL -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ env.sourceRepo }}/releases/latest" | jq --arg NAME "${{ env.assetName }}" '.assets[] | select(.name == $NAME) | .id')
           if [[ -z "$ASSET_ID" || "$ASSET_ID" == "null" ]]; then echo "::error::Could not find asset named '${{ env.assetName }}'."; exit 1; fi
+          
           curl -sL -J -H "Accept: application/octet-stream" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o "./dist/original_${{ env.assetName }}" "https://api.github.com/repos/${{ env.sourceRepo }}/releases/assets/$ASSET_ID"
           node process_vars.js ./dist/original_${{ env.assetName }} ./dist/${{ env.assetName }}
       - name: Create Git Tag
