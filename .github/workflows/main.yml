@@ -1,106 +1,93 @@
-name: '[Release] Check for Updates, Decrypt, and Post'
-
+name: '[Release] Check for Updates, Patch, and Post'
 on:
   workflow_dispatch:
   schedule:
-    - cron: '5 * * * *' # Runs hourly
-
-env:
-  # ---  CONFIGURATION  ---
-  SOURCE_REPO: "S0methingSomething/BitEdit"
-  BOT_REPO: "YourUsername/BitBot" # <-- IMPORTANT: CHANGE to YourUsername/BitBot
-  ASSET_NAME: "MonetizationVars"
-  SUBREDDIT_NAME: "BitTest1" # <-- CHANGE to your target subreddit
-
+    - cron: '5 * * * *'
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
 jobs:
-  check_and_decrypt:
-    name: 1. Check & Decrypt
+  check_and_patch:
+    name: 1. Check, Patch & Release
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.compare_versions.outputs.version }}
       release_url: ${{ steps.create_release.outputs.html_url }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Read config.json values
+        id: config
+        uses: antifree/json-to-variables@v1.2.1
+        with:
+          filename: 'config.json'
       - name: Get Latest Source Release
         id: source_release
         uses: pozetroninc/github-action-get-latest-release@v0.7.0
         with:
-          repository: ${{ env.SOURCE_REPO }}
-      - name: Parse Version from Body
+          repository: ${{ steps.config.outputs.sourceRepo }}
+      - name: Parse Version
         id: parse_version
         run: |
           VERSION=$(echo "${{ steps.source_release.outputs.body }}" | grep -oP '(?<=v)\d+\.\d+\.\d+')
-          if [[ -z "$VERSION" ]]; then echo "::error::Could not parse version from release body."; exit 1; fi
-          echo "Source version: $VERSION"
+          if [[ -z "$VERSION" ]]; then echo "::error::Could not parse version."; exit 1; fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-      - name: Get Latest Bot Release Tag
+      - name: Get Latest Bot Release
         id: bot_release
-        run: |
-          TAG=$(curl -sL "https://api.github.com/repos/${{ env.BOT_REPO }}/releases/latest" | jq -r .tag_name)
-          echo "Latest bot release: ${TAG:-'None'}"
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        run: TAG=$(curl -sL "https://api.github.com/repos/${{ steps.config.outputs.botRepo }}/releases/latest" | jq -r .tag_name) && echo "tag=$TAG" >> $GITHUB_OUTPUT
       - name: Compare Versions
         id: compare_versions
         run: |
-          if [[ "${{ steps.parse_version.outputs.version }}" == "${{ steps.bot_release.outputs.tag }}" ]]; then
-            echo "No new version found. Stopping."
-            exit 1
-          fi
-          echo "New version found: ${{ steps.parse_version.outputs.version }}. Proceeding."
+          if [[ "${{ steps.parse_version.outputs.version }}" == "${{ steps.bot_release.outputs.tag }}" ]]; then echo "No new version. Stopping."; exit 1; fi
           echo "version=${{ steps.parse_version.outputs.version }}" >> $GITHUB_OUTPUT
-      - name: Download & Decrypt
+      - name: Create working directory
+        run: mkdir -p ./dist
+      - name: Download & Process File
         run: |
-          mkdir -p ./downloads
-          ASSET_ID=$(curl -sL "https://api.github.com/repos/${{ env.SOURCE_REPO }}/releases/tags/${{ steps.source_release.outputs.release }}/assets" | jq --arg ASSET_NAME "${{ env.ASSET_NAME }}" '.[] | select(.name == $ASSET_NAME) | .id')
-          curl -sL -J -H "Accept: application/octet-stream" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o "./downloads/${{ env.ASSET_NAME }}" "https://api.github.com/repos/${{ env.SOURCE_REPO }}/releases/assets/$ASSET_ID"
-          node decrypt.js ./downloads/${{ env.ASSET_NAME }}
+          ASSET_ID=$(curl -sL "https://api.github.com/repos/${{ steps.config.outputs.sourceRepo }}/releases/tags/${{ steps.source_release.outputs.tag_name }}/assets" | jq --arg NAME "${{ steps.config.outputs.assetName }}" '.[] | select(.name == $NAME) | .id')
+          curl -sL -J -H "Accept: application/octet-stream" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o "./dist/original_${{ steps.config.outputs.assetName }}" "https://api.github.com/repos/${{ steps.config.outputs.sourceRepo }}/releases/assets/$ASSET_ID"
+          node process_vars.js ./dist/original_${{ steps.config.outputs.assetName }} ./dist/${{ steps.config.outputs.assetName }}
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
-        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.compare_versions.outputs.version }}
-          release_name: "MonetizationVars for BitLife v${{ steps.compare_versions.outputs.version }}"
-          body: "Automated release of decrypted `MonetizationVars` for BitLife v${{ steps.compare_versions.outputs.version }}."
-      - name: Upload Decrypted JSON to Release
+          release_name: "Patched MonetizationVars for BitLife v${{ steps.compare_versions.outputs.version }}"
+          body: "Automated release of the pre-patched `${{ steps.config.outputs.assetName }}` file. All boolean values have been set to true."
+      - name: Upload Patched File to Release
         uses: actions/upload-release-asset@v1
-        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./downloads/MonetizationVars_decrypted.json
-          asset_name: MonetizationVars_decrypted.json
-
+          asset_path: ./dist/${{ steps.config.outputs.assetName }}
+          asset_name: ${{ steps.config.outputs.assetName }}
   post_and_handoff:
-    name: 2. Post to Reddit & Handoff
-    needs: check_and_decrypt
+    name: 2. Post to Reddit & Update State
+    needs: check_and_patch
     runs-on: ubuntu-latest
+    permissions: { contents: write }
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
         with: { python-version: '3.10' }
-      - name: Install Dependencies
-        run: pip install -r requirements.txt
-      - name: Post to Reddit and Save ID
+      - run: pip install -r requirements.txt
+      - name: Post to Reddit and Update State
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        run: |
-          python post_to_reddit.py \
-            "${{ needs.check_and_decrypt.outputs.new_version }}" \
-            "${{ needs.check_and_decrypt.outputs.release_url }}" \
-            "${{ env.SUBREDDIT_NAME }}" \
-            "${{ env.BOT_REPO }}"
-      - name: Upload Post ID for Monitor
-        uses: actions/upload-release-asset@v1
-        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        run: python post_to_reddit.py "${{ needs.check_and_patch.outputs.new_version }}"
+      - name: Commit state file with new Post ID
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          upload_url: ${{ needs.check_and_decrypt.outputs.upload_url }}
-          asset_path: ./latest_post_id.txt
-          asset_name: latest_post_id.txt
+          commit_message: "feat(bot): start monitoring new post [skip ci]"
+          file_pattern: "bot_state.json"
