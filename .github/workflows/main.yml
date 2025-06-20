@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.compare_versions.outputs.version }}
-      direct_download_url: ${{ steps.create_and_upload.outputs.direct_url }}
+      direct_download_url: ${{ steps.set_url.outputs.direct_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,7 +51,6 @@ jobs:
       - name: Compare Versions
         id: compare_versions
         run: |
-          # The tag from the bot release will include the 'v', so we add it for comparison
           if [[ "v${{ steps.parse_version.outputs.version }}" == "${{ steps.bot_release.outputs.tag }}" ]]; then
             echo "No new version. Stopping."
             exit 1
@@ -68,15 +67,17 @@ jobs:
       - name: Cleanup and Create Git Tag
         run: |
           TAG_NAME="v${{ steps.compare_versions.outputs.version }}"
-          # Check if the tag exists on the remote
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check if the tag exists on the remote. If so, it's an orphan and we must clean up.
           if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
-            echo "Orphaned tag $TAG_NAME found. Deleting it to recover from previous failed run."
+            echo "Orphaned tag $TAG_NAME found. Deleting it locally and remotely to recover from previous failed run."
+            git tag -d "$TAG_NAME"
             git push --delete origin "$TAG_NAME"
           fi
           
           echo "Creating new tag $TAG_NAME."
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
           git push origin "$TAG_NAME"
       - name: Create Release and Upload Asset
