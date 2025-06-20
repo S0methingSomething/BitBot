@@ -1,11 +1,15 @@
 {
   "sourceRepo": "S0methingSomething/BitEdit",
-  "botRepo": "S0methingSomething/BitBot",
+  "botRepo": "YourUsername/BitBot",
   "assetName": "MonetizationVars",
   "subredditTarget": "BitTest1",
   "templateFile": "post_template.md",
   "botName": "BitBot",
   "creatorRedditUsername": "C1oudyLol",
+  "ignoreBlock": {
+    "startMarker": "<!-- TUTORIAL-START -->",
+    "endMarker": "<!-- TUTORIAL-END -->"
+  },
   "status": {
     "workingText": "Working",
     "notWorkingText": "Potentially Not Working",
