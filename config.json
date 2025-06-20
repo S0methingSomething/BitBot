@@ -1,6 +1,6 @@
 {
   "sourceRepo": "S0methingSomething/BitEdit",
-  "botRepo": "YourUsername/BitBot",
+  "botRepo": "S0methingSomething/BitBot",
   "assetName": "MonetizationVars",
   "subredditTarget": "BitTest1",
   "templateFile": "post_template.md",
