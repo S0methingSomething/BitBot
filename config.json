@@ -1,0 +1,34 @@
+{
+  "sourceRepo": "S0methingSomething/BitEdit",
+  "botRepo": "S0methingSomething/BitBot",
+  "assetName": "MonetizationVars",
+  "subredditTarget": "BitTest1",
+  "templateFile": "post_template.md",
+  "botName": "BitBot",
+  "creatorRedditUsername": "C1oudyLol",
+  "status": {
+    "workingText": "Working",
+    "notWorkingText": "Potentially Not Working",
+    "neutralText": "Not enough feedback...",
+    "workingKeywords": [
+      "working",
+      "works for me",
+      "no issues",
+      "perfect",
+      "thanks"
+    ],
+    "notWorkingKeywords": [
+      "not working",
+      "broken",
+      "doesnt work",
+      "error",
+      "crash"
+    ],
+    "threshold": 2
+  },
+  "intervals": {
+    "initialSeconds": 300,
+    "maxSeconds": 3600,
+    "incrementSeconds": 300
+  }
+}
