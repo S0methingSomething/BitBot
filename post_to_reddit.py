@@ -1,10 +1,11 @@
 import os
 import sys
 import json
+import re
 import praw
 
-def post_update_to_reddit(version):
-    """Posts a new release announcement and updates the state file."""
+def post_update_to_reddit(version, direct_download_url):
+    """Posts a new release announcement using an external template file."""
     
     with open('config.json', 'r') as f:
         config = json.load(f)
@@ -12,6 +13,18 @@ def post_update_to_reddit(version):
     print(f"Loading post format from template: {config['templateFile']}")
     with open(config['templateFile'], 'r') as f:
         post_body_template = f.read()
+
+    # --- Reliably remove the tutorial block ---
+    ignore_block = config.get('ignoreBlock', {})
+    start_marker = ignore_block.get('startMarker')
+    end_marker = ignore_block.get('endMarker')
+
+    if start_marker and end_marker in post_body_template:
+        print("Found tutorial markers. Removing tutorial block from post body.")
+        pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
+        post_body = re.sub(pattern, '', post_body_template).strip()
+    else:
+        post_body = post_body_template
 
     print("Authenticating with Reddit...")
     reddit = praw.Reddit(
@@ -25,14 +38,14 @@ def post_update_to_reddit(version):
     
     replacements = {
         "{{version}}": version,
+        "{{direct_download_url}}": direct_download_url,
         "{{bot_name}}": config['botName'],
         "{{bot_repo}}": config['botRepo'],
         "{{asset_name}}": config['assetName'],
         "{{creator_username}}": config['creatorRedditUsername'],
         "{{initial_status}}": config['status']['neutralText']
     }
-
-    post_body = post_body_template
+    
     for placeholder, value in replacements.items():
         post_body = post_body.replace(placeholder, value)
 
@@ -56,4 +69,4 @@ def post_update_to_reddit(version):
     print(f"Updated bot_state.json with new post ID: {submission.id}")
 
 if __name__ == "__main__":
-    post_update_to_reddit(sys.argv[1])
+    post_update_to_reddit(sys.argv[1], sys.argv[2])
