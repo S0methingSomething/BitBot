@@ -10,16 +10,16 @@ from datetime import datetime, timezone, timedelta
 with open("config.json", "r") as f:
     config = json.load(f)
 STATE_FILE = "bot_state.json"
-GITHUB_REPO = config["botRepo"]
-STATUS_WORKING = config["status"]["workingText"]
-STATUS_NOT_WORKING = config["status"]["notWorkingText"]
-STATUS_NEUTRAL = config["status"]["neutralText"]
-WORKING_KEYWORDS_PATTERN = re.compile("|".join(config["status"]["workingKeywords"]), re.I)
-NOT_WORKING_KEYWORDS_PATTERN = re.compile("|".join(config["status"]["notWorkingKeywords"]), re.I)
-THRESHOLD = config["status"]["threshold"]
-INITIAL_INTERVAL_S = config["intervals"]["initialSeconds"]
-MAX_INTERVAL_S = config["intervals"]["maxSeconds"]
-INCREMENT_INTERVAL_S = config["intervals"]["incrementSeconds"]
+GITHUB_REPO = config["github"]["botRepo"]
+STATUS_WORKING = config["feedback"]["labels"]["working"]
+STATUS_NOT_WORKING = config["feedback"]["labels"]["broken"]
+STATUS_NEUTRAL = config["feedback"]["labels"]["unknown"]
+WORKING_KEYWORDS_PATTERN = re.compile("|".join(config["feedback"]["workingKeywords"]), re.I)
+NOT_WORKING_KEYWORDS_PATTERN = re.compile("|".join(config["feedback"]["notWorkingKeywords"]), re.I)
+THRESHOLD = config["feedback"]["minFeedbackCount"]
+INITIAL_INTERVAL_S = config["timing"]["firstCheck"]
+MAX_INTERVAL_S = config["timing"]["maxWait"]
+INCREMENT_INTERVAL_S = config["timing"]["increaseBy"]
 
 def load_state():
     with open(STATE_FILE, "r") as f:
