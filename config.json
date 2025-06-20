@@ -1,19 +1,40 @@
 {
-  "sourceRepo": "S0methingSomething/BitEdit",
-  "botRepo": "S0methingSomething/BitBot",
-  "assetName": "MonetizationVars",
-  "subredditTarget": "BitTest1",
-  "templateFile": "post_template.md",
-  "botName": "BitBot",
-  "creatorRedditUsername": "C1oudyLol",
-  "ignoreBlock": {
-    "startMarker": "<!-- TUTORIAL-START -->",
-    "endMarker": "<!-- TUTORIAL-END -->"
+  "_comments": {
+    "github": "Configure which repositories the bot monitors and updates",
+    "reddit": "Settings for posting and managing Reddit content",
+    "messages": "Text formats for automated GitHub releases and commits",
+    "skipContent": "Markers for ignoring tutorial sections in template files",
+    "feedback": "How the bot determines community feedback status",
+    "timing": "How often the bot checks for updates (in seconds)"
   },
-  "status": {
-    "workingText": "Working",
-    "notWorkingText": "Potentially Not Working",
-    "neutralText": "Not enough feedback...",
+  "github": {
+    "sourceRepo": "S0methingSomething/BitEdit",
+    "botRepo": "YourUsername/BitBot",
+    "assetFileName": "MonetizationVars"
+  },
+  "reddit": {
+    "subreddit": "BitTest1",
+    "templateFile": "post_template.md",
+    "postTitle": "{{asset_name}} v{{version}}",
+    "botName": "BitBot",
+    "creator": "C1oudyLol"
+  },
+  "messages": {
+    "releaseTitle": "{{asset_name}} v{{version}}",
+    "releaseDescription": "Automated release of the pre-patched `{{asset_name}}` file. All boolean values have been set to true.",
+    "newPostCommit": "feat(bot): start monitoring new post for v{{version}} [skip ci]",
+    "updateCommit": "chore(bot): update comment checker state [skip ci]"
+  },
+  "skipContent": {
+    "startTag": "<!-- TUTORIAL-START -->",
+    "endTag": "<!-- TUTORIAL-END -->"
+  },
+  "feedback": {
+    "labels": {
+      "working": "Working",
+      "broken": "Potentially Not Working",
+      "unknown": "Not enough feedback..."
+    },
     "workingKeywords": [
       "working",
       "works for me",
@@ -28,11 +49,11 @@
       "error",
       "crash"
     ],
-    "threshold": 2
+    "minFeedbackCount": 2
   },
-  "intervals": {
-    "initialSeconds": 300,
-    "maxSeconds": 3600,
-    "incrementSeconds": 300
+  "timing": {
+    "firstCheck": 300,
+    "maxWait": 3600,
+    "increaseBy": 300
   }
 }
