@@ -4,6 +4,8 @@ import json
 import praw
 
 def post_update_to_reddit(version):
+    """Posts a new release announcement and updates the state file."""
+    
     with open('config.json', 'r') as f:
         config = json.load(f)
 
@@ -18,6 +20,7 @@ def post_update_to_reddit(version):
         user_agent=os.environ["REDDIT_USER_AGENT"],
         username=os.environ["REDDIT_USERNAME"],
         password=os.environ["REDDIT_PASSWORD"],
+        validate_on_submit=True
     )
     
     replacements = {
@@ -33,7 +36,7 @@ def post_update_to_reddit(version):
     for placeholder, value in replacements.items():
         post_body = post_body.replace(placeholder, value)
 
-    title = f"MonetizationVars for BitLife v{version}"
+    title = f"{config['assetName']} v{version}"
     
     print(f"Submitting to r/{config['subredditTarget']}...")
     submission = reddit.subreddit(config['subredditTarget']).submit(title, selftext=post_body)
