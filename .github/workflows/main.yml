@@ -61,7 +61,6 @@ jobs:
       - name: Create Release and Upload Asset
         id: create_and_upload
         run: |
-          # Step 1: Create the release
           RELEASE_NAME="${{ env.assetName }} v${{ steps.compare_versions.outputs.version }}"
           RELEASE_BODY="Automated release of the pre-patched \`${{ env.assetName }}\` file. All boolean values have been set to true."
           
@@ -78,7 +77,6 @@ jobs:
           UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | jq -r .upload_url)
           if [[ "$UPLOAD_URL" == "null" || -z "$UPLOAD_URL" ]]; then echo "::error::Failed to create release."; exit 1; fi
 
-          # Step 2: Upload the asset to the new release
           ASSET_NAME="${{ env.assetName }}"
           ASSET_PATH="./dist/${ASSET_NAME}"
           UPLOAD_URL_TEMPLATE=$(echo $UPLOAD_URL | sed 's/{?name,label}//')
