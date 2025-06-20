@@ -4,8 +4,6 @@ import json
 import praw
 
 def post_update_to_reddit(version):
-    """Posts a new release announcement and updates the state file with the new post ID."""
-    
     with open('config.json', 'r') as f:
         config = json.load(f)
 
@@ -41,7 +39,6 @@ def post_update_to_reddit(version):
     submission = reddit.subreddit(config['subredditTarget']).submit(title, selftext=post_body)
     print(f"Post successful: {submission.shortlink}")
 
-    # After posting, update bot_state.json to monitor the new post
     print("Updating state file with new post ID...")
     with open('bot_state.json', 'r') as f:
         state = json.load(f)
