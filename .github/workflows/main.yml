@@ -12,9 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.compare_versions.outputs.version }}
-      direct_download_url: ${{ steps.create_and_upload.outputs.direct_url }}
+      direct_download_url: ${{ steps.set_url.outputs.direct_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # We need to fetch all history to compare tags
+          fetch-depth: 0
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -48,7 +51,11 @@ jobs:
       - name: Compare Versions
         id: compare_versions
         run: |
-          if [[ "${{ steps.parse_version.outputs.version }}" == "${{ steps.bot_release.outputs.tag }}" ]]; then echo "No new version. Stopping."; exit 1; fi
+          # The tag from the bot release will include the 'v'
+          if [[ "v${{ steps.parse_version.outputs.version }}" == "${{ steps.bot_release.outputs.tag }}" ]]; then
+            echo "No new version. Stopping."
+            exit 1
+          fi
           echo "version=${{ steps.parse_version.outputs.version }}" >> $GITHUB_OUTPUT
       - name: Create working directory
         run: mkdir -p ./dist
@@ -58,13 +65,19 @@ jobs:
           if [[ -z "$ASSET_ID" || "$ASSET_ID" == "null" ]]; then echo "::error::Could not find asset named '${{ env.assetName }}'."; exit 1; fi
           curl -sL -J -H "Accept: application/octet-stream" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o "./dist/original_${{ env.assetName }}" "https://api.github.com/repos/${{ env.sourceRepo }}/releases/assets/$ASSET_ID"
           node process_vars.js ./dist/original_${{ env.assetName }} ./dist/${{ env.assetName }}
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ steps.compare_versions.outputs.version }}" -m "Release v${{ steps.compare_versions.outputs.version }}"
+          git push origin "v${{ steps.compare_versions.outputs.version }}"
       - name: Create Release and Upload Asset
         id: create_and_upload
         run: |
           RELEASE_NAME="${{ env.assetName }} v${{ steps.compare_versions.outputs.version }}"
           RELEASE_BODY="Automated release of the pre-patched \`${{ env.assetName }}\` file. All boolean values have been set to true."
           
-          CREATE_DATA=$(printf '{"tag_name": "%s", "name": "%s", "body": "%s"}' \
+          CREATE_DATA=$(printf '{"tag_name": "v%s", "name": "%s", "body": "%s"}' \
             "${{ steps.compare_versions.outputs.version }}" "$RELEASE_NAME" "$RELEASE_BODY")
             
           RELEASE_RESPONSE=$(curl -sL \
@@ -75,7 +88,7 @@ jobs:
             "https://api.github.com/repos/${{ env.botRepo }}/releases")
           
           UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | jq -r .upload_url)
-          if [[ "$UPLOAD_URL" == "null" || -z "$UPLOAD_URL" ]]; then echo "::error::Failed to create release."; exit 1; fi
+          if [[ "$UPLOAD_URL" == "null" || -z "$UPLOAD_URL" ]]; then echo "::error::Failed to create release. The API response was: $RELEASE_RESPONSE"; exit 1; fi
 
           ASSET_NAME="${{ env.assetName }}"
           ASSET_PATH="./dist/${ASSET_NAME}"
@@ -88,8 +101,9 @@ jobs:
             -H "Content-Type: application/octet-stream" \
             --data-binary "@$ASSET_PATH" \
             "$UPLOAD_URL_TEMPLATE?name=$ASSET_NAME"
-            
-          echo "direct_url=https://github.com/${{ env.botRepo }}/releases/download/${{ steps.compare_versions.outputs.version }}/${ASSET_NAME}" >> $GITHUB_OUTPUT
+      - name: Set Direct Download URL
+        id: set_url
+        run: echo "direct_url=https://github.com/${{ env.botRepo }}/releases/download/v${{ steps.compare_versions.outputs.version }}/${{ env.assetName }}" >> $GITHUB_OUTPUT
   post_and_handoff:
     name: 2. Post to Reddit & Update State
     needs: check_and_patch
