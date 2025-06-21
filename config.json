@@ -46,7 +46,7 @@
       "unknown": "Not enough feedback..."
     },
     "workingKeywords": ["working", "works for me", "no issues", "perfect", "thanks"],
-    "notWorkingKeywords": ["not working", "broken", "doesnt work", "error", "crash"],
+    "notWorkingKeywords": ["not working", "broken", "doesnt work"],
     "minFeedbackCount": 2
   },
   "timing": {
