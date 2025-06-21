@@ -22,19 +22,19 @@ Available Placeholders:
 **⬇️ Direct download:** [`{{asset_name}}`](https://github.com/{{bot_repo}}/releases/latest)  
 *(Pre-patched to unlock all IAPs)*
 
-> ✅ **File check:** The downloaded file **must** be named `{{asset_name}}` before you use it.
+> ✅ The downloaded file **must** be named `{{asset_name}}` before you use it.
 
 ---
 
 ### 🔧 Project details
-• **Maintainer:** u/{{creator_username}}  
+• **Maintained by:** u/{{creator_username}}  
 • **Source & issues:** https://github.com/{{bot_repo}}
 
 ---
 
 ### 📢 Community feedback
-**Status:** {{initial_status}} – see comments for live reports.  
-Something broken? Let everyone know below.
+**Status:** {{initial_status}} (based on comments).  
+Something's broken? leave a comment.
 
 ---
 
