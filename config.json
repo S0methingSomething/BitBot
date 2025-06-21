@@ -16,7 +16,7 @@
   "reddit": {
     "subreddit": "BitLifeRebels",
     "templateFile": "post_template.md",
-    "postTitle": "{{asset_name}} for BitLife v{{version}}",
+    "postTitle": "[BitBot] {{asset_name}} for BitLife v{{version}}",
     "botName": "BitBot",
     "creator": "C1oudyLol"
   },
