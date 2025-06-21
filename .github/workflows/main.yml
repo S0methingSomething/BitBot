@@ -144,7 +144,7 @@ jobs:
           COMMIT_MSG_TEMPLATE=$(jq -r '.messages.newPostCommit' config.json)
           COMMIT_MSG=$(echo "$COMMIT_MSG_TEMPLATE" | sed "s/{{version}}/$VERSION/g")
           echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      - uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: ${{ env.COMMIT_MSG }}
           file_pattern: "bot_state.json"
