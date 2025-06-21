@@ -10,7 +10,7 @@ updates:
     # Assign specific reviewers to the pull requests.
     # Replace 'your-github-username' with your actual GitHub username or a team.
     reviewers:
-      - "your-github-username"
+      - "S0methingSomething"
     # Add labels for better filtering and organization.
     labels:
       - "dependencies"
