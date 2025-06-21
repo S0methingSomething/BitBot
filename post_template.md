@@ -17,10 +17,7 @@ Available Placeholders:
 | {{initial_status}}    | The default status for a new post ("Not enough feedback...").  |
 <!-- TUTORIAL-END -->
 
-## 🚀 New Release — v{{version}}
-
-**⬇️ Direct download:** [`{{asset_name}}`](https://github.com/{{bot_repo}}/releases/latest)  
-*(Pre-patched to unlock all IAPs)*
+### **Download here:** [`{{asset_name}}`]({{direct_download_url}})  
 
 > The downloaded file **must** be named `{{asset_name}}` before you use it.
 
@@ -28,7 +25,7 @@ Available Placeholders:
 
 ### 🔧 Project details
 • **Maintained by:** u/{{creator_username}}  
-• **Repo link:** https://github.com/S0methingSomething/BitBot/
+• **Repo link:** https://github.com/{{not_repo}}
 
 ---
 
@@ -38,4 +35,4 @@ Something's broken? leave a comment.
 
 ---
 
-^Post generated automatically by [**{{bot_name}}**](https://github.com/{{bot_repo}}).  
+This is an automated post by ['{{bot_name}}'](https://github.com/{{bot_repo}}).  
