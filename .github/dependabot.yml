@@ -2,32 +2,36 @@ version: 2
 updates:
   # === Configuration for GitHub Actions ===
   - package-ecosystem: "github-actions"
-    # Scans the root directory for the .github/workflows folder.
     directory: "/"
     schedule:
-      # Checks for new versions once a day.
       interval: "daily"
-    # Assign specific reviewers to the pull requests.
-    # Replace 'your-github-username' with your actual GitHub username or a team.
     reviewers:
       - "S0methingSomething"
-    # Add labels for better filtering and organization.
     labels:
       - "dependencies"
       - "CI/CD"
-    # Customize the commit message prefix for a clean git history.
     commit-message:
       prefix: "chore(actions)"
       include: "scope"
-      
-    # A limit on open pull requests for this specific ecosystem.
-    # This prevents being overwhelmed.
     open-pull-requests-limit: 5
-
-    # Group all non-major updates (patch and minor) into a single weekly pull request
-    # to reduce notification spam. Major version updates will still get their own PR.
     groups:
       actions-updates:
         update-types:
           - "minor"
           - "patch"
+
+  # === Configuration for Python (pip) with Top-Level Pinning ===
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "S0methingSomething"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(pip)"
+      include: "scope"
+    # A low limit is fine since you only have two packages to track.
+    open-pull-requests-limit: 2
