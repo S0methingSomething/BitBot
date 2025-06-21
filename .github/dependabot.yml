@@ -1,8 +1,6 @@
 version: 2
 updates:
   # === Configuration for GitHub Actions ===
-  # This section ensures that all 'uses:' statements in your workflow files
-  # (like actions/checkout@v4) are kept up-to-date.
   - package-ecosystem: "github-actions"
     # Scans the root directory for the .github/workflows folder.
     directory: "/"
@@ -21,6 +19,11 @@ updates:
     commit-message:
       prefix: "chore(actions)"
       include: "scope"
+      
+    # A limit on open pull requests for this specific ecosystem.
+    # This prevents being overwhelmed.
+    open-pull-requests-limit: 5
+
     # Group all non-major updates (patch and minor) into a single weekly pull request
     # to reduce notification spam. Major version updates will still get their own PR.
     groups:
@@ -28,6 +31,3 @@ updates:
         update-types:
           - "minor"
           - "patch"
-
-# A global limit on open pull requests to prevent being overwhelmed.
-open-pull-requests-limit: 5
