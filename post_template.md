@@ -21,10 +21,8 @@ This is an automated post by [{{bot_name}}](https://github.com/{{bot_repo}}).
 
 ---
 
-## 🚀 New Release v{{version}}
-
-**Direct Download:**  
-[📦 Download `{{asset_name}}`](https://github.com/{{bot_repo}}/releases/latest)
+## **Direct Download link:**  
+[Download `{{asset_name}}`](https://github.com/{{bot_repo}}/releases/latest)
 
 *The file is already patched to unlock all available IAP'S.  
 Make sure the downloaded file is named **exactly** `{{asset_name}}` before using it.*
