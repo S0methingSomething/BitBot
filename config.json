@@ -16,7 +16,7 @@
   "reddit": {
     "subreddit": "BitTest1",
     "templateFile": "post_template.md",
-    "postTitle": "{{asset_name}} v{{version}}",
+    "postTitle": "{{asset_name}} for BitLife v{{version}}",
     "botName": "BitBot",
     "creator": "C1oudyLol"
   },
