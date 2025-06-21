@@ -14,7 +14,7 @@
     "assetFileName": "MonetizationVars"
   },
   "reddit": {
-    "subreddit": "BitTest1",
+    "subreddit": "BitLifeRebels",
     "templateFile": "post_template.md",
     "postTitle": "{{asset_name}} for BitLife v{{version}}",
     "botName": "BitBot",
