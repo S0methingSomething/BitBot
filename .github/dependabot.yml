@@ -10,8 +10,11 @@ updates:
     labels:
       - "dependencies"
       - "CI/CD"
+    # --- BETTER COMMIT MESSAGE BLOCK ---
     commit-message:
-      prefix: "chore(actions)"
+      # Use a clear, conventional prefix. 'build' is common for dependency updates.
+      prefix: "build(deps)"
+      # This ensures the prefix includes the scope (e.g., "build(deps):")
       include: "scope"
     open-pull-requests-limit: 5
     groups:
@@ -30,8 +33,9 @@ updates:
     labels:
       - "dependencies"
       - "python"
+    # --- BETTER COMMIT MESSAGE BLOCK ---
     commit-message:
-      prefix: "chore(pip)"
+      # Use the same prefix for consistency.
+      prefix: "build(deps)"
       include: "scope"
-    # A low limit is fine since you only have two packages to track.
     open-pull-requests-limit: 2
