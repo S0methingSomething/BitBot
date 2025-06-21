@@ -17,26 +17,25 @@ Available Placeholders:
 | {{initial_status}}    | The default status for a new post ("Not enough feedback...").  |
 <!-- TUTORIAL-END -->
 
-This is an automated post by [{{bot_name}}](https://github.com/{{bot_repo}}).
+## 🚀 New Release — v{{version}}
+
+**⬇️ Direct download:** [`{{asset_name}}`](https://github.com/{{bot_repo}}/releases/latest)  
+*(Pre-patched to unlock all IAPs)*
+
+> ✅ **File check:** The downloaded file **must** be named `{{asset_name}}` before you use it.
 
 ---
 
-## **Direct Download link:**  
-[Download `{{asset_name}}`](https://github.com/{{bot_repo}}/releases/latest)
-
-*The file is already patched to unlock all available IAP'S.  
-Make sure the downloaded file is named **exactly** `{{asset_name}}` before using it.*
+### 🔧 Project details
+• **Maintainer:** u/{{creator_username}}  
+• **Source & issues:** https://github.com/{{bot_repo}}
 
 ---
 
-### About This Bot
-Created and maintained by **u/{{creator_username}}**.  
-Source code, changelogs, and issues are all on GitHub:  
-<https://github.com/{{bot_repo}}>
+### 📢 Community feedback
+**Status:** {{initial_status}} – see comments for live reports.  
+Something broken? Let everyone know below.
 
 ---
 
-### Community Feedback
-**Current status:** {{initial_status}}  
-Leave a comment below if something isn’t working, or if you have suggestions!
-
+^Post generated automatically by [**{{bot_name}}**](https://github.com/{{bot_repo}}).  
