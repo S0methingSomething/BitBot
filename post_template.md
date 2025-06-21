@@ -22,7 +22,7 @@ Available Placeholders:
 **⬇️ Direct download:** [`{{asset_name}}`](https://github.com/{{bot_repo}}/releases/latest)  
 *(Pre-patched to unlock all IAPs)*
 
-> ✅ The downloaded file **must** be named `{{asset_name}}` before you use it.
+> The downloaded file **must** be named `{{asset_name}}` before you use it.
 
 ---
 
