@@ -24,15 +24,13 @@ Available Placeholders:
 ---
 
 ### 🔧 Project details
-• **Maintained by:** u/{{creator_username}}  
-• **Repo link:** https://github.com/{{not_repo}}
+• **Created & Maintained by:** u/{{creator_username}}  
+• **Repo link:** https://github.com/{{bot_repo}}
 
 ---
 
-### 📢 Community feedback
-**Status:** {{initial_status}} (based on comments).  
-Something's broken? leave a comment.
+**Status:** {{initial_status}} (based on comments). 
 
 ---
 
-This is an automated post by ['{{bot_name}}'](https://github.com/{{bot_repo}}).  
+This is an automated post by [{{bot_name}}](https://github.com/{{bot_repo}}).  
