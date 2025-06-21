@@ -19,7 +19,7 @@ Available Placeholders:
 
 ### **Download here:** [`{{asset_name}}`]({{direct_download_url}})  
 
-> The downloaded file **must** be named `{{asset_name}}` before you use it.
+> **Important:** After downloading the file, rename it to exactly {{asset_name}} if your browser added an extension. Some browsers automatically add `.txt` or `.bin` if the file has no extension.
 
 ---
 
