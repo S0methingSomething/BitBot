@@ -28,7 +28,7 @@ Available Placeholders:
 
 ### 🔧 Project details
 • **Maintained by:** u/{{creator_username}}  
-• **Source & issues:** https://github.com/{{bot_repo}}
+• **Repo link:** https://github.com/S0methingSomething/BitBot/
 
 ---
 
