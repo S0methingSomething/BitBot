@@ -1,4 +1,3 @@
-# sync_reddit_history.py
 import os
 import sys
 import json
