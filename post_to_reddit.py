@@ -32,7 +32,7 @@ def _update_older_posts(older_posts, latest_release_details, config):
     based on the configuration in `config.json`.
     """
     handling_config = config.get('outdatedPostHandling', {})
-    mode = handling_config.get('mode', 'overwrite') # Default to overwrite
+    mode = handling_config.get('mode', 'overwrite')
     
     placeholders = {
         "{{latest_post_title}}": latest_release_details['title'],
@@ -57,13 +57,11 @@ def _update_older_posts(older_posts, latest_release_details, config):
             print(f"::error::Inject template file not found at '{template_path}'.")
             return
         
-        # Check for a unique string to prevent multiple injections
         if "⚠️ Outdated Post" in raw_template:
             existence_check_string = "⚠️ Outdated Post"
-        else: # Fallback if the user removes the emoji
+        else:
             existence_check_string = "This post is outdated."
 
-        # Logic to strip tutorial block
         ignore_block = config.get('skipContent', {})
         start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
         if start_marker and end_marker and start_marker in raw_template:
@@ -72,7 +70,6 @@ def _update_older_posts(older_posts, latest_release_details, config):
         else:
             banner_template = raw_template
 
-        # Populate banner placeholders
         injection_banner = banner_template
         for placeholder, value in placeholders.items():
             injection_banner = injection_banner.replace(placeholder, value)
@@ -92,7 +89,7 @@ def _update_older_posts(older_posts, latest_release_details, config):
         
         if updated_count > 0: print(f"Successfully injected banner into {updated_count} older posts.")
 
-    else: # Default to 'overwrite' mode
+    else:
         template_path = config['reddit']['outdatedTemplateFile']
         try:
             with open(template_path, 'r') as f:
@@ -127,7 +124,6 @@ def _update_older_posts(older_posts, latest_release_details, config):
         
         if updated_count > 0: print(f"Successfully overwrote {updated_count} older posts.")
 
-# ... (the rest of the script, _update_bot_state, _post_new_release, and main, remain unchanged)
 def _update_bot_state(post_id, config):
     """Resets bot_state.json to monitor a new post."""
     new_state = {
