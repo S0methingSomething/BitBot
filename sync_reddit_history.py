@@ -13,7 +13,10 @@ def _load_config():
         return json.load(f)
 
 def _get_latest_bot_release(config, token):
-    """Fetches the latest release from the bot's own GitHub repo."""
+    """
+    Fetches the latest release from the bot's own GitHub repo, which serves
+    as the ultimate source of truth for what version is "current".
+    """
     bot_repo = config['github']['botRepo']
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
     api_url = f"https://api.github.com/repos/{bot_repo}/releases/latest"
@@ -62,7 +65,7 @@ def _update_older_posts(older_posts, latest_release_details, config):
     based on the configuration in `config.json`.
     """
     handling_config = config.get('outdatedPostHandling', {})
-    mode = handling_config.get('mode', 'overwrite') # Default to overwrite
+    mode = handling_config.get('mode', 'overwrite')
     
     placeholders = {
         "{{latest_post_title}}": latest_release_details['title'],
@@ -119,7 +122,7 @@ def _update_older_posts(older_posts, latest_release_details, config):
         
         if updated_count > 0: print(f"Successfully injected banner into {updated_count} older posts.")
 
-    else: # Default to 'overwrite' mode
+    else:
         template_path = config['reddit']['outdatedTemplateFile']
         try:
             with open(template_path, 'r') as f:
@@ -153,161 +156,6 @@ def _update_older_posts(older_posts, latest_release_details, config):
                 print(f"::warning::Failed to overwrite post {old_post.id}: {e}")
         
         if updated_count > 0: print(f"Successfully overwrote {updated_count} older posts.")
-
-# ... (the rest of the script, _update_bot_state, _post_new_release, and main, remain unchanged)
-def _update_bot_state(post_id, config):
-    """Resets bot_state.json and signals a change to the workflow."""
-    new_state = {
-        "activePostId": post_id, "lastCheckTimestamp": "2024-01-01T00:00:00Z",
-        "currentIntervalSeconds": config['timing']['firstCheck'], "lastCommentCount": 0
-    }
-    with open('bot_state.json', 'w') as f:
-        json.dump(new_state, f, indent=2)
-    print(f"State file updated. Now monitoring post: {post_id}")
-    with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-        print("state_changed=true", file=f)
-
-def _post_new_release(reddit, version, direct_download_url, config):
-    """Composes and submits a new release post to Reddit."""
-    with open(config['reddit']['templateFile'], 'r') as f:
-        raw_template = f.read()
-    
-    ignore_block = config.get('skipContent', {})
-    start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
-    if start_marker and end_marker and start_marker in raw_template:
-        pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
-        post_body_template = re.sub(pattern, '', raw_template).strip()
-    else:
-        post_body_template = raw_template
-
-    initial_status_line = config['feedback']['statusLineFormat'].replace("{{status}}", config['feedback']['labels']['unknown'])
-    placeholders = {
-        "{{version}}": version,
-        "{{direct_download_url}}": direct_download_url,
-        "{{bot_name}}": config['reddit']['botName'],
-        "{{bot_repo}}": config['github']['botRepo'],
-        "{{asset_name}}": config['github']['assetFileName'],
-        "{{creator_username}}": config['reddit']['creator'],
-        "{{initial_status}}": initial_status_line
-    }
-    
-    title = config['reddit']['postTitle']
-    post_body = post_body_template
-    for placeholder, value in placeholders.items():
-        post_body = post_body.replace(placeholder, value)
-        title = title.replace(placeholder, value)
-
-    print(f"Submitting new post for v{version} to r/{config['reddit']['subreddit']}...")
-    submission = reddit.subreddit(config['reddit']['subreddit']).submit(title, selftext=post_body)
-    print(f"Post successful: {submission.shortlink}")
-    return submission
-
-def main():
-    """Handles syncing Reddit state with the bot's GitHub releases."""
-    config = _load_config()
-    
-    print("Authenticating with Reddit...")
-    reddit = praw.Reddit(
-        client_id=os.environ["REDDIT_CLIENT_ID"], client_secret=os.environ["REDDIT_CLIENT_SECRET"],
-        user_agent=os.environ["REDDIT_USER_AGENT"], username=os.environ["REDDIT_USERNAME"],
-        password=os.environ["REDDIT_PASSWORD"],
-    )
-
-    latest_bot_release = _get_latest_bot_release(config, os.environ['GITHUB_TOKEN'])
-    if not latest_bot_release:
-        sys.exit(1)
-    
-    print(f"Latest available bot release on GitHub is v{latest_bot_release['version']}.")
-    bot_posts_on_sub = _get_bot_posts_on_subreddit(reddit, config)
-
-    if not bot_posts_on_sub:
-        print(f"No posts found in r/{config['reddit']['subreddit']}. Posting latest available release.")
-        new_submission = _post_new_release(reddit, latest_bot_release['version'], latest_bot_release['url'], config)
-        _update_bot_state(new_submission.id, config)
-        return
-
-    latest_reddit_post = bot_posts_on_sub[0]
-    latest_reddit_version = _parse_version_from_title(latest_reddit_post.title)
-    print(f"Latest post on Reddit is v{latest_reddit_version}.")
-
-    if latest_bot_release['version'] > latest_reddit_version:
-        print(f"Reddit is out of sync (Reddit: v{latest_reddit_version}, GitHub: v{latest_bot_release['version']}). Posting update.")
-        new_submission = _post_new_release(reddit, latest_bot_release['version'], latest_bot_release['url'], config)
-        
-        latest_release_details = {
-            "title": new_submission.title, "url": new_submission.shortlink,
-            "version": latest_bot_release['version'], "direct_download_url": latest_bot_release['url'],
-        }
-        _update_older_posts(bot_posts_on_sub, latest_release_details, config)
-        _update_bot_state(new_submission.id, config)
-        return
-    
-    print("Reddit's latest post is up-to-date. Performing routine sync.")
-    
-    older_posts = bot_posts_on_sub[1:]
-    if older_posts:
-        print(f"Checking {len(older_posts)} older post(s) to ensure they are marked as outdated.")
-        latest_release_details = {
-            "title": latest_reddit_post.title, "url": latest_reddit_post.shortlink,
-            "version": latest_bot_release['version'], "direct_download_url": latest_bot_release['url'],
-        }
-        _update_older_posts(older_posts, latest_release_details, config)
-    else:
-        print("No older posts found to sync.")
-    
-    with open('bot_state.json', 'r') as f:
-        state = json.load(f)
-    if state.get('activePostId') != latest_reddit_post.id:
-        print("State file is out of sync. Correcting it.")
-        _update_bot_state(latest_reddit_post.id, config)
-    else:
-        print("State file is already in sync.")
-        with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-            print("state_changed=false", file=f)
-
-if __name__ == "__main__":
-    main()        with open(outdated_template_path, 'r') as f:
-            raw_template = f.read()
-    except FileNotFoundError:
-        print(f"::error::Outdated template file not found at '{outdated_template_path}'. Skipping updates.")
-        return
-
-    ignore_block = config.get('skipContent', {})
-    start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
-    if start_marker and end_marker and start_marker in raw_template:
-        pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
-        outdated_body_template = re.sub(pattern, '', raw_template).strip()
-    else:
-        outdated_body_template = raw_template
-    
-    placeholders = {
-        "{{latest_post_title}}": latest_release_details['title'],
-        "{{latest_post_url}}": latest_release_details['url'],
-        "{{latest_version}}": latest_release_details['version'],
-        "{{latest_download_url}}": latest_release_details['direct_download_url'],
-        "{{asset_name}}": config['github']['assetFileName'],
-        "{{bot_name}}": config['reddit']['botName'],
-        "{{bot_repo}}": config['github']['botRepo'],
-    }
-
-    updated_count = 0
-    for old_post in older_posts:
-        if "This post is outdated." in old_post.selftext:
-            continue
-            
-        try:
-            new_body = outdated_body_template
-            for placeholder, value in placeholders.items():
-                new_body = new_body.replace(placeholder, value)
-            
-            print(f"-> Updating post {old_post.id} with outdated template.")
-            old_post.edit(body=new_body)
-            updated_count += 1
-        except Exception as e:
-            print(f"::warning::Failed to edit post {old_post.id}: {e}")
-    
-    if updated_count > 0:
-        print(f"Successfully updated {updated_count} older posts.")
 
 def _update_bot_state(post_id, config):
     """Resets bot_state.json and signals a change to the workflow."""
