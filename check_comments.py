@@ -1,3 +1,4 @@
+# check_comments.py
 import os
 import sys
 import json
@@ -27,6 +28,7 @@ def main():
     """
     config = load_config()
     state = load_state()
+    state_was_meaningfully_updated = False # Flag to track important changes
 
     if not state.get("activePostId"):
         print("No active post ID in state file. Exiting pulse.")
@@ -37,6 +39,9 @@ def main():
     last_check = datetime.fromisoformat(state["lastCheckTimestamp"].replace("Z", "+00:00"))
     if now < (last_check + timedelta(seconds=state["currentIntervalSeconds"])):
         print(f"Not time yet. Next check in {int((last_check + timedelta(seconds=state['currentIntervalSeconds'])) - now).total_seconds())}s.")
+        # No need to commit if we exit early
+        with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+            print("state_changed=false", file=f)
         sys.exit(0)
 
     print(f"Time for a real check on post: {state['activePostId']}")
@@ -62,6 +67,64 @@ def main():
         print(f"Comment analysis: Positive={positive_score}, Negative={negative_score}, Net Score={net_score}")
         
         # Determine new status based on score and threshold
+        threshold = config["feedback"]["minFeedbackCount"]
+        if net_score <= -threshold:
+            new_status_text = config["feedback"]["labels"]["broken"]
+        elif net_score >= threshold:
+            new_status_text = config["feedback"]["labels"]["working"]
+        else:
+            new_status_text = config["feedback"]["labels"]["unknown"]
+            
+        new_status_line = config["feedback"]["statusLineFormat"].replace("{{status}}", new_status_text)
+        
+        # Update the post body if the status has changed
+        status_regex = re.compile(config["feedback"]["statusLineRegex"], re.MULTILINE)
+        if not status_regex.search(submission.selftext):
+            print("::warning::Could not find status line in post. It may have been edited or is an outdated post.")
+        elif new_status_line not in submission.selftext:
+            updated_body = status_regex.sub(new_status_line, submission.selftext)
+            submission.edit(body=updated_body)
+            print(f"Status updated to: {new_status_text}")
+            # A status update is a meaningful change, but doesn't require a state file commit.
+        else:
+            print("Status is already correct.")
+
+        # --- CHANGE START ---
+        # Adjust the next check interval based on comment activity
+        if len(comments) > state["lastCommentCount"]:
+            state["currentIntervalSeconds"] = config["timing"]["firstCheck"]
+            state_was_meaningfully_updated = True # This change is important
+        else:
+            # Only increase the interval if it's not already at the max
+            if state["currentIntervalSeconds"] < config["timing"]["maxWait"]:
+                state["currentIntervalSeconds"] = min(config["timing"]["maxWait"], state["currentIntervalSeconds"] + config["timing"]["increaseBy"])
+                state_was_meaningfully_updated = True # This change is important
+
+        if state["lastCommentCount"] != len(comments):
+            state["lastCommentCount"] = len(comments)
+            state_was_meaningfully_updated = True # This change is important
+        # --- CHANGE END ---
+
+    except Exception as e:
+        print(f"::error::An exception occurred during check: {e}", file=sys.stderr)
+    finally:
+        # Always update the timestamp in the state object
+        state["lastCheckTimestamp"] = now.isoformat().replace("+00:00", "Z")
+        # But only save the file if a meaningful change occurred
+        if state_was_meaningfully_updated:
+            print("Meaningful state change detected. Saving state file.")
+            save_state(state)
+        else:
+            print("No meaningful state change detected. Skipping file write.")
+
+        # Signal to the workflow whether a commit is needed
+        with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+            print(f"state_changed={str(state_was_meaningfully_updated).lower()}", file=f)
+
+        print(f"Pulse check complete. Next interval: {state['currentIntervalSeconds']}s")
+
+if __name__ == "__main__":
+    main()        # Determine new status based on score and threshold
         threshold = config["feedback"]["minFeedbackCount"]
         if net_score <= -threshold:
             new_status_text = config["feedback"]["labels"]["broken"]
