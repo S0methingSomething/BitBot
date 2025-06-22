@@ -1,9 +1,13 @@
+# sync_reddit_history.py
 import os
 import sys
 import json
 import re
 import requests
 import praw
+
+# Note: The helper functions are intentionally duplicated here to keep this script
+# self-contained, simplifying debugging and maintenance.
 
 def _load_config():
     """Loads the main configuration file."""
