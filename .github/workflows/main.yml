@@ -1,116 +1,15 @@
-name: '[Release] Check, Patch, and Manage Reddit'
+name: '[Pulse] Check Reddit Comments'
 on:
   workflow_dispatch:
   schedule:
-    - cron: '5 * * * *'
+    - cron: '*/5 * * * *' # Runs every 5 minutes
 concurrency:
   group: ${{ github.workflow }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  check_and_release:
-    name: 1. Check Source & Create Release
-    runs-on: ubuntu-latest
-    outputs:
-      new_version_found: ${{ steps.compare_versions.outputs.new_version_found }}
-      new_version: ${{ steps.compare_versions.outputs.version }}
-      direct_download_url: ${{ steps.create_and_upload.outputs.direct_url }}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Read config.json into environment variables
-        id: config
-        uses: antifree/json-to-variables@v1
-        with:
-          filename: 'config.json'
-      - name: Sanity Check Configuration
-        run: |
-          if [[ "${{ env.github_botRepo }}" == "YourUsername/YourRepo" || "${{ env.github_botRepo }}" != "${{ github.repository }}" ]]; then
-            echo "::error::Configuration error! The 'github.botRepo' in config.json must be set to '${{ github.repository }}'."
-            exit 1
-          fi
-      - name: Get Latest Source Release Data
-        id: source_release
-        run: |
-          RELEASE_DATA=$(curl -sL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ env.github_sourceRepo }}/releases/latest")
-          TAG_NAME=$(echo "$RELEASE_DATA" | jq -r .tag_name)
-          BODY=$(echo "$RELEASE_DATA" | jq -r .body)
-          if [[ "$TAG_NAME" == "null" || -z "$TAG_NAME" ]]; then echo "::error::Could not fetch latest release data from source repo."; exit 1; fi
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "body<<EOF" >> $GITHUB_OUTPUT
-          echo "$BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-      - name: Parse Version from Release Body
-        id: parse_version
-        run: |
-          VERSION=$(echo "${{ steps.source_release.outputs.body }}" | grep -oP '(?<=v)\d+\.\d+\.\d+')
-          if [[ -z "$VERSION" ]]; then echo "::error::Could not parse version from release body."; exit 1; fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-      - name: Get Latest Bot Release
-        id: bot_release
-        run: TAG=$(curl -sL "https://api.github.com/repos/${{ env.github_botRepo }}/releases/latest" | jq -r .tag_name) && echo "tag=$TAG" >> $GITHUB_OUTPUT
-      - name: Compare Versions
-        id: compare_versions
-        run: |
-          SOURCE_VERSION="v${{ steps.parse_version.outputs.version }}"
-          BOT_VERSION="${{ steps.bot_release.outputs.tag }}"
-          if [[ "$SOURCE_VERSION" == "$BOT_VERSION" ]]; then
-            echo "No new version found. Proceeding to sync state."
-            echo "new_version_found=false" >> $GITHUB_OUTPUT
-          else
-            echo "New version $SOURCE_VERSION found. Proceeding with release."
-            echo "new_version_found=true" >> $GITHUB_OUTPUT
-            echo "version=${{ steps.parse_version.outputs.version }}" >> $GITHUB_OUTPUT
-          fi
-      - name: Create working directory
-        if: steps.compare_versions.outputs.new_version_found == 'true'
-        run: mkdir -p ./dist
-      - name: Download & Process Asset
-        if: steps.compare_versions.outputs.new_version_found == 'true'
-        run: |
-          ASSET_ID=$(curl -sL -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ env.github_sourceRepo }}/releases/latest" | jq --arg NAME "${{ env.github_assetFileName }}" '.assets[] | select(.name == $NAME) | .id')
-          if [[ -z "$ASSET_ID" || "$ASSET_ID" == "null" ]]; then echo "::error::Could not find asset named '${{ env.github_assetFileName }}' in source release."; exit 1; fi
-          curl -sL -J -H "Accept: application/octet-stream" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -o "./dist/original_${{ env.github_assetFileName }}" "https://api.github.com/repos/${{ env.github_sourceRepo }}/releases/assets/$ASSET_ID"
-          node process_vars.js ./dist/original_${{ env.github_assetFileName }} ./dist/${{ env.github_assetFileName }}
-      - name: Create Git Tag
-        if: steps.compare_versions.outputs.new_version_found == 'true'
-        run: |
-          TAG_NAME="v${{ steps.compare_versions.outputs.version }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
-            echo "Orphaned tag $TAG_NAME found. Deleting it to proceed."
-            git tag -d "$TAG_NAME"
-            git push --delete origin "$TAG_NAME"
-          fi
-          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
-          git push origin "$TAG_NAME"
-      - name: Create Release and Upload Asset
-        id: create_and_upload
-        if: steps.compare_versions.outputs.new_version_found == 'true'
-        run: |
-          VERSION="${{ steps.compare_versions.outputs.version }}"
-          ASSET_NAME="${{ env.github_assetFileName }}"
-          RELEASE_TITLE=$(jq -r '.messages.releaseTitle' config.json | sed "s/{{asset_name}}/$ASSET_NAME/g" | sed "s/{{version}}/$VERSION/g")
-          RELEASE_BODY=$(jq -r '.messages.releaseDescription' config.json | sed "s/{{asset_name}}/$ASSET_NAME/g")
-          CREATE_DATA=$(printf '{"tag_name": "v%s", "name": "%s", "body": "%s"}' "$VERSION" "$RELEASE_TITLE" "$RELEASE_BODY")
-          RELEASE_RESPONSE=$(curl -sL -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -d "$CREATE_DATA" "https://api.github.com/repos/${{ env.github_botRepo }}/releases")
-          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | jq -r .upload_url)
-          if [[ "$UPLOAD_URL" == "null" || -z "$UPLOAD_URL" ]]; then echo "::error::Failed to create release: $RELEASE_RESPONSE"; exit 1; fi
-          UPLOAD_URL_TEMPLATE=$(echo "$UPLOAD_URL" | sed 's/{?name,label}//')
-          curl -sL -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/octet-stream" --data-binary "@./dist/$ASSET_NAME" "$UPLOAD_URL_TEMPLATE?name=$ASSET_NAME"
-          echo "direct_url=https://github.com/${{ env.github_botRepo }}/releases/download/v${VERSION}/${ASSET_NAME}" >> $GITHUB_OUTPUT
-
-  post_on_new_version:
-    name: 2a. Post New Release to Reddit
-    needs: check_and_release
-    if: needs.check_and_release.outputs.new_version_found == 'true'
+  pulse_check:
+    name: Adaptive Comment Check
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
@@ -118,47 +17,22 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.10' }
       - run: pip install -r requirements.txt
-      - name: Run Reddit Poster Script
+        
+      # --- CHANGE START ---
+      - name: Run Adaptive Comment Checker Script
+        id: comment_checker # Add an ID to reference the step's outputs
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        run: |
-          python post_to_reddit.py \
-            --version=${{ needs.check_and_release.outputs.new_version }} \
-            --direct-download-url='${{ needs.check_and_release.outputs.direct_download_url }}'
-      - name: Commit state file
+        run: python check_comments.py
+        
+      - name: Commit and Push State File if Changed
+        if: steps.comment_checker.outputs.state_changed == 'true' # Add a condition
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
-          commit_message: "feat(bot): start monitoring new post for v${{ needs.check_and_release.outputs.new_version }} [skip ci]"
+          commit_message: "chore(bot): update comment checker state [skip ci]"
           file_pattern: "bot_state.json"
-
-  sync_on_no_update:
-    name: 2b. Sync Reddit History
-    needs: check_and_release
-    if: needs.check_and_release.outputs.new_version_found == 'false'
-    runs-on: ubuntu-latest
-    permissions: { contents: write }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.10' }
-      - run: pip install -r requirements.txt
-      - name: Run Reddit History Sync Script
-        id: sync_script
-        env:
-          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
-          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
-          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python sync_reddit_history.py
-      - name: Commit state file if changed
-        if: steps.sync_script.outputs.state_changed == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v6
-        with:
-          commit_message: "chore(bot): self-heal and sync reddit state [skip ci]"
-          file_pattern: "bot_state.json"
+      # --- CHANGE END ---
