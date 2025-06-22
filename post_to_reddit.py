@@ -1,3 +1,4 @@
+# post_to_reddit.py
 import os
 import sys
 import json
@@ -106,8 +107,9 @@ def main():
 
     new_submission = _post_new_release(reddit, args.version, args.direct_download_url, config)
 
-    print(f"Updating {len(existing_posts)} older post(s)...")
-    _update_older_posts(existing_posts, new_submission, config)
+    if existing_posts:
+        print(f"Updating {len(existing_posts)} older post(s)...")
+        _update_older_posts(existing_posts, new_submission, config)
     
     print("Updating state file to monitor new post.")
     _update_bot_state(new_submission.id, config)
