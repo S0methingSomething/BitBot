@@ -2,10 +2,11 @@ name: '[Pulse] Check Reddit Comments'
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/1 * * * *'
+    - cron: '*/5 * * * *' # Runs every 5 minutes
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
+
 jobs:
   pulse_check:
     name: Adaptive Comment Check
@@ -25,10 +26,7 @@ jobs:
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: python check_comments.py
       - name: Commit and Push State File
-        run: |
-          COMMIT_MSG=$(jq -r '.messages.updateCommit' config.json)
-          echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
-      - uses: stefanzweifel/git-auto-commit-action@v6
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
-          commit_message: ${{ env.COMMIT_MSG }}
+          commit_message: "chore(bot): update comment checker state [skip ci]"
           file_pattern: "bot_state.json"
