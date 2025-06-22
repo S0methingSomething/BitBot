@@ -6,10 +6,6 @@ import re
 import requests
 import praw
 
-# Note: Some helper functions are duplicated from post_to_reddit.py. This is a
-# deliberate design choice to keep the scripts self-contained, simplifying
-# debugging and maintenance as per the user's request.
-
 def _load_config():
     """Loads the main configuration file."""
     with open('config.json', 'r') as f:
