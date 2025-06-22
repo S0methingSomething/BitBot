@@ -68,15 +68,21 @@ def _update_older_posts(older_posts, latest_post, config):
     ).replace(
         "{{new_post_url}}", latest_post.shortlink
     )
-
+    
+    updated_count = 0
     for old_post in older_posts:
         if outdated_message in old_post.selftext: continue
         try:
             new_body = status_regex.sub(outdated_message, old_post.selftext)
             if new_body != old_post.selftext:
+                print(f"-> Updating post {old_post.id} to OUTDATED.")
                 old_post.edit(body=new_body)
+                updated_count += 1
         except Exception as e:
             print(f"::warning::Failed to edit post {old_post.id}: {e}")
+    
+    if updated_count > 0:
+        print(f"Successfully updated {updated_count} older posts.")
 
 def _update_bot_state(post_id, config):
     """Resets bot_state.json and signals a change to the workflow."""
@@ -158,20 +164,30 @@ def main():
         new_submission = _post_new_release(reddit, latest_bot_release['version'], latest_bot_release['url'], config)
         _update_older_posts(bot_posts_on_sub, new_submission, config)
         _update_bot_state(new_submission.id, config)
+        return
+
+    # --- FIX START: Corrected Logic for Sub-Scenario 2b ---
     # Sub-Scenario 2b: Reddit is up-to-date. Perform a standard self-heal sync.
-    else:
-        print("Reddit is up-to-date. Performing routine history sync.")
-        older_posts = bot_posts_on_sub[1:]
+    print("Reddit latest post is up-to-date. Performing routine sync of older posts and state file.")
+    
+    # Action 1: Always sync the history of older posts.
+    older_posts = bot_posts_on_sub[1:]
+    if older_posts:
+        print(f"Found {len(older_posts)} older post(s) to check for updates.")
         _update_older_posts(older_posts, latest_reddit_post, config)
-        
-        with open('bot_state.json', 'r') as f: state = json.load(f)
-        if state.get('activePostId') != latest_reddit_post.id:
-            print("State file is out of sync. Correcting it.")
-            _update_bot_state(latest_reddit_post.id, config)
-        else:
-            print("Reddit history and state file are already in sync.")
-            with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-                print("state_changed=false", file=f)
+    else:
+        print("No older posts found to sync.")
+    
+    # Action 2: Always check the state file to ensure it's correct.
+    with open('bot_state.json', 'r') as f: state = json.load(f)
+    if state.get('activePostId') != latest_reddit_post.id:
+        print("State file is out of sync. Correcting it.")
+        _update_bot_state(latest_reddit_post.id, config)
+    else:
+        print("State file is already in sync.")
+        with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+            print("state_changed=false", file=f)
+    # --- FIX END ---
 
 if __name__ == "__main__":
     main()
