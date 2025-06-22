@@ -27,22 +27,12 @@ def _get_bot_posts_on_subreddit(reddit, config):
     return bot_posts
 
 def _update_older_posts(older_posts, latest_release_details, config):
-    """Replaces the entire body of older posts with a dedicated outdated template."""
-    outdated_template_path = config['reddit']['outdatedTemplateFile']
-    try:
-        with open(outdated_template_path, 'r') as f:
-            raw_template = f.read()
-    except FileNotFoundError:
-        print(f"::error::Outdated template file not found at '{outdated_template_path}'. Skipping updates.")
-        return
-
-    ignore_block = config.get('skipContent', {})
-    start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
-    if start_marker and end_marker and start_marker in raw_template:
-        pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
-        outdated_body_template = re.sub(pattern, '', raw_template).strip()
-    else:
-        outdated_body_template = raw_template
+    """
+    Updates older posts by either overwriting them or injecting a banner,
+    based on the configuration in `config.json`.
+    """
+    handling_config = config.get('outdatedPostHandling', {})
+    mode = handling_config.get('mode', 'overwrite') # Default to overwrite
     
     placeholders = {
         "{{latest_post_title}}": latest_release_details['title'],
@@ -54,25 +44,90 @@ def _update_older_posts(older_posts, latest_release_details, config):
         "{{bot_repo}}": config['github']['botRepo'],
     }
 
-    updated_count = 0
-    for old_post in older_posts:
-        if "This post is outdated." in old_post.selftext:
-            continue
-            
+    if mode == 'inject':
+        template_path = handling_config.get('injectTemplateFile')
+        if not template_path:
+            print("::error::'inject' mode selected but 'injectTemplateFile' is not defined in config.")
+            return
+        
         try:
-            new_body = outdated_body_template
-            for placeholder, value in placeholders.items():
-                new_body = new_body.replace(placeholder, value)
-            
-            print(f"-> Updating post {old_post.id} with outdated template.")
-            old_post.edit(body=new_body)
-            updated_count += 1
-        except Exception as e:
-            print(f"::warning::Failed to edit post {old_post.id}: {e}")
-    
-    if updated_count > 0:
-        print(f"Successfully updated {updated_count} older posts.")
+            with open(template_path, 'r') as f:
+                raw_template = f.read()
+        except FileNotFoundError:
+            print(f"::error::Inject template file not found at '{template_path}'.")
+            return
+        
+        # Check for a unique string to prevent multiple injections
+        if "⚠️ Outdated Post" in raw_template:
+            existence_check_string = "⚠️ Outdated Post"
+        else: # Fallback if the user removes the emoji
+            existence_check_string = "This post is outdated."
 
+        # Logic to strip tutorial block
+        ignore_block = config.get('skipContent', {})
+        start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
+        if start_marker and end_marker and start_marker in raw_template:
+            pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
+            banner_template = re.sub(pattern, '', raw_template).strip()
+        else:
+            banner_template = raw_template
+
+        # Populate banner placeholders
+        injection_banner = banner_template
+        for placeholder, value in placeholders.items():
+            injection_banner = injection_banner.replace(placeholder, value)
+            
+        updated_count = 0
+        for old_post in older_posts:
+            if existence_check_string in old_post.selftext:
+                continue
+            
+            try:
+                new_body = f"{injection_banner}\n\n---\n\n{old_post.selftext}"
+                print(f"-> Injecting outdated banner into post {old_post.id}.")
+                old_post.edit(body=new_body)
+                updated_count += 1
+            except Exception as e:
+                print(f"::warning::Failed to inject banner into post {old_post.id}: {e}")
+        
+        if updated_count > 0: print(f"Successfully injected banner into {updated_count} older posts.")
+
+    else: # Default to 'overwrite' mode
+        template_path = config['reddit']['outdatedTemplateFile']
+        try:
+            with open(template_path, 'r') as f:
+                raw_template = f.read()
+        except FileNotFoundError:
+            print(f"::error::Overwrite template file not found at '{template_path}'.")
+            return
+
+        ignore_block = config.get('skipContent', {})
+        start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
+        if start_marker and end_marker and start_marker in raw_template:
+            pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
+            overwrite_template = re.sub(pattern, '', raw_template).strip()
+        else:
+            overwrite_template = raw_template
+        
+        updated_count = 0
+        for old_post in older_posts:
+            if "This post is outdated." in old_post.selftext:
+                continue
+                
+            try:
+                new_body = overwrite_template
+                for placeholder, value in placeholders.items():
+                    new_body = new_body.replace(placeholder, value)
+                
+                print(f"-> Overwriting post {old_post.id} with outdated template.")
+                old_post.edit(body=new_body)
+                updated_count += 1
+            except Exception as e:
+                print(f"::warning::Failed to overwrite post {old_post.id}: {e}")
+        
+        if updated_count > 0: print(f"Successfully overwrote {updated_count} older posts.")
+
+# ... (the rest of the script, _update_bot_state, _post_new_release, and main, remain unchanged)
 def _update_bot_state(post_id, config):
     """Resets bot_state.json to monitor a new post."""
     new_state = {
