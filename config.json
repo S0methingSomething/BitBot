@@ -1,8 +1,8 @@
 {
   "_comments": {
     "github": "Configure which repositories the bot monitors and updates",
-    "reddit": "Settings for posting and managing Reddit content. postTitle is used to identify bot posts.",
-    "messages": "Text formats for GitHub releases and Reddit post updates.",
+    "reddit": "Settings for posting and managing Reddit content.",
+    "messages": "Text formats for GitHub releases.",
     "skipContent": "Defines tags for tutorial/comment blocks to be removed before posting.",
     "feedback": "Rules for analyzing Reddit comments and updating the post status.",
     "timing": "Controls the adaptive polling interval for the comment checker (in seconds)."
@@ -13,16 +13,16 @@
     "assetFileName": "MonetizationVars"
   },
   "reddit": {
-    "subreddit": "BitTest1",
+    "subreddit": "BitLifeRebels",
     "templateFile": "post_template.md",
+    "outdatedTemplateFile": "outdated_template.md",
     "postTitle": "[BitBot] {{asset_name}} for BitLife v{{version}}",
     "botName": "BitBot",
     "creator": "C1oudyLol"
   },
   "messages": {
     "releaseTitle": "{{asset_name}} v{{version}}",
-    "releaseDescription": "Automated release of the pre-patched `{{asset_name}}` file. All boolean values have been set to true.",
-    "outdatedPostFormat": "**Status:** OUTDATED. A new version is available: [{{new_post_title}}]({{new_post_url}})"
+    "releaseDescription": "Automated release of the pre-patched `{{asset_name}}` file. All boolean values have been set to true."
   },
   "skipContent": {
     "startTag": "<!-- TUTORIAL-START -->",
