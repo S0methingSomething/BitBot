@@ -2,6 +2,7 @@
   "_comments": {
     "github": "Configure which repositories the bot monitors and updates",
     "reddit": "Settings for posting and managing Reddit content.",
+    "outdatedPostHandling": "Controls how old posts are marked. mode can be 'overwrite' or 'inject'.",
     "messages": "Text formats for GitHub releases.",
     "skipContent": "Defines tags for tutorial/comment blocks to be removed before posting.",
     "feedback": "Rules for analyzing Reddit comments and updating the post status.",
@@ -19,6 +20,10 @@
     "postTitle": "[BitBot] {{asset_name}} for BitLife v{{version}}",
     "botName": "BitBot",
     "creator": "C1oudyLol"
+  },
+  "outdatedPostHandling": {
+    "mode": "inject",
+    "injectTemplateFile": "inject_template.md"
   },
   "messages": {
     "releaseTitle": "{{asset_name}} v{{version}}",
