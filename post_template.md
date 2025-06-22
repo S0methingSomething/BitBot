@@ -14,23 +14,23 @@ Available Placeholders:
 | {{bot_repo}}          | Your bot's repository name, like `YourUsername/BitBot`.        |
 | {{asset_name}}        | The name of the file asset, like `MonetizationVars`.           |
 | {{creator_username}}  | The creator's Reddit username (from `config.json`).            |
-| {{initial_status}}    | The default status for a new post ("Not enough feedback...").  |
+| {{initial_status}}    | The full, formatted initial status line for the post.          |
 <!-- TUTORIAL-END -->
 
-### **Download here:** [`{{asset_name}}`]({{direct_download_url}})  
+### **Download here:** [`{{asset_name}}`]({{direct_download_url}})
 
-> Make sure the downloaded file is named **exactly** {{asset_name}} before using it.
+> Make sure the downloaded file is named **exactly** `{{asset_name}}` before using it.
 
 ---
 
-### 🔧 Project details
-• **Created & Maintained by:** u/{{creator_username}}  
+### 🛠️ Project details
+• **Created & Maintained by:** u/{{creator_username}}
 • **Repo link:** https://github.com/{{bot_repo}}
 
 ---
 
-**Status:** {{initial_status}} (based on comments). 
+{{initial_status}}
 
 ---
 
-This is an automated post by [{{bot_name}}](https://github.com/{{bot_repo}}).  
+This is an automated post by [{{bot_name}}](https://github.com/{{bot_repo}}).
