@@ -1,16 +1,15 @@
 {
   "_comments": {
     "github": "Configure which repositories the bot monitors and updates",
-    "reddit": "Settings for posting and managing Reddit content", 
-    "placeholderMappings": "Map template placeholders to actual values",
-    "messages": "Text formats for automated GitHub releases",
-    "skipContent": "Ignore tutorial sections when processing files",
-    "feedback": "How the bot determines if something is working",
-    "timing": "How often the bot checks for updates (in seconds)"
+    "reddit": "Settings for posting and managing Reddit content. postTitle is used to identify bot posts.",
+    "messages": "Text formats for GitHub releases and Reddit post updates.",
+    "skipContent": "Defines tags for tutorial/comment blocks to be removed before posting.",
+    "feedback": "Rules for analyzing Reddit comments and updating the post status.",
+    "timing": "Controls the adaptive polling interval for the comment checker (in seconds)."
   },
   "github": {
     "sourceRepo": "S0methingSomething/BitEdit",
-    "botRepo": "S0methingSomething/BitBot", 
+    "botRepo": "YourUsername/YourRepo",
     "assetFileName": "MonetizationVars"
   },
   "reddit": {
@@ -20,29 +19,21 @@
     "botName": "BitBot",
     "creator": "C1oudyLol"
   },
-  "placeholderMappings": {
-    "version": "version",
-    "directDownloadUrl": "direct_download_url",
-    "botName": "bot_name",
-    "botRepo": "bot_repo",
-    "assetName": "asset_name",
-    "creatorUsername": "username",
-    "status": "initial_status"
-  },
   "messages": {
     "releaseTitle": "{{asset_name}} v{{version}}",
     "releaseDescription": "Automated release of the pre-patched `{{asset_name}}` file. All boolean values have been set to true.",
-    "newPostCommit": "feat(bot): start monitoring new post for v{{version}} [skip ci]",
-    "updateCommit": "chore(bot): update comment checker state [skip ci]"
+    "outdatedPostFormat": "**Status:** OUTDATED. A new version is available: [{{new_post_title}}]({{new_post_url}})"
   },
   "skipContent": {
     "startTag": "<!-- TUTORIAL-START -->",
     "endTag": "<!-- TUTORIAL-END -->"
   },
   "feedback": {
+    "statusLineFormat": "**Status:** {{status}} (based on comments).",
+    "statusLineRegex": "^\\*\\*Status:\\*\\*.*$",
     "labels": {
       "working": "Working",
-      "broken": "Potentially Not Working", 
+      "broken": "Potentially Not Working",
       "unknown": "Not enough feedback..."
     },
     "workingKeywords": ["working", "works for me", "no issues", "perfect", "thanks"],
