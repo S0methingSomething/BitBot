@@ -16,23 +16,17 @@ jobs:
       new_version: ${{ steps.compare_versions.outputs.version }}
       direct_download_url: ${{ steps.create_and_upload.outputs.direct_url }}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Read config.json into environment variables
-        id: config
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - id: config
         uses: antifree/json-to-variables@v1
-        with:
-          filename: 'config.json'
+        with: { filename: 'config.json' }
       - name: Sanity Check Configuration
         run: |
-          if [[ "${{ env.github_botRepo }}" == "YourUsername/YourRepo" || "${{ env.github_botRepo }}" != "${{ github.repository }}" ]]; then
-            echo "::error::Configuration error! The 'github.botRepo' in config.json must be set to '${{ github.repository }}'."
+          if [[ "${{ env.github_botRepo }}" != "${{ github.repository }}" ]]; then
+            echo "::error::Configuration error! The 'github.botRepo' in config.json ('${{ env.github_botRepo }}') must match this repository's name ('${{ github.repository }}')."
             exit 1
           fi
       - name: Get Latest Source Release Data
@@ -85,7 +79,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
-            echo "Orphaned tag $TAG_NAME found. Deleting it to proceed."
             git tag -d "$TAG_NAME"
             git push --delete origin "$TAG_NAME"
           fi
