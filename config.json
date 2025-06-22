@@ -9,11 +9,11 @@
   },
   "github": {
     "sourceRepo": "S0methingSomething/BitEdit",
-    "botRepo": "YourUsername/YourRepo",
+    "botRepo": "S0methingSomething/BitBot",
     "assetFileName": "MonetizationVars"
   },
   "reddit": {
-    "subreddit": "BitLifeRebels",
+    "subreddit": "BitTest1",
     "templateFile": "post_template.md",
     "postTitle": "[BitBot] {{asset_name}} for BitLife v{{version}}",
     "botName": "BitBot",
