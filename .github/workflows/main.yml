@@ -1,4 +1,4 @@
-name: '[Release] Check, Patch, and Sync'
+name: '[Release] Check, Patch, and Manage Reddit'
 on:
   workflow_dispatch:
   schedule:
@@ -8,8 +8,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check_and_patch:
-    name: 1. Check for New Version
+  check_and_release:
+    name: 1. Check Source & Create Release
     runs-on: ubuntu-latest
     outputs:
       new_version_found: ${{ steps.compare_versions.outputs.new_version_found }}
@@ -31,7 +31,7 @@ jobs:
           filename: 'config.json'
       - name: Sanity Check Configuration
         run: |
-          if [[ "${{ env.github_botRepo }}" == "YourUsername/BitBot" || "${{ env.github_botRepo }}" != "${{ github.repository }}" ]]; then
+          if [[ "${{ env.github_botRepo }}" == "YourUsername/YourRepo" || "${{ env.github_botRepo }}" != "${{ github.repository }}" ]]; then
             echo "::error::Configuration error! The 'github.botRepo' in config.json must be set to '${{ github.repository }}'."
             exit 1
           fi
@@ -46,7 +46,7 @@ jobs:
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-      - name: Parse Version
+      - name: Parse Version from Release Body
         id: parse_version
         run: |
           VERSION=$(echo "${{ steps.source_release.outputs.body }}" | grep -oP '(?<=v)\d+\.\d+\.\d+')
@@ -61,7 +61,7 @@ jobs:
           SOURCE_VERSION="v${{ steps.parse_version.outputs.version }}"
           BOT_VERSION="${{ steps.bot_release.outputs.tag }}"
           if [[ "$SOURCE_VERSION" == "$BOT_VERSION" ]]; then
-            echo "No new version found. Triggering sync job."
+            echo "No new version found. Proceeding to sync state."
             echo "new_version_found=false" >> $GITHUB_OUTPUT
           else
             echo "New version $SOURCE_VERSION found. Proceeding with release."
@@ -107,10 +107,10 @@ jobs:
           curl -sL -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/octet-stream" --data-binary "@./dist/$ASSET_NAME" "$UPLOAD_URL_TEMPLATE?name=$ASSET_NAME"
           echo "direct_url=https://github.com/${{ env.github_botRepo }}/releases/download/v${VERSION}/${ASSET_NAME}" >> $GITHUB_OUTPUT
 
-  post_and_handoff:
-    name: 2. Post New Release to Reddit
-    needs: check_and_patch
-    if: needs.check_and_patch.outputs.new_version_found == 'true'
+  post_on_new_version:
+    name: 2a. Post New Release to Reddit
+    needs: check_and_release
+    if: needs.check_and_release.outputs.new_version_found == 'true'
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
@@ -118,29 +118,27 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.10' }
       - run: pip install -r requirements.txt
-      - name: Post to Reddit and Update State
+      - name: Run Reddit Poster Script
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        run: python post_to_reddit.py "${{ needs.check_and_patch.outputs.new_version }}" "${{ needs.check_and_patch.outputs.direct_download_url }}"
-      - name: Commit state file with new Post ID
-        env:
-          VERSION: ${{ needs.check_and_patch.outputs.new_version }}
         run: |
-          COMMIT_MSG=$(jq -r '.messages.newPostCommit' config.json | sed "s/{{version}}/$VERSION/g")
-          echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
-      - uses: stefanzweifel/git-auto-commit-action@v6
+          python post_to_reddit.py \
+            --version=${{ needs.check_and_release.outputs.new_version }} \
+            --direct-download-url='${{ needs.check_and_release.outputs.direct_download_url }}'
+      - name: Commit state file
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
-          commit_message: ${{ env.COMMIT_MSG }}
+          commit_message: "feat(bot): start monitoring new post for v${{ needs.check_and_release.outputs.new_version }} [skip ci]"
           file_pattern: "bot_state.json"
 
   sync_on_no_update:
-    name: 3. Sync Reddit History (No Update Found)
-    needs: check_and_patch
-    if: needs.check_and_patch.outputs.new_version_found == 'false'
+    name: 2b. Sync Reddit History
+    needs: check_and_release
+    if: needs.check_and_release.outputs.new_version_found == 'false'
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
@@ -156,10 +154,11 @@ jobs:
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python sync_reddit_history.py
       - name: Commit state file if changed
         if: steps.sync_script.outputs.state_changed == 'true'
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
-          commit_message: "chore(bot): self-heal and sync state file [skip ci]"
+          commit_message: "chore(bot): self-heal and sync reddit state [skip ci]"
           file_pattern: "bot_state.json"
