@@ -1,0 +1,23 @@
+# Configuration for the Pylint code analysis tool.
+# See the Pylint documentation for all available options.
+
+[MESSAGES CONTROL]
+
+# A list of message IDs to disable globally for this project.
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    too-many-instance-attributes
+
+[FORMAT]
+
+# Maximum number of characters on a single line.
+max-line-length=120
+
+[BASIC]
+
+# A comma-separated list of variable names that are not subject
+# to the snake_case naming convention check (e.g., for loop counters).
+good-names=i,j,k,e,f,_,ex,fp
