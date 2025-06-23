@@ -1,0 +1,8 @@
+[project]
+name = "bitbot"
+version = "1.0.0"
+description = "A bot for managing Reddit posts for BitLife patches."
+
+[tool.setuptools]
+packages = ["bitbot"]
+package_dir = {"" = "src"}

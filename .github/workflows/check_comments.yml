@@ -25,7 +25,8 @@ jobs:
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        run: python check_comments.py
+        # Execute the 'check-comments' command from our new CLI tool
+        run: python -m src.bitbot.cli check-comments
       - name: Commit and Push State File if Changed
         if: steps.comment_checker.outputs.state_changed == 'true'
         uses: stefanzweifel/git-auto-commit-action@v6
