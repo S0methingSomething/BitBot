@@ -9,7 +9,10 @@ disable=
     missing-class-docstring,
     missing-function-docstring,
     too-few-public-methods,
-    too-many-instance-attributes
+    too-many-instance-attributes,
+    too-many-locals,
+    too-many-statements,
+    too-many-branches
 
 [FORMAT]
 
