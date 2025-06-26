@@ -2,7 +2,7 @@
 name = "bitbot"
 version = "1.0.0"
 description = "A bot for managing Reddit posts for BitLife patches."
-authors = ["Your Name <you@example.com>"]
+authors = ["S0methingSomething"]
 readme = "README.md"
 packages = [{include = "bitbot", from = "src"}]
 
@@ -24,11 +24,42 @@ mypy = "^1.10.0"
 python-semantic-release = "^9.5.0"
 uv = ">=0.1.37"
 
-[tool.poetry.extras]
-dev = ["pytest", "pytest-cov", "black", "ruff", "mypy", "python-semantic-release", "uv"]
-
 [tool.poetry.scripts]
 bitbot = "bitbot.cli:main"
+
+[project]
+name = "bitbot"
+description = "A bot for managing Reddit posts for BitLife patches."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "S0methingSomething" },
+]
+
+dynamic = ["version"]
+dependencies = [
+    "praw>=7.7.1",
+    "requests>=2.31.0",
+    "pyyaml>=6.0.1",
+    "pydantic>=2.7.1",
+    "tenacity>=8.2.3",
+    "semver>=3.0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-cov>=5.0.0",
+    "black>=24.4.2",
+    "ruff>=0.4.4",
+    "mypy>=1.10.0",
+    "python-semantic-release>=9.5.0",
+    "uv>=0.1.37",
+]
+
+[project.scripts]
+bitbot = "bitbot.cli:main"
+
 
 [build-system]
 requires = ["poetry-core"]
@@ -54,7 +85,6 @@ version_variable = "pyproject.toml:version"
 branch = "main"
 upload_to_gh_release = true
 build_command = "poetry build"
-changelog_file = "CHANGELOG.md"
 
 [tool.pytest.ini_options]
 pythonpath = "src"
