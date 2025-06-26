@@ -1,11 +1,49 @@
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.so
 
-# Node.js
-node_modules/
+# Virtual Environments
+.env
+.venv/
+env/
+venv/
+.Python
+
+# Dependency Management Caches & Files
+.poetry/
+.uv_cache/
+.pip_cache/
+# In Poetry projects, requirements.txt is often an export, not the source of truth.
+requirements.txt
+
+# Build artifacts
+build/
 dist/
-npm-debug.log*
+*.egg-info/
 
-# OS-specific
+# Testing & Code Quality Caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+nosetests.xml
+*.cover
+
+# IDE / Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS-specific files
 .DS_Store
+Thumbs.db
+
+# Secrets - IMPORTANT: Never commit secrets.
+secrets.yaml
+*.env

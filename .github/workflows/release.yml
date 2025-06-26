@@ -1,0 +1,37 @@
+name: '[Process] Semantic Release'
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'chore(release):')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.10' }
+      
+      # We install semantic-release directly, as it's a release tool
+      - name: Install Semantic Release
+        run: pip install "python-semantic-release"
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+        run: semantic-release publish

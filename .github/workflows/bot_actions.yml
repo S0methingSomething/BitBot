@@ -1,0 +1,52 @@
+name: '[Bot] Run Bot Actions'
+on:
+  workflow_dispatch:
+  schedule:
+    # Run the release check every hour at 5 past
+    - cron: '5 * * * *'
+    # Run the comment check every 15 minutes
+    - cron: '*/15 * * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-bot:
+    name: Run Bot
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.10' }
+      - name: Install UV
+        run: pipx install uv
+      - name: Install dependencies
+        run: uv pip install -e .
+
+      - name: Execute Main Release & Post Logic
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '5 * * * *')
+        env:
+          # Use GITHUB_TOKEN for actions running in the repo. GH_PAT is for semantic-release.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+        run: uv run bitbot release
+
+      - name: Execute Comment Check Logic
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '*/15 * * * *')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+        run: uv run bitbot check-comments
