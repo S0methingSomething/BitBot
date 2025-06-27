@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import sys
-from typing import Any, Dict, List
+from typing import Any
 
 import praw
 import requests
@@ -26,7 +26,10 @@ class GitHubClient:
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         }
-        self.state_issue_url = f"{self.api_base}/repos/{self.config.botRepo}/issues/{config.reddit.state_issue_number}"
+        self.state_issue_url = (
+            f"{self.api_base}/repos/{self.config.bot_repo}/issues/"
+            f"{config.reddit.state_issue_number}"
+        )
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response:
@@ -37,7 +40,7 @@ class GitHubClient:
         response.raise_for_status()
         return response
 
-    def get_latest_release(self, repo_slug: str) -> Dict[str, Any] | None:
+    def get_latest_release(self, repo_slug: str) -> dict[str, Any] | None:
         """Fetches the latest release from a given repository."""
         url = f"{self.api_base}/repos/{repo_slug}/releases/latest"
         try:
@@ -49,7 +52,9 @@ class GitHubClient:
             raise
         except RetryError as e:
             logging.error(
-                f"Failed to fetch latest release from {repo_slug} after multiple retries: {e}"
+                "Failed to fetch latest release from %s after multiple retries: %s",
+                repo_slug,
+                e,
             )
             raise
 
@@ -68,9 +73,9 @@ class GitHubClient:
 
     def create_release(
         self, tag_name: str, release_name: str, body: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Creates a new GitHub release."""
-        url = f"{self.api_base}/repos/{self.config.botRepo}/releases"
+        url = f"{self.api_base}/repos/{self.config.bot_repo}/releases"
         payload = {"tag_name": tag_name, "name": release_name, "body": body}
         return self._request("POST", url, json=payload).json()
 
@@ -82,8 +87,10 @@ class GitHubClient:
         self._request("POST", url, data=data)
 
     def mark_old_releases_outdated(self) -> None:
-        """Finds all releases except the latest and prepends '[OUTDATED]' to their titles."""
-        url = f"{self.api_base}/repos/{self.config.botRepo}/releases"
+        """
+        Finds all releases except the latest and prepends '[OUTDATED]' to their titles.
+        """
+        url = f"{self.api_base}/repos/{self.config.bot_repo}/releases"
         releases = self._request("GET", url).json()
         if not releases or len(releases) < 2:
             logging.info("Not enough releases to mark any as outdated.")
@@ -106,7 +113,8 @@ class GitHubClient:
             match = re.search(r"```json\s*(\{.*?\})\s*```", issue_body, re.DOTALL)
             if not match:
                 logging.error(
-                    f"Could not find a JSON code block in state issue {self.state_issue_url}"
+                    "Could not find a JSON code block in state issue %s",
+                    self.state_issue_url,
                 )
                 return None
 
@@ -126,7 +134,7 @@ class GitHubClient:
             issue_body = issue_data.get("body", "")
 
             # Create the new state block
-            state_json_str = state.model_dump_json(indent=2)
+            state_json_str = state.model_dump_json(by_alias=True, indent=2)
             new_state_block = f"```json\n{state_json_str}\n```"
 
             # Replace the old state block or append if not found
@@ -138,7 +146,9 @@ class GitHubClient:
 
             self._request("PATCH", self.state_issue_url, json={"body": new_body})
             logging.info(
-                f"Successfully saved state to issue {self.config.botRepo}#{self.state_issue_url.split('/')[-1]}"
+                "Successfully saved state to issue %s#%s",
+                self.config.bot_repo,
+                self.state_issue_url.split("/")[-1],
             )
         except Exception as e:
             logging.error(f"Failed to save state to GitHub issue: {e}", exc_info=True)
@@ -169,10 +179,10 @@ class RedditClient:
             password=os.environ["REDDIT_PASSWORD"],
         )
         self.subreddit = self.reddit.subreddit(config.reddit.subreddit)
-        self.post_title_template = config.messages.postTitle
-        self.asset_name = config.github.assetFileName
+        self.post_title_template = config.messages["postTitle"]
+        self.asset_name = config.github.asset_file_name
 
-    def get_bot_submissions(self, limit: int = 100) -> List[Submission]:
+    def get_bot_submissions(self, limit: int = 100) -> list[Submission]:
         """Gets the bot's recent submissions that match the release post format."""
         post_identifier = (
             self.post_title_template.split("{{version}}")[0]

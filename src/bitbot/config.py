@@ -1,33 +1,34 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
-from typing import List, Dict
 
 
 # Define sub-models for clarity and strictness
 class GitHubConfig(BaseModel):
-    sourceRepo: str
-    botRepo: str
-    assetFileName: str
+    source_repo: str = Field(alias="sourceRepo")
+    bot_repo: str = Field(alias="botRepo")
+    asset_file_name: str = Field(alias="assetFileName")
 
 
 class RedditConfig(BaseModel):
     subreddit: str
     creator: str
-    botName: str
+    bot_name: str = Field(alias="botName")
     state_issue_number: int
 
 
 class FeedbackConfig(BaseModel):
-    statusLineRegex: str
-    labels: Dict[str, str]
-    workingKeywords: List[str]
-    notWorkingKeywords: List[str]
-    minFeedbackCount: int = Field(gt=0)
+    status_line_regex: str = Field(alias="statusLineRegex")
+    labels: dict[str, str]
+    working_keywords: list[str] = Field(alias="workingKeywords")
+    not_working_keywords: list[str] = Field(alias="notWorkingKeywords")
+    min_feedback_count: int = Field(alias="minFeedbackCount", gt=0)
 
 
 class TimingConfig(BaseModel):
-    firstCheck: int = Field(gt=0)
-    maxWait: int = Field(gt=0)
-    increaseBy: int = Field(gt=0)
+    first_check: int = Field(alias="firstCheck", gt=0)
+    max_wait: int = Field(alias="maxWait", gt=0)
+    increase_by: int = Field(alias="increaseBy", gt=0)
 
 
 class Config(BaseModel):
@@ -35,18 +36,18 @@ class Config(BaseModel):
 
     github: GitHubConfig
     reddit: RedditConfig
-    outdatedPostHandling: Dict
-    messages: Dict[str, str]
+    outdated_post_handling: dict[str, Any] = Field(alias="outdatedPostHandling")
+    messages: dict[str, str]
     feedback: FeedbackConfig
     timing: TimingConfig
-    skipContent: Dict[str, str]
-    templates: Dict[str, str]
+    skip_content: dict[str, str] = Field(alias="skipContent")
+    templates: dict[str, str]
 
 
 class BotState(BaseModel):
     """A model for the bot's persistent state."""
 
-    activePostId: str | None = None
-    lastCheckTimestamp: str
-    currentIntervalSeconds: int
-    lastCommentCount: int
+    active_post_id: str | None = Field(alias="activePostId", default=None)
+    last_check_timestamp: str = Field(alias="lastCheckTimestamp")
+    current_interval_seconds: int = Field(alias="currentIntervalSeconds")
+    last_comment_count: int = Field(alias="lastCommentCount")

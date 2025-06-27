@@ -37,6 +37,17 @@ target-version = ['py310']
 
 [tool.ruff]
 line-length = 88
+# Exclude common folders from scanning
+exclude = [
+    ".git",
+    ".ruff_cache",
+    ".venv",
+    "__pypackages__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "C90", "N", "UP", "B", "A", "T20", "SIM", "PTH"]
 ignore = []
 

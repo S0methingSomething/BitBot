@@ -24,7 +24,7 @@ def load_validated_config() -> Config:
         logging.critical(f"Configuration file not found at: {config_path}")
         sys.exit(1)
 
-    with open(config_path, "r", encoding="utf-8") as f:
+    with config_path.open("r", encoding="utf-8") as f:
         raw_config = yaml.safe_load(f)
 
     try:
@@ -70,7 +70,9 @@ def main() -> None:
     # Command: bitbot release
     release_parser = subparsers.add_parser(
         "release",
-        help="Check for new versions, patch, create GitHub release, and post to Reddit.",
+        help=(
+            "Check for new versions, patch, create GitHub release, and post to Reddit."
+        ),
     )
     release_parser.set_defaults(func=lambda args: handle_release(config))
 

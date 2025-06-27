@@ -1,10 +1,8 @@
-import json
 import logging
 import re
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import semver
 
@@ -20,7 +18,7 @@ logging.basicConfig(
 
 
 def _render_template(
-    template_name: str, context: Dict[str, Any], config: Config
+    template_name: str, context: dict[str, Any], config: Config
 ) -> str:
     """Loads and renders a template from the templates directory."""
     try:
@@ -31,8 +29,8 @@ def _render_template(
         raise
 
     # Remove tutorial block
-    start_tag = config.skipContent["startTag"]
-    end_tag = config.skipContent["endTag"]
+    start_tag = config.skip_content["startTag"]
+    end_tag = config.skip_content["endTag"]
     if start_tag and end_tag and start_tag in raw_template:
         pattern = re.compile(
             f"{re.escape(start_tag)}.*?{re.escape(end_tag)}", re.DOTALL
@@ -47,7 +45,191 @@ def _render_template(
     return content
 
 
-def _parse_version_from_release(release_data: Dict[str, Any]) -> str | None:
+def _get_and_validate_versions(gh: GitHubClient, config: Config) -> tuple | None:
+    """Fetch and parse versions for both source and bot repos."""
+    try:
+        source_release = gh.get_latest_release(config.github.source_repo)
+        if not source_release:
+            logging.error(
+                "Could not fetch latest release from source repo: %s",
+                config.github.source_repo,
+            )
+            return None
+        source_version_str = _parse_version_from_release(source_release)
+        if not source_version_str:
+            logging.error(
+                "Could not parse valid version from source release '%s'.",
+                source_release.get("name"),
+            )
+            return None
+        source_version = semver.Version.parse(source_version_str)
+
+        bot_release = gh.get_latest_release(config.github.bot_repo)
+        bot_version_str = (
+            _parse_version_from_release(bot_release) if bot_release else "0.0.0"
+        )
+        bot_version = semver.Version.parse(bot_version_str)
+
+        logging.info("Source: v%s | Bot: v%s", source_version, bot_version)
+        return source_version, bot_version, source_release
+    except Exception as e:
+        logging.error(f"Failed to fetch initial release data: {e}", exc_info=True)
+        return None
+
+
+def _download_and_patch_asset(
+    gh: GitHubClient, source_release: dict[str, Any], config: Config
+) -> bytes | None:
+    """Download the specified asset from the source release and patch it."""
+    asset_to_download = next(
+        (
+            asset
+            for asset in source_release.get("assets", [])
+            if asset["name"] == config.github.asset_file_name
+        ),
+        None,
+    )
+    if not asset_to_download:
+        logging.error(
+            "Asset '%s' not found in source release.", config.github.asset_file_name
+        )
+        return None
+
+    logging.info("Downloading original asset...")
+    original_content_bytes = gh.download_asset(asset_to_download["url"])
+    original_content = original_content_bytes.decode("utf-8")
+
+    logging.info("Patching asset content...")
+    patched_content = patch_monetization_vars(original_content)
+    return patched_content.encode("utf-8")
+
+
+def run_release_and_post(
+    config: Config, gh: GitHubClient, reddit: RedditClient
+) -> None:
+    """The main application function to check, patch, release, and post."""
+    logging.info("--- Starting Release & Post Cycle ---")
+
+    # 1. Get and compare versions
+    version_info = _get_and_validate_versions(gh, config)
+    if not version_info:
+        return
+    source_version, bot_version, source_release = version_info
+
+    if source_version <= bot_version:
+        logging.info("Bot is up to date. No new release needed.")
+        return
+
+    logging.info(f"New version found: {source_version}. Proceeding with release.")
+
+    # 2. Download and patch the asset
+    patched_content_bytes = _download_and_patch_asset(gh, source_release, config)
+    if not patched_content_bytes:
+        return
+
+    # 3. Create new GitHub release in bot repo
+    tag_name = f"v{source_version}"
+    release_title = (
+        config.messages["releaseTitle"]
+        .replace("{{asset_name}}", config.github.asset_file_name)
+        .replace("{{version}}", str(source_version))
+    )
+    release_body = config.messages["releaseDescription"].replace(
+        "{{asset_name}}", config.github.asset_file_name
+    )
+
+    logging.info(f"Creating new GitHub release: {release_title}")
+    new_release_data = gh.create_release(tag_name, release_title, release_body)
+    upload_url = new_release_data["upload_url"]
+
+    logging.info("Uploading patched asset...")
+    gh.upload_asset(upload_url, config.github.asset_file_name, patched_content_bytes)
+    new_release_data = gh.get_latest_release(config.github.bot_repo)  # Refetch
+
+    # 4. Post to Reddit
+    logging.info("Preparing to post to Reddit...")
+    direct_download_url = new_release_data["assets"][0]["browser_download_url"]
+    old_posts = reddit.get_bot_submissions(limit=20)
+
+    post_context = {
+        "asset_name": config.github.asset_file_name,
+        "version": source_version,
+        "direct_download_url": direct_download_url,
+        "creator_username": config.reddit.creator,
+        "bot_repo": config.github.bot_repo,
+        "bot_name": config.reddit.bot_name,
+        "initial_status": config.messages["statusLine"].replace(
+            "{{status}}", config.feedback.labels["unknown"]
+        ),
+    }
+    post_title = (
+        config.messages["postTitle"]
+        .replace("{{asset_name}}", post_context["asset_name"])
+        .replace("{{version}}", str(post_context["version"]))
+    )
+    post_body = _render_template(config.templates["post"], post_context, config)
+
+    logging.info(f"Submitting new post to r/{config.reddit.subreddit}...")
+    new_submission = reddit.submit_post(title=post_title, selftext=post_body)
+
+    new_state = BotState(
+        active_post_id=new_submission.id,
+        last_check_timestamp=datetime.now(timezone.utc).isoformat(),
+        current_interval_seconds=config.timing.first_check,
+        last_comment_count=0,
+    )
+    gh.save_state(new_state)
+    logging.info(f"State updated to monitor new post: {new_submission.id}")
+
+    # 5. Update old posts
+    _update_old_reddit_posts(old_posts, new_submission, config)
+
+    # 6. Mark old GitHub releases as [OUTDATED]
+    logging.info("Marking old GitHub releases as outdated...")
+    gh.mark_old_releases_outdated()
+
+    logging.info("--- Release & Post Cycle Complete ---")
+
+
+def _update_old_reddit_posts(old_posts, new_submission, config: Config):
+    """Find and update old Reddit posts to point to the new one."""
+    if not old_posts:
+        return
+
+    logging.info(f"Updating {len(old_posts)} old Reddit post(s)...")
+    latest_post_details = {
+        "latest_post_title": new_submission.title,
+        "latest_post_url": new_submission.shortlink,
+        "latest_version": str(new_submission.title).split(" v")[-1],
+        "asset_name": config.github.asset_file_name,
+    }
+    outdated_mode = config.outdated_post_handling["mode"]
+    template_name = config.templates.get(outdated_mode)
+
+    if not template_name:
+        logging.error(f"Template for outdated mode '{outdated_mode}' not in config.")
+        return
+
+    outdated_content = _render_template(template_name, latest_post_details, config)
+
+    for post in old_posts:
+        if (
+            "⚠️ Outdated Post" not in post.selftext
+            and "This Post is Outdated" not in post.selftext
+        ):
+            new_body = (
+                f"{outdated_content}\n\n---\n\n{post.selftext}"
+                if outdated_mode == "inject"
+                else outdated_content
+            )
+            try:
+                post.edit(body=new_body)
+                logging.info(f"-> Updated old post {post.id}")
+            except Exception as e:
+                logging.warning(f"Failed to edit post {post.id}: {e}")
+
+
+def _parse_version_from_release(release_data: dict[str, Any]) -> str | None:
     """Parses version from release tag or body, preferring tag."""
     if not release_data:
         return None
@@ -62,183 +244,20 @@ def _parse_version_from_release(release_data: Dict[str, Any]) -> str | None:
     return None
 
 
-def run_release_and_post(
-    config: Config, gh: GitHubClient, reddit: RedditClient
-) -> None:
-    """The main application function to check, patch, release, and post."""
-    logging.info("--- Starting Release & Post Cycle ---")
-
-    # 1. Get latest source and bot releases
-    try:
-        source_release = gh.get_latest_release(config.github.sourceRepo)
-        if not source_release:
-            logging.error(
-                f"Could not fetch latest release from source repo: {config.github.sourceRepo}"
-            )
-            return
-        source_version_str = _parse_version_from_release(source_release)
-        if not source_version_str:
-            logging.error(
-                f"Could not parse a valid version from source repo release '{source_release.get('name')}'."
-            )
-            return
-        source_version = semver.Version.parse(source_version_str)
-
-        bot_release = gh.get_latest_release(config.github.botRepo)
-        bot_version_str = (
-            _parse_version_from_release(bot_release) if bot_release else "0.0.0"
-        )
-        bot_version = semver.Version.parse(bot_version_str)
-    except Exception as e:
-        logging.error(f"Failed to fetch initial release data: {e}", exc_info=True)
-        return
-
-    logging.info(
-        f"Source repo version: {source_version} | Bot repo version: {bot_version}"
-    )
-
-    # 2. Compare versions
-    if source_version <= bot_version:
-        logging.info("Bot is up to date. No new release needed.")
-        return
-
-    logging.info(f"New version found: {source_version}. Proceeding with release.")
-
-    # 3. Download and patch the asset
-    asset_to_download = next(
-        (
-            asset
-            for asset in source_release.get("assets", [])
-            if asset["name"] == config.github.assetFileName
-        ),
-        None,
-    )
-    if not asset_to_download:
-        logging.error(
-            f"Asset '{config.github.assetFileName}' not found in source release."
-        )
-        return
-
-    logging.info("Downloading original asset...")
-    original_content_bytes = gh.download_asset(asset_to_download["url"])
-    original_content = original_content_bytes.decode("utf-8")
-
-    logging.info("Patching asset content...")
-    patched_content = patch_monetization_vars(original_content)
-    patched_content_bytes = patched_content.encode("utf-8")
-
-    # 4. Create new GitHub release in bot repo
-    tag_name = f"v{source_version}"
-    release_title = (
-        config.messages["releaseTitle"]
-        .replace("{{asset_name}}", config.github.assetFileName)
-        .replace("{{version}}", str(source_version))
-    )
-    release_body = config.messages["releaseDescription"].replace(
-        "{{asset_name}}", config.github.assetFileName
-    )
-
-    logging.info(f"Creating new GitHub release: {release_title}")
-    new_release_data = gh.create_release(tag_name, release_title, release_body)
-    upload_url = new_release_data["upload_url"]
-
-    logging.info("Uploading patched asset...")
-    gh.upload_asset(upload_url, config.github.assetFileName, patched_content_bytes)
-    # Refetch release data to get the asset URL
-    new_release_data = gh.get_latest_release(config.github.botRepo)
-
-    # 5. Post to Reddit
-    logging.info("Preparing to post to Reddit...")
-    direct_download_url = new_release_data["assets"][0]["browser_download_url"]
-
-    # Get old Reddit posts before creating new one
-    old_posts = reddit.get_bot_submissions(limit=20)
-
-    # Create the new post
-    post_context = {
-        "asset_name": config.github.assetFileName,
-        "version": source_version,
-        "direct_download_url": direct_download_url,
-        "creator_username": config.reddit.creator,
-        "bot_repo": config.github.botRepo,
-        "bot_name": config.reddit.botName,
-        "initial_status": config.messages["statusLine"].replace(
-            "{{status}}", config.feedback.labels["unknown"]
-        ),
-    }
-    post_title_template = config.messages["postTitle"]
-    post_title = post_title_template.replace(
-        "{{asset_name}}", post_context["asset_name"]
-    ).replace("{{version}}", str(post_context["version"]))
-    post_body = _render_template(config.templates["post"], post_context, config)
-
-    logging.info(f"Submitting new post to r/{config.reddit.subreddit}...")
-    new_submission = reddit.submit_post(title=post_title, selftext=post_body)
-
-    # Update state to monitor new post
-    new_state = BotState(
-        activePostId=new_submission.id,
-        lastCheckTimestamp=datetime.now(timezone.utc).isoformat(),
-        currentIntervalSeconds=config.timing.firstCheck,
-        lastCommentCount=0,
-    )
-    gh.save_state(new_state)
-    logging.info(f"State updated to monitor new post: {new_submission.id}")
-
-    # Now update old posts
-    if old_posts:
-        logging.info(f"Updating {len(old_posts)} old Reddit post(s)...")
-        latest_post_details = {
-            "latest_post_title": new_submission.title,
-            "latest_post_url": new_submission.shortlink,
-            "latest_version": source_version,
-            "asset_name": config.github.assetFileName,
-        }
-        outdated_mode = config.outdatedPostHandling["mode"]
-        template_name = config.templates.get(outdated_mode)
-        if not template_name:
-            logging.error(
-                f"Outdated post template for mode '{outdated_mode}' not found in config.templates"
-            )
-            return
-
-        outdated_content = _render_template(template_name, latest_post_details, config)
-
-        for post in old_posts:
-            if (
-                "⚠️ Outdated Post" not in post.selftext
-                and "This Post is Outdated" not in post.selftext
-            ):
-                if outdated_mode == "inject":
-                    new_body = f"{outdated_content}\n\n---\n\n{post.selftext}"
-                else:  # overwrite
-                    new_body = outdated_content
-
-                try:
-                    post.edit(body=new_body)
-                    logging.info(f"-> Updated old post {post.id}")
-                except Exception as e:
-                    logging.warning(f"Failed to edit post {post.id}: {e}")
-
-    # 6. Mark old GitHub releases as [OUTDATED]
-    logging.info("Marking old GitHub releases as outdated...")
-    gh.mark_old_releases_outdated()
-
-    logging.info("--- Release & Post Cycle Complete ---")
-
-
 def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) -> None:
     """Checks for comments on the active post and updates status."""
     logging.info("--- Starting Comment Check Cycle ---")
     state = gh.load_state()
 
-    if not state or not state.activePostId:
+    if not state or not state.active_post_id:
         logging.warning("No active post ID found in state. Skipping comment check.")
         return
 
     now = datetime.now(timezone.utc)
-    last_check_time = datetime.fromisoformat(state.lastCheckTimestamp)
-    next_check_time = last_check_time + timedelta(seconds=state.currentIntervalSeconds)
+    last_check_time = datetime.fromisoformat(state.last_check_timestamp)
+    next_check_time = last_check_time + timedelta(
+        seconds=state.current_interval_seconds
+    )
 
     if now < next_check_time:
         wait_seconds = (next_check_time - now).total_seconds()
@@ -247,14 +266,16 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
         )
         return
 
-    logging.info(f"Performing check on active post: {state.activePostId}")
+    logging.info(f"Performing check on active post: {state.active_post_id}")
     try:
-        submission = reddit.reddit.submission(id=state.activePostId)
+        submission = reddit.reddit.submission(id=state.active_post_id)
         submission.comments.replace_more(limit=0)
         comments = submission.comments.list()
 
-        working_kw = re.compile("|".join(config.feedback.workingKeywords), re.I)
-        not_working_kw = re.compile("|".join(config.feedback.notWorkingKeywords), re.I)
+        working_kw = re.compile("|".join(config.feedback.working_keywords), re.I)
+        not_working_kw = re.compile(
+            "|".join(config.feedback.not_working_keywords), re.I
+        )
         positive_score = sum(1 for c in comments if working_kw.search(c.body))
         negative_score = sum(1 for c in comments if not_working_kw.search(c.body))
         net_score = positive_score - negative_score
@@ -262,7 +283,7 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
             f"Comment analysis: Positive={positive_score}, Negative={negative_score}"
         )
 
-        threshold = config.feedback.minFeedbackCount
+        threshold = config.feedback.min_feedback_count
         if net_score >= threshold:
             new_status_text = config.feedback.labels["working"]
         elif net_score <= -threshold:
@@ -274,7 +295,7 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
             "{{status}}", new_status_text
         )
 
-        status_regex = re.compile(config.feedback.statusLineRegex, re.MULTILINE)
+        status_regex = re.compile(config.feedback.status_line_regex, re.MULTILINE)
         if not status_regex.search(submission.selftext):
             logging.warning(
                 "Could not find status line in the post. It may have been edited."
@@ -287,19 +308,19 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
             logging.info("Post status is already correct.")
 
         # Update state object
-        state.lastCheckTimestamp = now.isoformat()
-        if len(comments) > state.lastCommentCount:  # New comments arrived
-            state.currentIntervalSeconds = config.timing.firstCheck
+        state.last_check_timestamp = now.isoformat()
+        if len(comments) > state.last_comment_count:  # New comments arrived
+            state.current_interval_seconds = config.timing.first_check
         else:  # No new comments, increase wait time
-            state.currentIntervalSeconds = min(
-                config.timing.maxWait,
-                state.currentIntervalSeconds + config.timing.increaseBy,
+            state.current_interval_seconds = min(
+                config.timing.max_wait,
+                state.current_interval_seconds + config.timing.increase_by,
             )
-        state.lastCommentCount = len(comments)
+        state.last_comment_count = len(comments)
 
         gh.save_state(state)
         logging.info(
-            f"State saved. Next check interval: {state.currentIntervalSeconds}s"
+            f"State saved. Next check interval: {state.current_interval_seconds}s"
         )
 
     except Exception as e:
