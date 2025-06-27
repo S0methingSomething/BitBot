@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "A bot for managing Reddit posts for BitLife patches."
 authors = [{name = "S0methingSomething"}]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "praw>=7.7.1,<8.0.0",
     "requests>=2.31.0,<3.0.0",
@@ -19,7 +19,7 @@ dev = [
     "pytest>=8.2.2,<9.0.0",
     "pytest-cov>=6.2.0,<7.0.0",
     "black>=25.1.0,<26.0.0",
-    "ruff>=0.12.0,<1.0.0",
+    "ruff>=0.12.1,<1.0.0",
     "mypy>=1.11.0,<2.0.0",
     "python-semantic-release>=10.1.0,<11.0.0",
     "types-requests",
@@ -54,7 +54,7 @@ select = ["E", "F", "W", "I", "C90", "N", "UP", "B", "A", "T20", "SIM", "PTH"]
 ignore = []
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.13"
 warn_return_any = true
 ignore_missing_imports = true
 strict = true
