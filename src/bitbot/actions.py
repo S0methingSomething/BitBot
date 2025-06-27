@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import semver
+from praw.models import Submission
 
 from .clients import GitHubClient, RedditClient
 from .config import BotState, Config
@@ -28,7 +29,6 @@ def _render_template(
         logging.error(f"Template file not found: {template_path}")
         raise
 
-    # Remove tutorial block
     start_tag = config.skip_content["startTag"]
     end_tag = config.skip_content["endTag"]
     if start_tag and end_tag and start_tag in raw_template:
@@ -39,13 +39,14 @@ def _render_template(
     else:
         content = raw_template
 
-    # Replace placeholders
     for placeholder, value in context.items():
         content = content.replace(f"{{{{{placeholder}}}}}", str(value))
     return content
 
 
-def _get_and_validate_versions(gh: GitHubClient, config: Config) -> tuple | None:
+def _get_and_validate_versions(
+    gh: GitHubClient, config: Config
+) -> tuple[semver.Version, semver.Version, dict[str, Any]] | None:
     """Fetch and parse versions for both source and bot repos."""
     try:
         source_release = gh.get_latest_release(config.github.source_repo)
@@ -68,6 +69,8 @@ def _get_and_validate_versions(gh: GitHubClient, config: Config) -> tuple | None
         bot_version_str = (
             _parse_version_from_release(bot_release) if bot_release else "0.0.0"
         )
+        if not bot_version_str:
+            bot_version_str = "0.0.0"
         bot_version = semver.Version.parse(bot_version_str)
 
         logging.info("Source: v%s | Bot: v%s", source_version, bot_version)
@@ -110,7 +113,6 @@ def run_release_and_post(
     """The main application function to check, patch, release, and post."""
     logging.info("--- Starting Release & Post Cycle ---")
 
-    # 1. Get and compare versions
     version_info = _get_and_validate_versions(gh, config)
     if not version_info:
         return
@@ -122,12 +124,10 @@ def run_release_and_post(
 
     logging.info(f"New version found: {source_version}. Proceeding with release.")
 
-    # 2. Download and patch the asset
     patched_content_bytes = _download_and_patch_asset(gh, source_release, config)
     if not patched_content_bytes:
         return
 
-    # 3. Create new GitHub release in bot repo
     tag_name = f"v{source_version}"
     release_title = (
         config.messages["releaseTitle"]
@@ -144,11 +144,14 @@ def run_release_and_post(
 
     logging.info("Uploading patched asset...")
     gh.upload_asset(upload_url, config.github.asset_file_name, patched_content_bytes)
-    new_release_data = gh.get_latest_release(config.github.bot_repo)  # Refetch
 
-    # 4. Post to Reddit
+    refetched_release_data = gh.get_latest_release(config.github.bot_repo)
+    if not refetched_release_data:
+        logging.error("CRITICAL: Failed to refetch release after uploading asset.")
+        return
+
     logging.info("Preparing to post to Reddit...")
-    direct_download_url = new_release_data["assets"][0]["browser_download_url"]
+    direct_download_url = refetched_release_data["assets"][0]["browser_download_url"]
     old_posts = reddit.get_bot_submissions(limit=20)
 
     post_context = {
@@ -181,17 +184,17 @@ def run_release_and_post(
     gh.save_state(new_state)
     logging.info(f"State updated to monitor new post: {new_submission.id}")
 
-    # 5. Update old posts
     _update_old_reddit_posts(old_posts, new_submission, config)
 
-    # 6. Mark old GitHub releases as [OUTDATED]
     logging.info("Marking old GitHub releases as outdated...")
     gh.mark_old_releases_outdated()
 
     logging.info("--- Release & Post Cycle Complete ---")
 
 
-def _update_old_reddit_posts(old_posts, new_submission, config: Config):
+def _update_old_reddit_posts(
+    old_posts: list[Submission], new_submission: Submission, config: Config
+) -> None:
     """Find and update old Reddit posts to point to the new one."""
     if not old_posts:
         return
@@ -233,14 +236,16 @@ def _parse_version_from_release(release_data: dict[str, Any]) -> str | None:
     """Parses version from release tag or body, preferring tag."""
     if not release_data:
         return None
-    tag = release_data.get("tag_name", "").lstrip("v")
-    if semver.Version.is_valid(tag):
+    tag_name = release_data.get("tag_name", "")
+    tag = tag_name.lstrip("v") if tag_name else ""
+    if tag and semver.Version.is_valid(tag):
         return tag
 
     body = release_data.get("body", "")
-    match = re.search(r"v(\d+\.\d+\.\d+)", body)
-    if match:
-        return match.group(1)
+    if body:
+        match = re.search(r"v(\d+\.\d+\.\d+)", body)
+        if match:
+            return match.group(1)
     return None
 
 
@@ -307,11 +312,10 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
         else:
             logging.info("Post status is already correct.")
 
-        # Update state object
         state.last_check_timestamp = now.isoformat()
-        if len(comments) > state.last_comment_count:  # New comments arrived
+        if len(comments) > state.last_comment_count:
             state.current_interval_seconds = config.timing.first_check
-        else:  # No new comments, increase wait time
+        else:
             state.current_interval_seconds = min(
                 config.timing.max_wait,
                 state.current_interval_seconds + config.timing.increase_by,

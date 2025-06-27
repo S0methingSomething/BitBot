@@ -22,6 +22,8 @@ dev = [
     "ruff>=0.12.0,<1.0.0",
     "mypy>=1.11.0,<2.0.0",
     "python-semantic-release>=10.1.0,<11.0.0",
+    "types-requests",
+    "types-PyYAML",
 ]
 
 [project.scripts]
@@ -62,3 +64,6 @@ pythonpath = "src"
 testpaths = [
     "tests",
 ]
+
+[tool.mypy.plugins]
+"pydantic.mypy" = { "infer_constructors" = true }

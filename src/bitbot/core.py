@@ -1,4 +1,5 @@
 import base64
+import binascii  # <-- FIX: Import binascii to handle its specific error
 
 _B64_NET_BOOLEAN_TRUE = (
     "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAQs="
@@ -68,16 +69,21 @@ def patch_monetization_vars(content: str) -> str:
     lines = []
 
     for line in content.strip().split("\n"):
+        line = line.strip()  # <-- FIX: Remove whitespace that causes test failures
         if ":" not in line:
             continue
-        enc_key, enc_val = line.split(":", 1)
-        dec_key = _b64_decode_and_xor(enc_key, obfuscated_key)
-        dec_val_b64 = _b64_decode_and_xor(enc_val, obfuscated_key)
+        try:
+            enc_key, enc_val = line.split(":", 1)
+            dec_key = _b64_decode_and_xor(enc_key, obfuscated_key)
+            dec_val_b64 = _b64_decode_and_xor(enc_val, obfuscated_key)
 
-        if dec_val_b64 == _B64_NET_BOOLEAN_FALSE:
-            dec_val_b64 = _B64_NET_BOOLEAN_TRUE
+            if dec_val_b64 == _B64_NET_BOOLEAN_FALSE:
+                dec_val_b64 = _B64_NET_BOOLEAN_TRUE
 
-        lines.append((dec_key, dec_val_b64))
+            lines.append((dec_key, dec_val_b64))
+        # <-- FIX: Catch the correct exception type -->
+        except (ValueError, IndexError, binascii.Error):
+            continue
 
     output_lines = []
     for dec_key, dec_val_b64 in lines:

@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import sys
-from typing import Any
+from typing import Any, cast
 
 import praw
 import requests
@@ -44,7 +44,8 @@ class GitHubClient:
         """Fetches the latest release from a given repository."""
         url = f"{self.api_base}/repos/{repo_slug}/releases/latest"
         try:
-            return self._request("GET", url).json()
+            response = self._request("GET", url)
+            return cast(dict[str, Any], response.json())
         except requests.HTTPError as e:
             if e.response.status_code == 404:
                 logging.warning(f"No releases found for {repo_slug}. Returning None.")
@@ -57,11 +58,11 @@ class GitHubClient:
                 e,
             )
             raise
+        return None
 
     def download_asset(self, url: str) -> bytes:
         """Downloads a release asset."""
         try:
-            # Asset downloads need a different Accept header
             headers = self.headers.copy()
             headers["Accept"] = "application/octet-stream"
             response = requests.get(url, headers=headers, timeout=60, stream=True)
@@ -77,7 +78,8 @@ class GitHubClient:
         """Creates a new GitHub release."""
         url = f"{self.api_base}/repos/{self.config.bot_repo}/releases"
         payload = {"tag_name": tag_name, "name": release_name, "body": body}
-        return self._request("POST", url, json=payload).json()
+        response = self._request("POST", url, json=payload)
+        return cast(dict[str, Any], response.json())
 
     def upload_asset(self, upload_url: str, asset_name: str, data: bytes) -> None:
         """Uploads an asset to a release."""
@@ -91,12 +93,13 @@ class GitHubClient:
         Finds all releases except the latest and prepends '[OUTDATED]' to their titles.
         """
         url = f"{self.api_base}/repos/{self.config.bot_repo}/releases"
-        releases = self._request("GET", url).json()
+        response = self._request("GET", url)
+        releases = cast(list[dict[str, Any]], response.json())
         if not releases or len(releases) < 2:
             logging.info("Not enough releases to mark any as outdated.")
             return
 
-        for release in releases[1:]:  # Skip the latest one at index 0
+        for release in releases[1:]:
             if not release["name"].startswith("[OUTDATED] "):
                 logging.info(f"Marking release '{release['name']}' as outdated.")
                 update_url = release["url"]
@@ -106,10 +109,11 @@ class GitHubClient:
     def load_state(self) -> BotState | None:
         """Loads the bot's state from the dedicated GitHub issue."""
         try:
-            issue_data = self._request("GET", self.state_issue_url).json()
+            issue_data = cast(
+                dict[str, Any], self._request("GET", self.state_issue_url).json()
+            )
             issue_body = issue_data.get("body", "")
 
-            # Find the JSON code block
             match = re.search(r"```json\s*(\{.*?\})\s*```", issue_body, re.DOTALL)
             if not match:
                 logging.error(
@@ -129,15 +133,14 @@ class GitHubClient:
     def save_state(self, state: BotState) -> None:
         """Saves the bot's state to the dedicated GitHub issue."""
         try:
-            # Fetch the current issue body to preserve other content
-            issue_data = self._request("GET", self.state_issue_url).json()
+            issue_data = cast(
+                dict[str, Any], self._request("GET", self.state_issue_url).json()
+            )
             issue_body = issue_data.get("body", "")
 
-            # Create the new state block
             state_json_str = state.model_dump_json(by_alias=True, indent=2)
             new_state_block = f"```json\n{state_json_str}\n```"
 
-            # Replace the old state block or append if not found
             json_block_pattern = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
             if json_block_pattern.search(issue_body):
                 new_body = json_block_pattern.sub(new_state_block, issue_body)
@@ -158,7 +161,6 @@ class RedditClient:
     """A client for all PRAW/Reddit interactions."""
 
     def __init__(self, config: Config):
-        # Validate that all required environment variables are set
         required_vars = [
             "REDDIT_CLIENT_ID",
             "REDDIT_CLIENT_SECRET",
