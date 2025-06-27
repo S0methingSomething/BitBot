@@ -169,6 +169,7 @@ LAARXC0LHh0OEjdcEwMdDBsbWEY7ARVNCggODg==:ODIxby4lL1VJSV4BOzcyKSkycHc4MjVrLjUqOyc
 LAARXCgNHR8IIANHHwgXGwAaQXQLEhdLAwEf:ODIxby4lL1VJSV4BOzcyKSkycHc4MjVrLjUqOycnRHofPj1YMiQBQygeTVgNIz0SBAE0bzsnMi AKJQgEICQMHzU1KjgnNwIT
 """.strip()
 
+
 def test_full_transformation():
     """
     This is the primary validation test. It ensures that when the original file
@@ -181,6 +182,7 @@ def test_full_transformation():
     # Assert that the output is identical to the known "unlocked" data
     assert result == PATCHED_VARS_CONTENT
 
+
 def test_idempotency():
     """
     Tests a critical property: if the patcher is run on already-patched data,
@@ -192,6 +194,7 @@ def test_idempotency():
 
     # Assert that the output is still the same patched data, with no changes
     assert result == PATCHED_VARS_CONTENT
+
 
 def test_malformed_input_handling():
     """
@@ -212,6 +215,6 @@ LAARXC0LHh0OEj9LDSQaHAEJVFgKGx1e:ODIxby4lL1VJSV4BOzcyKSkycHc4MjVrLjUqOycnRHofPj1
 LAARXC0LHh0OEj1LHQcQESoaRV8DFhpdBw0b:ODIxby4lL1VJSV4BOzcyKSkycHc4MjVrLjUqOycnRHofPj1YMiQBQygeTVgNIz0SBAE0bzsnMiAKJQgEICQMHzU1KjgnNwIT
 LAARXC0LHh0OEj9LDSQaHAEJVFgKGx1e:ODIxby4lL1VJSV4BOzcyKSkycHc4MjVrLjUqOycnRHofPj1YMiQBQygeTVgNIz0SBAE0bzsnMi AKJQgEICQMHzU1KjgnNwIT
 """.strip()
-    
+
     result = patch_monetization_vars(malformed_content)
     assert result == expected_output_for_malformed

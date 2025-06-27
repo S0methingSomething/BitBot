@@ -40,7 +40,7 @@ def handle_release(config: Config) -> None:
     if not gh_token:
         logging.critical("GITHUB_TOKEN or GH_PAT environment variable not set.")
         sys.exit(1)
-    
+
     github_client = GitHubClient(config, token=gh_token)
     reddit_client = RedditClient(config)
     run_release_and_post(config, github_client, reddit_client)
@@ -63,17 +63,21 @@ def main() -> None:
     config = load_validated_config()
 
     parser = argparse.ArgumentParser(description="BitBot command-line interface.")
-    subparsers = parser.add_subparsers(dest="command", required=True, help="Available commands")
+    subparsers = parser.add_subparsers(
+        dest="command", required=True, help="Available commands"
+    )
 
     # Command: bitbot release
     release_parser = subparsers.add_parser(
-        "release", help="Check for new versions, patch, create GitHub release, and post to Reddit."
+        "release",
+        help="Check for new versions, patch, create GitHub release, and post to Reddit.",
     )
     release_parser.set_defaults(func=lambda args: handle_release(config))
 
     # Command: bitbot check-comments
     check_parser = subparsers.add_parser(
-        "check-comments", help="Check for comments on the active Reddit post and update status."
+        "check-comments",
+        help="Check for comments on the active Reddit post and update status.",
     )
     check_parser.set_defaults(func=lambda args: handle_check_comments(config))
 

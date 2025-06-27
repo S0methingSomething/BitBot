@@ -26,14 +26,14 @@ class GitHubClient:
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         }
-        self.state_issue_url = (
-            f"{self.api_base}/repos/{self.config.botRepo}/issues/{config.reddit.state_issue_number}"
-        )
+        self.state_issue_url = f"{self.api_base}/repos/{self.config.botRepo}/issues/{config.reddit.state_issue_number}"
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response:
         """Makes a request with unified headers, timeout, and retry logic."""
-        response = requests.request(method, url, headers=self.headers, timeout=30, **kwargs)
+        response = requests.request(
+            method, url, headers=self.headers, timeout=30, **kwargs
+        )
         response.raise_for_status()
         return response
 
@@ -48,7 +48,9 @@ class GitHubClient:
                 return None
             raise
         except RetryError as e:
-            logging.error(f"Failed to fetch latest release from {repo_slug} after multiple retries: {e}")
+            logging.error(
+                f"Failed to fetch latest release from {repo_slug} after multiple retries: {e}"
+            )
             raise
 
     def download_asset(self, url: str) -> bytes:
@@ -64,7 +66,9 @@ class GitHubClient:
             logging.error(f"Failed to download asset from {url}: {e}")
             raise
 
-    def create_release(self, tag_name: str, release_name: str, body: str) -> Dict[str, Any]:
+    def create_release(
+        self, tag_name: str, release_name: str, body: str
+    ) -> Dict[str, Any]:
         """Creates a new GitHub release."""
         url = f"{self.api_base}/repos/{self.config.botRepo}/releases"
         payload = {"tag_name": tag_name, "name": release_name, "body": body}
@@ -97,17 +101,21 @@ class GitHubClient:
         try:
             issue_data = self._request("GET", self.state_issue_url).json()
             issue_body = issue_data.get("body", "")
-            
+
             # Find the JSON code block
             match = re.search(r"```json\s*(\{.*?\})\s*```", issue_body, re.DOTALL)
             if not match:
-                logging.error(f"Could not find a JSON code block in state issue {self.state_issue_url}")
+                logging.error(
+                    f"Could not find a JSON code block in state issue {self.state_issue_url}"
+                )
                 return None
-            
+
             state_json = json.loads(match.group(1))
             return BotState.model_validate(state_json)
         except Exception as e:
-            logging.error(f"Failed to load or parse state from GitHub issue: {e}", exc_info=True)
+            logging.error(
+                f"Failed to load or parse state from GitHub issue: {e}", exc_info=True
+            )
             return None
 
     def save_state(self, state: BotState) -> None:
@@ -116,7 +124,7 @@ class GitHubClient:
             # Fetch the current issue body to preserve other content
             issue_data = self._request("GET", self.state_issue_url).json()
             issue_body = issue_data.get("body", "")
-            
+
             # Create the new state block
             state_json_str = state.model_dump_json(indent=2)
             new_state_block = f"```json\n{state_json_str}\n```"
@@ -127,9 +135,11 @@ class GitHubClient:
                 new_body = json_block_pattern.sub(new_state_block, issue_body)
             else:
                 new_body = f"{issue_body}\n\n{new_state_block}"
-            
+
             self._request("PATCH", self.state_issue_url, json={"body": new_body})
-            logging.info(f"Successfully saved state to issue {self.config.botRepo}#{self.state_issue_url.split('/')[-1]}")
+            logging.info(
+                f"Successfully saved state to issue {self.config.botRepo}#{self.state_issue_url.split('/')[-1]}"
+            )
         except Exception as e:
             logging.error(f"Failed to save state to GitHub issue: {e}", exc_info=True)
 
@@ -139,7 +149,13 @@ class RedditClient:
 
     def __init__(self, config: Config):
         # Validate that all required environment variables are set
-        required_vars = ["REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_USER_AGENT", "REDDIT_USERNAME", "REDDIT_PASSWORD"]
+        required_vars = [
+            "REDDIT_CLIENT_ID",
+            "REDDIT_CLIENT_SECRET",
+            "REDDIT_USER_AGENT",
+            "REDDIT_USERNAME",
+            "REDDIT_PASSWORD",
+        ]
         for var in required_vars:
             if not os.environ.get(var):
                 logging.critical(f"Missing required environment variable: {var}")
@@ -158,11 +174,18 @@ class RedditClient:
 
     def get_bot_submissions(self, limit: int = 100) -> List[Submission]:
         """Gets the bot's recent submissions that match the release post format."""
-        post_identifier = self.post_title_template.split("{{version}}")[0].replace("{{asset_name}}", self.asset_name).strip()
+        post_identifier = (
+            self.post_title_template.split("{{version}}")[0]
+            .replace("{{asset_name}}", self.asset_name)
+            .strip()
+        )
         bot_posts = []
         for submission in self.reddit.user.me().submissions.new(limit=limit):
-            if (submission.subreddit.display_name.lower() == self.subreddit.display_name.lower() and
-                submission.title.startswith(post_identifier)):
+            if (
+                submission.subreddit.display_name.lower()
+                == self.subreddit.display_name.lower()
+                and submission.title.startswith(post_identifier)
+            ):
                 bot_posts.append(submission)
         return bot_posts
 
