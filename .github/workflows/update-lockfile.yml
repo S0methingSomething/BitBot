@@ -1,21 +1,27 @@
 name: '[Process] Update uv.lock for Dependabot'
 
 on:
-  pull_request:
-    types: [opened, synchronize]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
 
 jobs:
   update-lockfile:
-    # This job only runs for PRs from dependabot that have the 'python' label.
-    if: github.actor == 'dependabot[bot]' && contains(github.head_ref, 'dependabot/pip')
+    # This job only runs for PRs from dependabot.
+    if: github.actor == 'dependabot[bot]'
     name: Update uv.lock
     runs-on: ubuntu-latest
+    
+    # Grant the GITHUB_TOKEN permissions to write to the repository
+    permissions:
+      contents: write
+      pull-requests: write
+
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
-          # Check out the pull request's branch instead of the default branch
-          ref: ${{ github.head_ref }}
+          # Check out the pull request's HEAD commit
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -27,18 +33,19 @@ jobs:
 
       - name: Update the lockfile
         run: |
-          # Re-generate uv.lock from the updated pyproject.toml
           uv lock
 
       - name: Commit and push changes
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Check if there are any changes to commit
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Check if there are any changes to the lockfile
           if ! git diff --quiet uv.lock; then
             git add uv.lock
-            git commit -m "chore: update uv.lock"
-            git push
+            git commit -m "chore(deps): update uv.lock"
+            # Push back to the same branch the PR is on
+            git push origin HEAD:${{ github.head_ref }}
             echo "uv.lock was updated and pushed."
           else
             echo "uv.lock is already up to date."
