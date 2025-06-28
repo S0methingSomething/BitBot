@@ -1,0 +1,45 @@
+name: '[Process] Update uv.lock for Dependabot'
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  update-lockfile:
+    # This job only runs for PRs from dependabot that have the 'python' label.
+    if: github.actor == 'dependabot[bot]' && contains(github.head_ref, 'dependabot/pip')
+    name: Update uv.lock
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          # Check out the pull request's branch instead of the default branch
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install UV
+        run: pipx install uv
+
+      - name: Update the lockfile
+        run: |
+          # Re-generate uv.lock from the updated pyproject.toml
+          uv lock
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Check if there are any changes to commit
+          if ! git diff --quiet uv.lock; then
+            git add uv.lock
+            git commit -m "chore: update uv.lock"
+            git push
+            echo "uv.lock was updated and pushed."
+          else
+            echo "uv.lock is already up to date."
+          fi
