@@ -24,7 +24,6 @@ def _get_active_post_id() -> str | None:
     try:
         return STATE_FILE.read_text(encoding="utf-8").strip()
     except FileNotFoundError:
-        logging.warning(f"State file '{STATE_FILE}' not found.")
         return None
 
 
@@ -32,6 +31,24 @@ def _save_active_post_id(post_id: str) -> None:
     """Saves the active post ID to the state file."""
     STATE_FILE.write_text(post_id + "\n", encoding="utf-8")
     logging.info(f"State file '{STATE_FILE}' updated with new post ID: {post_id}")
+
+
+def _recover_active_post_id(reddit: RedditClient) -> str | None:
+    """
+    Recovers the active post ID by finding the latest post on Reddit and
+    creating the state file if it's missing.
+    """
+    logging.warning("State file not found. Attempting to recover from the latest Reddit post.")
+    latest_posts = reddit.get_bot_submissions(limit=1)
+
+    if not latest_posts:
+        logging.error("Recovery failed: Could not find any previous posts by the bot in the subreddit.")
+        return None
+
+    latest_post_id = latest_posts[0].id
+    logging.info(f"Recovery successful. Found latest post: {latest_post_id}")
+    _save_active_post_id(latest_post_id)
+    return latest_post_id
 
 
 def _render_template(
@@ -192,7 +209,6 @@ def run_release_and_post(
     new_submission = reddit.submit_post(title=post_title, selftext=post_body)
 
     _save_active_post_id(new_submission.id)
-    logging.info(f"State updated to monitor new post: {new_submission.id}")
 
     _update_old_reddit_posts(old_posts, new_submission, config)
 
@@ -271,7 +287,12 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
     active_post_id = _get_active_post_id()
 
     if not active_post_id:
-        logging.warning("No active post ID found in state. Skipping comment check.")
+        # If the state file is missing, try to recover it.
+        active_post_id = _recover_active_post_id(reddit)
+
+    if not active_post_id:
+        # If still no ID after recovery attempt, then we must exit.
+        logging.warning("No active post ID found and could not recover. Skipping comment check.")
         return
 
     logging.info(f"Performing check on active post: {active_post_id}")
