@@ -3,12 +3,10 @@ on: [push, pull_request]
 
 jobs:
   lint-test:
-    name: Code Quality
+    name: Code Quality (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # We will stick to stable Python versions that our dependencies support.
-        # We can add 3.13 and 3.14 back when they are stable and supported.
         python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +23,8 @@ jobs:
       - name: Create Virtual Environment
         run: uv venv
       - name: Install dependencies
-        run: uv pip install -e .[dev]
+        # Use `sync` which is more robust for CI against the pyproject.toml
+        run: uv pip sync pyproject.toml --all-extras
       - name: Install pre-commit hooks
         run: uv run pre-commit install
       - name: Run pre-commit checks
