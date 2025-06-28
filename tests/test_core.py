@@ -8,7 +8,7 @@ ORIGINAL_VARS_PATH = TEST_DATA_DIR / "original_vars.txt"
 PATCHED_VARS_PATH = TEST_DATA_DIR / "patched_vars.txt"
 
 
-def test_patch_monetization_vars():
+def test_patch_monetization_vars() -> None:
     """
     Tests that the core patching logic correctly transforms the
     MonetizationVars file.
