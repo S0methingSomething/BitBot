@@ -1,7 +1,11 @@
 name: '[Review] Automated PR Review'
 on:
-  pull_request:
+  # Use pull_request_target to give the workflow write permissions
+  # on pull requests from forks and dependabot.
+  pull_request_target:
+    types: [opened, edited, synchronize]
 
+# Explicitly grant the required permissions
 permissions:
   contents: read
   pull-requests: write
@@ -12,12 +16,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Check out the pull request's HEAD commit
+          ref: ${{ github.event.pull_request.head.sha }}
+      
       - uses: actions/setup-python@v5
-        with: { python-version: '3.10' }
-      # action-ruff handles its own dependency installation
+        with: { python-version: '3.12' }
+
+      # The action-ruff action handles its own dependency installation
       - name: Run Ruff with Reviewdog
         uses: reviewdog/action-ruff@v2
         with:
+          # The default GITHUB_TOKEN has the permissions we granted above
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-review
           fail_on_error: true
