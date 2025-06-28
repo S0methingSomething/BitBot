@@ -68,6 +68,20 @@ class GitHubClient:
             raise
         return None
 
+    def get_release_by_tag(self, tag_name: str) -> dict[str, Any] | None:
+        """Fetches a specific release by its tag name."""
+        url = f"{self.api_base}/repos/{self.config.bot_repo}/releases/tags/{tag_name}"
+        try:
+            response = self._request("GET", url)
+            if response:
+                return cast(dict[str, Any], response.json())
+        except requests.HTTPError as e:
+            if e.response and e.response.status_code == 404:
+                logging.info(f"Release with tag '{tag_name}' not found.")
+                return None
+            raise
+        return None
+
     def download_asset(self, url: str) -> bytes:
         """Downloads a release asset."""
         try:

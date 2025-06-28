@@ -95,40 +95,138 @@ def _render_template(
     return content
 
 
-def _get_and_validate_versions(
-    gh: GitHubClient, config: Config
-) -> tuple[semver.Version, semver.Version, dict[str, Any]] | None:
-    """Fetch and parse versions for both source and bot repos."""
-    try:
-        source_release = gh.get_latest_release(config.github.source_repo)
-        if not source_release:
-            logging.error(
-                "Could not fetch latest release from source repo: %s",
-                config.github.source_repo,
-            )
-            return None
-        source_version_str = _parse_version_from_release(source_release)
-        if not source_version_str:
-            logging.error(
-                "Could not parse valid version from source release '%s'.",
-                source_release.get("name"),
-            )
-            return None
-        source_version = semver.Version.parse(source_version_str)
-
-        bot_release = gh.get_latest_release(config.github.bot_repo)
-        bot_version_str = (
-            _parse_version_from_release(bot_release) if bot_release else "0.0.0"
-        )
-        if not bot_version_str:
-            bot_version_str = "0.0.0"
-        bot_version = semver.Version.parse(bot_version_str)
-
-        logging.info("Source: v%s | Bot: v%s", source_version, bot_version)
-        return source_version, bot_version, source_release
-    except Exception as e:
-        logging.error(f"Failed to fetch initial release data: {e}", exc_info=True)
+def _parse_version_from_release(release_data: dict[str, Any]) -> str | None:
+    """Parses version from release tag or body, preferring the tag."""
+    if not release_data:
         return None
+    tag_name = cast(str, release_data.get("tag_name", ""))
+    if tag_name and (tag := tag_name.lstrip("v")) and semver.Version.is_valid(tag):
+        return tag
+    body = cast(str, release_data.get("body", ""))
+    if body and (match := re.search(r"v(\d+\.\d+\.\d+)", body)):
+        return match.group(1)
+    return None
+
+
+def _parse_version_from_title(title: str) -> str | None:
+    """Parses a version string from a Reddit post title."""
+    if match := re.search(r"v(\d+\.\d+\.\d+)", title):
+        return match.group(1)
+    return None
+
+
+def run_release_and_post(
+    config: Config, gh: GitHubClient, reddit: RedditClient
+) -> None:
+    """The main application function to check, patch, release, and post."""
+    logging.info("--- Starting Release & Post Cycle ---")
+
+    # 1. Get the latest version from the source repository (the source of truth)
+    source_release = gh.get_latest_release(config.github.source_repo)
+    if not source_release:
+        logging.error(
+            "Could not fetch latest release from source repo: %s",
+            config.github.source_repo,
+        )
+        return
+    source_version_str = _parse_version_from_release(source_release)
+    if not source_version_str:
+        logging.error(
+            "Could not parse valid version from source release '%s'.",
+            source_release.get("name"),
+        )
+        return
+    source_version = semver.Version.parse(source_version_str)
+
+    # 2. Get the version of the last successful post from Reddit
+    latest_reddit_post = reddit.get_bot_submissions(limit=1)
+    latest_posted_version_str = "0.0.0"
+    if latest_reddit_post:
+        title = latest_reddit_post[0].title
+        parsed_version = _parse_version_from_title(title)
+        if parsed_version:
+            latest_posted_version_str = parsed_version
+            logging.info(f"Latest post on Reddit is for version: v{parsed_version}")
+        else:
+            logging.warning(f"Could not parse version from Reddit post title: '{title}'")
+    else:
+        logging.info("No previous posts found on Reddit.")
+    latest_posted_version = semver.Version.parse(latest_posted_version_str)
+
+    # 3. CORE DECISION: Only proceed if the source version is newer than what's on Reddit
+    logging.info(f"Source: v{source_version} | Reddit: v{latest_posted_version}")
+    if source_version <= latest_posted_version:
+        logging.info("Reddit post is up to date. No new release needed.")
+        return
+
+    logging.info(f"Newer version v{source_version} found. Proceeding with release.")
+
+    # 4. Download and patch the asset
+    patched_content_bytes = _download_and_patch_asset(gh, source_release, config)
+    if not patched_content_bytes:
+        return
+
+    # 5. Create or get the GitHub release for the new version
+    tag_name = f"v{source_version}"
+    release_title = (
+        config.messages["releaseTitle"]
+        .replace("{{asset_name}}", config.github.asset_file_name)
+        .replace("{{version}}", str(source_version))
+    )
+    release_body = config.messages["releaseDescription"].replace(
+        "{{asset_name}}", config.github.asset_file_name
+    )
+
+    release_data = gh.get_release_by_tag(tag_name)
+    if release_data:
+        logging.info(f"Release {tag_name} already exists. Using it.")
+    else:
+        logging.info(f"Creating new GitHub release: {release_title}")
+        release_data = gh.create_release(tag_name, release_title, release_body)
+
+    # 6. Upload asset (it will overwrite if it already exists)
+    logging.info("Uploading patched asset...")
+    gh.upload_asset(
+        release_data["upload_url"], config.github.asset_file_name, patched_content_bytes
+    )
+    refetched_release = gh.get_release_by_tag(tag_name)
+    if not refetched_release or not refetched_release.get("assets"):
+        logging.error("CRITICAL: Failed to refetch release or find asset after upload.")
+        return
+
+    # 7. Post the new version to Reddit
+    logging.info("Preparing to post to Reddit...")
+    direct_download_url = refetched_release["assets"][0]["browser_download_url"]
+    old_posts = reddit.get_bot_submissions(limit=20)
+
+    post_context = {
+        "asset_name": config.github.asset_file_name,
+        "version": source_version,
+        "direct_download_url": direct_download_url,
+        "creator_username": config.reddit.creator,
+        "bot_repo": config.github.bot_repo,
+        "bot_name": config.reddit.bot_name,
+        "initial_status": config.messages["statusLine"].replace(
+            "{{status}}", config.feedback.labels["unknown"]
+        ),
+    }
+    post_title = (
+        config.messages["postTitle"]
+        .replace("{{asset_name}}", post_context["asset_name"])
+        .replace("{{version}}", str(post_context["version"]))
+    )
+    post_body = _render_template(config.templates["post"], post_context, config)
+
+    logging.info(f"Submitting new post to r/{config.reddit.subreddit}...")
+    new_submission = reddit.submit_post(title=post_title, selftext=post_body)
+    _save_active_post_id(new_submission.id)
+
+    # 8. Update old posts and releases
+    _update_old_reddit_posts(old_posts, new_submission, config)
+    logging.info("Marking old GitHub releases as outdated...")
+    gh.mark_old_releases_outdated()
+
+    logging.info("--- Release & Post Cycle Complete ---")
 
 
 def _download_and_patch_asset(
@@ -158,84 +256,6 @@ def _download_and_patch_asset(
     return patched_content.encode("utf-8")
 
 
-def run_release_and_post(
-    config: Config, gh: GitHubClient, reddit: RedditClient
-) -> None:
-    """The main application function to check, patch, release, and post."""
-    logging.info("--- Starting Release & Post Cycle ---")
-
-    version_info = _get_and_validate_versions(gh, config)
-    if not version_info:
-        return
-    source_version, bot_version, source_release = version_info
-
-    if source_version <= bot_version:
-        logging.info("Bot is up to date. No new release needed.")
-        return
-
-    logging.info(f"New version found: {source_version}. Proceeding with release.")
-
-    patched_content_bytes = _download_and_patch_asset(gh, source_release, config)
-    if not patched_content_bytes:
-        return
-
-    tag_name = f"v{source_version}"
-    release_title = (
-        config.messages["releaseTitle"]
-        .replace("{{asset_name}}", config.github.asset_file_name)
-        .replace("{{version}}", str(source_version))
-    )
-    release_body = config.messages["releaseDescription"].replace(
-        "{{asset_name}}", config.github.asset_file_name
-    )
-
-    logging.info(f"Creating new GitHub release: {release_title}")
-    new_release_data = gh.create_release(tag_name, release_title, release_body)
-    upload_url = new_release_data["upload_url"]
-
-    logging.info("Uploading patched asset...")
-    gh.upload_asset(upload_url, config.github.asset_file_name, patched_content_bytes)
-
-    refetched_release_data = gh.get_latest_release(config.github.bot_repo)
-    if not refetched_release_data:
-        logging.error("CRITICAL: Failed to refetch release after uploading asset.")
-        return
-
-    logging.info("Preparing to post to Reddit...")
-    direct_download_url = refetched_release_data["assets"][0]["browser_download_url"]
-    old_posts = reddit.get_bot_submissions(limit=20)
-
-    post_context = {
-        "asset_name": config.github.asset_file_name,
-        "version": source_version,
-        "direct_download_url": direct_download_url,
-        "creator_username": config.reddit.creator,
-        "bot_repo": config.github.bot_repo,
-        "bot_name": config.reddit.bot_name,
-        "initial_status": config.messages["statusLine"].replace(
-            "{{status}}", config.feedback.labels["unknown"]
-        ),
-    }
-    post_title = (
-        config.messages["postTitle"]
-        .replace("{{asset_name}}", post_context["asset_name"])
-        .replace("{{version}}", str(post_context["version"]))
-    )
-    post_body = _render_template(config.templates["post"], post_context, config)
-
-    logging.info(f"Submitting new post to r/{config.reddit.subreddit}...")
-    new_submission = reddit.submit_post(title=post_title, selftext=post_body)
-
-    _save_active_post_id(new_submission.id)
-
-    _update_old_reddit_posts(old_posts, new_submission, config)
-
-    logging.info("Marking old GitHub releases as outdated...")
-    gh.mark_old_releases_outdated()
-
-    logging.info("--- Release & Post Cycle Complete ---")
-
-
 def _update_old_reddit_posts(
     old_posts: list[Submission], new_submission: Submission, config: Config
 ) -> None:
@@ -261,7 +281,8 @@ def _update_old_reddit_posts(
 
     for post in old_posts:
         if (
-            "⚠️ Outdated Post" not in post.selftext
+            post.id != new_submission.id
+            and "⚠️ Outdated Post" not in post.selftext
             and "This Post is Outdated" not in post.selftext
         ):
             new_body = (
@@ -274,29 +295,6 @@ def _update_old_reddit_posts(
                 logging.info(f"-> Updated old post {post.id}")
             except Exception as e:
                 logging.warning(f"Failed to edit post {post.id}: {e}")
-
-
-def _parse_version_from_release(release_data: dict[str, Any]) -> str | None:
-    """Parses version from release tag or body, preferring the tag."""
-    if not release_data:
-        return None
-
-    # ------- Tag ----------
-    tag_name = cast(str, release_data.get("tag_name", ""))
-    if tag_name:
-        tag = tag_name.lstrip("v")
-        if semver.Version.is_valid(tag):
-            return tag
-
-    # ------- Body ---------
-    body = cast(str, release_data.get("body", ""))
-    if body:
-        match = re.search(r"v(\d+\.\d+\.\d+)", body)
-        if match:
-            # The match group is guaranteed to be a string here by the pattern
-            return match.group(1)
-
-    return None
 
 
 def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) -> None:
