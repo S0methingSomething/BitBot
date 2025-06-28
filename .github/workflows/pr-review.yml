@@ -19,7 +19,7 @@ jobs:
         with:
           # Check out the pull request's HEAD commit
           ref: ${{ github.event.pull_request.head.sha }}
-      
+
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
 

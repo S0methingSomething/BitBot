@@ -10,7 +10,7 @@ jobs:
     if: github.actor == 'dependabot[bot]' && contains(github.head_ref, 'dependabot/pip')
     name: Update requirements.txt
     runs-on: ubuntu-latest
-    
+
     # Grant the GITHUB_TOKEN permissions to write to the repository
     permissions:
       contents: write
@@ -38,7 +38,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
+
           # Check if there are any changes to commit
           if ! git diff --quiet requirements.txt; then
             git add requirements.txt
