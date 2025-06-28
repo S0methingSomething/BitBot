@@ -141,21 +141,45 @@ class RedditClient:
         self.asset_name = config.github.asset_file_name
 
     def get_bot_submissions(self, limit: int = 100) -> list[Submission]:
-        """Gets the bot's recent submissions that match the release post format."""
+        """
+        Gets the bot's recent submissions that match the release post format
+        using a robust subreddit search query.
+        """
+        # Ensure we can get the bot's username for the search query
+        try:
+            bot_username = self.reddit.user.me().name
+        except Exception:
+            logging.error("Could not authenticate with Reddit to get bot username.")
+            return []
+
+        # Construct a search query that is more reliable than iterating.
+        # This searches for posts by the bot with a title matching the format.
         post_identifier = (
             self.post_title_template.split("{{version}}")[0]
             .replace("{{asset_name}}", self.asset_name)
             .strip()
         )
-        bot_posts = []
-        for submission in self.reddit.user.me().submissions.new(limit=limit):
-            if (
-                submission.subreddit.display_name.lower()
-                == self.subreddit.display_name.lower()
-                and submission.title.startswith(post_identifier)
-            ):
-                bot_posts.append(submission)
-        return bot_posts
+
+        # We need to escape special characters for Reddit's search syntax.
+        # For this title, double quotes are the most likely issue.
+        search_title = post_identifier.replace('"', '\\"')
+
+        query = f'author:"{bot_username}" title:"{search_title}"'
+
+        logging.info(
+            f"Searching subreddit '{self.subreddit.display_name}' with query: {query}"
+        )
+
+        try:
+            # Use list() to execute the search generator and get results
+            search_results = list(self.subreddit.search(query, sort="new", limit=limit))
+            logging.info(f"Found {len(search_results)} post(s) matching the query.")
+            return search_results
+        except Exception as e:
+            logging.error(
+                f"An exception occurred during Reddit search: {e}", exc_info=True
+            )
+            return []
 
     def submit_post(self, title: str, selftext: str) -> Submission:
         """Submits a new post to the configured subreddit."""
