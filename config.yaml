@@ -9,7 +9,7 @@ github:
 
 # --- Reddit Configuration ---
 reddit:
-  subreddit: BitLifeRebels
+  subreddit: BitTest1
   creator: C1oudyLol
   botName: BitBot
   # The issue number in botRepo used for persistent state storage.
