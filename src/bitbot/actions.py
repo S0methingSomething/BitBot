@@ -69,7 +69,9 @@ def _recover_active_post_id(reddit: RedditClient) -> str | None:
     return None
 
 
-def _render_template(template_name: str, context: dict[str, Any], config: Config) -> str:
+def _render_template(
+    template_name: str, context: dict[str, Any], config: Config
+) -> str:
     """Loads and renders a template from the templates directory."""
     try:
         template_path = Path(__file__).parent / "templates" / template_name
@@ -81,7 +83,9 @@ def _render_template(template_name: str, context: dict[str, Any], config: Config
     start_tag = config.skip_content["startTag"]
     end_tag = config.skip_content["endTag"]
     if start_tag and end_tag and start_tag in raw_template:
-        pattern = re.compile(f"{re.escape(start_tag)}.*?{re.escape(end_tag)}", re.DOTALL)
+        pattern = re.compile(
+            f"{re.escape(start_tag)}.*?{re.escape(end_tag)}", re.DOTALL
+        )
         content = re.sub(pattern, "", raw_template).strip()
     else:
         content = raw_template
@@ -111,7 +115,9 @@ def _parse_version_from_title(title: str) -> str | None:
     return None
 
 
-def run_release_and_post(config: Config, gh: GitHubClient, reddit: RedditClient) -> None:
+def run_release_and_post(
+    config: Config, gh: GitHubClient, reddit: RedditClient
+) -> None:
     """The main application function to check, patch, release, and post."""
     logging.info("--- Starting Release & Post Cycle ---")
 
@@ -178,7 +184,21 @@ def run_release_and_post(config: Config, gh: GitHubClient, reddit: RedditClient)
         logging.info(f"Creating new GitHub release: {release_title}")
         release_data = gh.create_release(tag_name, release_title, release_body)
 
-    # 6. Upload asset (it will overwrite if it already exists)
+    # 6. Delete existing asset if it exists, then upload the new one.
+    existing_asset = next(
+        (
+            asset
+            for asset in release_data.get("assets", [])
+            if asset["name"] == config.github.asset_file_name
+        ),
+        None,
+    )
+    if existing_asset:
+        logging.info(
+            f"Asset '{config.github.asset_file_name}' already exists. Deleting it first."
+        )
+        gh.delete_asset(existing_asset["id"])
+
     logging.info("Uploading patched asset...")
     gh.upload_asset(
         release_data["upload_url"],
@@ -187,9 +207,7 @@ def run_release_and_post(config: Config, gh: GitHubClient, reddit: RedditClient)
     )
     refetched_release = gh.get_release_by_tag(tag_name)
     if not refetched_release or not refetched_release.get("assets"):
-        logging.error(
-            "CRITICAL: Failed to refetch release or find asset after upload.",
-        )
+        logging.error("CRITICAL: Failed to refetch release or find asset after upload.")
         return
 
     # 7. Post the new version to Reddit
@@ -318,7 +336,9 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
         comments = submission.comments.list()
 
         working_kw = re.compile("|".join(config.feedback.working_keywords), re.I)
-        not_working_kw = re.compile("|".join(config.feedback.not_working_keywords), re.I)
+        not_working_kw = re.compile(
+            "|".join(config.feedback.not_working_keywords), re.I
+        )
         positive_score = sum(1 for c in comments if working_kw.search(c.body))
         negative_score = sum(1 for c in comments if not_working_kw.search(c.body))
         net_score = positive_score - negative_score
