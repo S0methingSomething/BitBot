@@ -15,8 +15,6 @@ jobs:
   run-bot:
     name: Run Bot Actions
     runs-on: ubuntu-latest
-    # Recommendation: Use GitHub Environments to manage secrets securely.
-    # environment: production
     permissions:
       contents: write
       issues: write
@@ -40,7 +38,7 @@ jobs:
         run: uv venv
       - name: Install dependencies
         run: uv pip sync requirements.txt
-      - name: Install BitBit
+      - name: Install BitBot
         run: uv pip install -e .
 
       - name: Execute Main Release & Post Logic
@@ -57,15 +55,20 @@ jobs:
       - name: Commit and Push state file
         if: github.event_name == 'workflow_dispatch' || (github.event.schedule == '5 * * * *')
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add latest_postid.txt
-          # Commit only if there are changes
-          if ! git diff --staged --quiet; then
-            git commit -m "chore(state): update latest post ID"
-            git push
+          # Only proceed if the state file exists
+          if [ -f "latest_postid.txt" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add latest_postid.txt
+            # Commit only if there are changes to the file
+            if ! git diff --staged --quiet; then
+              git commit -m "chore(state): update latest post ID"
+              git push
+            else
+              echo "State file latest_postid.txt has not changed."
+            fi
           else
-            echo "No changes to commit for latest_postid.txt."
+            echo "State file latest_postid.txt not found. Skipping commit."
           fi
 
       - name: Execute Comment Check Logic
