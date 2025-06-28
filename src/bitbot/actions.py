@@ -69,9 +69,7 @@ def _recover_active_post_id(reddit: RedditClient) -> str | None:
     return None
 
 
-def _render_template(
-    template_name: str, context: dict[str, Any], config: Config
-) -> str:
+def _render_template(template_name: str, context: dict[str, Any], config: Config) -> str:
     """Loads and renders a template from the templates directory."""
     try:
         template_path = Path(__file__).parent / "templates" / template_name
@@ -83,9 +81,7 @@ def _render_template(
     start_tag = config.skip_content["startTag"]
     end_tag = config.skip_content["endTag"]
     if start_tag and end_tag and start_tag in raw_template:
-        pattern = re.compile(
-            f"{re.escape(start_tag)}.*?{re.escape(end_tag)}", re.DOTALL
-        )
+        pattern = re.compile(f"{re.escape(start_tag)}.*?{re.escape(end_tag)}", re.DOTALL)
         content = re.sub(pattern, "", raw_template).strip()
     else:
         content = raw_template
@@ -115,9 +111,7 @@ def _parse_version_from_title(title: str) -> str | None:
     return None
 
 
-def run_release_and_post(
-    config: Config, gh: GitHubClient, reddit: RedditClient
-) -> None:
+def run_release_and_post(config: Config, gh: GitHubClient, reddit: RedditClient) -> None:
     """The main application function to check, patch, release, and post."""
     logging.info("--- Starting Release & Post Cycle ---")
 
@@ -336,9 +330,7 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
         comments = submission.comments.list()
 
         working_kw = re.compile("|".join(config.feedback.working_keywords), re.I)
-        not_working_kw = re.compile(
-            "|".join(config.feedback.not_working_keywords), re.I
-        )
+        not_working_kw = re.compile("|".join(config.feedback.not_working_keywords), re.I)
         positive_score = sum(1 for c in comments if working_kw.search(c.body))
         negative_score = sum(1 for c in comments if not_working_kw.search(c.body))
         net_score = positive_score - negative_score
