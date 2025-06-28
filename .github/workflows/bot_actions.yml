@@ -13,8 +13,10 @@ concurrency:
 
 jobs:
   run-bot:
-    name: Run Bot
+    name: Run Bot Actions
     runs-on: ubuntu-latest
+    # Recommendation: Use GitHub Environments to manage secrets securely.
+    # environment: production
     permissions:
       contents: write
       issues: write
@@ -22,7 +24,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.10' }
+        with: { python-version: '3.12' }
+
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
       - name: Install UV
         run: pipx install uv
       - name: Create Virtual Environment
@@ -31,9 +42,8 @@ jobs:
         run: uv pip install -e .
 
       - name: Execute Main Release & Post Logic
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '5 * * * *')
+        if: github.event_name == 'workflow_dispatch' || (github.event.schedule == '5 * * * *')
         env:
-          # Use GITHUB_TOKEN for actions running in the repo. GH_PAT is for semantic-release.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
@@ -43,7 +53,7 @@ jobs:
         run: uv run bitbot release
 
       - name: Execute Comment Check Logic
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '*/15 * * * *')
+        if: github.event_name == 'workflow_dispatch' || (github.event.schedule == '*/15 * * * *')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}

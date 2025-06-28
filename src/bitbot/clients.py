@@ -31,13 +31,21 @@ class GitHubClient:
             f"{config.reddit.state_issue_number}"
         )
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
-    def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response:
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))  # type: ignore[misc]
+    def _request(
+        self, method: str, url: str, **kwargs: Any
+    ) -> requests.Response | None:
         """Makes a request with unified headers, timeout, and retry logic."""
-        response = requests.request(
-            method, url, headers=self.headers, timeout=30, **kwargs
-        )
-        response.raise_for_status()
+        try:
+            response = requests.request(
+                method, url, headers=self.headers, timeout=30, **kwargs
+            )
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            if 400 <= e.response.status_code < 500:
+                logging.error(f"Client error: {e.response.status_code} for URL {url}")
+                return None  # Don't retry on client errors
+            raise
         return response
 
     def get_latest_release(self, repo_slug: str) -> dict[str, Any] | None:
@@ -45,7 +53,9 @@ class GitHubClient:
         url = f"{self.api_base}/repos/{repo_slug}/releases/latest"
         try:
             response = self._request("GET", url)
-            return cast(dict[str, Any], response.json())
+            if response:
+                return cast(dict[str, Any], response.json())
+            return None
         except requests.HTTPError as e:
             if e.response.status_code == 404:
                 logging.warning(f"No releases found for {repo_slug}. Returning None.")
@@ -94,6 +104,8 @@ class GitHubClient:
         """
         url = f"{self.api_base}/repos/{self.config.bot_repo}/releases"
         response = self._request("GET", url)
+        if not response:
+            return
         releases = cast(list[dict[str, Any]], response.json())
         if not releases or len(releases) < 2:
             logging.info("Not enough releases to mark any as outdated.")
@@ -109,9 +121,10 @@ class GitHubClient:
     def load_state(self) -> BotState | None:
         """Loads the bot's state from the dedicated GitHub issue."""
         try:
-            issue_data = cast(
-                dict[str, Any], self._request("GET", self.state_issue_url).json()
-            )
+            response = self._request("GET", self.state_issue_url)
+            if not response:
+                return None
+            issue_data = cast(dict[str, Any], response.json())
             issue_body = issue_data.get("body", "")
 
             match = re.search(r"```json\s*(\{.*?\})\s*```", issue_body, re.DOTALL)
@@ -122,8 +135,10 @@ class GitHubClient:
                 )
                 return None
 
-            state_json = json.loads(match.group(1))
-            return BotState.model_validate(state_json)
+            return BotState.model_validate_json(match.group(1))
+        except json.JSONDecodeError:
+            logging.error("Failed to parse JSON from state issue.")
+            return None
         except Exception as e:
             logging.error(
                 f"Failed to load or parse state from GitHub issue: {e}", exc_info=True
@@ -133,9 +148,10 @@ class GitHubClient:
     def save_state(self, state: BotState) -> None:
         """Saves the bot's state to the dedicated GitHub issue."""
         try:
-            issue_data = cast(
-                dict[str, Any], self._request("GET", self.state_issue_url).json()
-            )
+            response = self._request("GET", self.state_issue_url)
+            if not response:
+                return
+            issue_data = cast(dict[str, Any], response.json())
             issue_body = issue_data.get("body", "")
 
             state_json_str = state.model_dump_json(by_alias=True, indent=2)
@@ -155,6 +171,19 @@ class GitHubClient:
             )
         except Exception as e:
             logging.error(f"Failed to save state to GitHub issue: {e}", exc_info=True)
+
+    def create_issue_for_state(self, title: str, body: str) -> dict[str, Any] | None:
+        """Creates an issue, typically for initializing state."""
+        url = f"{self.api_base}/repos/{self.config.bot_repo}/issues"
+        payload = {"title": title, "body": body}
+        try:
+            response = self._request("POST", url, json=payload)
+            if response:
+                return cast(dict[str, Any], response.json())
+            return None
+        except Exception as e:
+            logging.error(f"Failed to create state issue: {e}", exc_info=True)
+            return None
 
 
 class RedditClient:

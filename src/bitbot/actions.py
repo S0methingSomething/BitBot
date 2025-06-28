@@ -2,7 +2,7 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import semver
 from praw.models import Submission
@@ -233,20 +233,56 @@ def _update_old_reddit_posts(
 
 
 def _parse_version_from_release(release_data: dict[str, Any]) -> str | None:
-    """Parses version from release tag or body, preferring tag."""
+    """Parses version from release tag or body, preferring the tag."""
     if not release_data:
         return None
-    tag_name = release_data.get("tag_name", "")
-    tag = tag_name.lstrip("v") if tag_name else ""
-    if tag and semver.Version.is_valid(tag):
-        return tag
 
-    body = release_data.get("body", "")
+    # ------- Tag ----------
+    tag_name = cast(str, release_data.get("tag_name", ""))
+    if tag_name:
+        tag = tag_name.lstrip("v")
+        if semver.Version.is_valid(tag):
+            return tag
+
+    # ------- Body ---------
+    body = cast(str, release_data.get("body", ""))
     if body:
         match = re.search(r"v(\d+\.\d+\.\d+)", body)
         if match:
+            # The match group is guaranteed to be a string here by the pattern
             return match.group(1)
+
     return None
+
+
+def init_state(config: Config, gh: GitHubClient) -> None:
+    """
+    Initializes the state by creating a new GitHub issue with a default
+    BotState object.
+    """
+    logging.info("--- Initializing State ---")
+
+    initial_state = BotState(
+        active_post_id=None,
+        last_check_timestamp=datetime.now(timezone.utc).isoformat(),
+        current_interval_seconds=config.timing.first_check,
+        last_comment_count=0,
+    )
+
+    state_json = initial_state.model_dump_json(indent=2, by_alias=True)
+    body = (
+        "This issue is used by BitBot to persist its state.\n\n"
+        f"```json\n{state_json}\n```"
+    )
+    title = "BitBot State"
+
+    issue = gh.create_issue_for_state(title, body)
+    if issue:
+        logging.info(
+            f"Successfully created state issue #{issue['number']} in repo "
+            f"{config.github.bot_repo}"
+        )
+        logging.info("Please update your config.yaml with this new issue number.")
 
 
 def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) -> None:

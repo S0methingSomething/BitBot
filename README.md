@@ -1,8 +1,6 @@
 # BitBot
 
-A robust, automated bot for managing and distributing patches for BitLife via GitHub and Reddit.
-
-This project is built with a focus on modern, professional Python development practices, including automated testing, linting, security scanning, and fully automated releases.
+A robust, automated bot for managing and distributing patches for BitLife via GitHub and Reddit. This project is built with a focus on modern, professional Python development practices, including automated testing, linting, security scanning, and fully automated releases.
 
 ## Features
 
@@ -17,27 +15,32 @@ This project is built with a focus on modern, professional Python development pr
 
 ## Setup & Installation
 
-This project is managed by **Poetry** for dependency resolution and **uv** for fast environment creation and installation.
+This project uses **uv** for fast environment creation and dependency management, and **pre-commit** for code quality.
 
 1.  **Clone the repository:**
-    `git clone <repo-url>`
-2.  **Navigate into the project directory:**
-    `cd bitbot`
-3.  **Ensure you have `pipx` installed, then install Poetry and UV:**
-    `pip install pipx`
-    `pipx install poetry`
-    `pipx install uv`
-4.  **Create the virtual environment and install dependencies:**
-    `uv pip install -e .[dev]`
+    ```bash
+    git clone <repo-url>
+    cd bitbot
+    ```
+2.  **Ensure you have `pipx` installed, then install UV:**
+    ```bash
+    pip install pipx
+    pipx install uv
+    ```
+3.  **Create the virtual environment and install dependencies:**
+    ```bash
+    uv pip install -e .[dev]
+    ```
+4.  **Set up pre-commit hooks (Developer Guardrail):**
+    ```bash
+    uv run pre-commit install
+    ```
 
 ## Activating the Environment
 
-After setup, activate the virtual environment to use the installed tools and run the bot:
-
+To run the bot or development tools, activate the virtual environment:
 ```bash
-source .venv/bin/activate
-```
-
+source .venv/bin/activate```
 You should see `(.venv)` at the beginning of your shell prompt.
 
 ## Configuration
@@ -55,30 +58,22 @@ For the automation to work, you must configure the following secrets in your Git
 -   `REDDIT_PASSWORD`
 -   `REDDIT_USER_AGENT`
 
-Note: The `bot_actions.yml` workflow uses the default `GITHUB_TOKEN` which is automatically granted permissions.
+Note: The `bot_actions.yml` workflow uses the default `GITHUB_TOKEN` which is automatically granted permissions for most actions.
 
 ### State Management Setup
 
-The bot stores its state (e.g., the active Reddit post ID) in the body of a GitHub Issue to avoid stateful commits.
+The bot stores its state in the body of a GitHub Issue. To set this up safely and correctly, run the `init-state` command.
 
-1.  Create a new issue in your bot's repository.
-2.  In the issue body, create a JSON code block with the initial state:
-    \`\`\`
-    ```json
-    {
-      "activePostId": null,
-      "lastCheckTimestamp": "2024-01-01T00:00:00Z",
-      "currentIntervalSeconds": 300,
-      "lastCommentCount": 0
-    }
+1.  Ensure your `GITHUB_TOKEN` or `GH_PAT` is available as an environment variable.
+2.  Run the initialization command:
+    ```bash
+    uv run bitbot init-state
     ```
-    \`\`\`
-3.  Note the issue number and update `state_issue_number` in `config.yaml`.
+3.  This will create a new issue in the `botRepo` defined in `config.yaml`. Note the issue number and update `state_issue_number` in your `config.yaml` file.
 
 ## Usage
 
 Once the environment is activated, you can run the bot's commands directly:
-
 ```bash
 # Display help for all commands
 bitbot --help
@@ -88,6 +83,9 @@ bitbot release
 
 # Example: Run the comment checker manually
 bitbot check-comments
+
+# Example: Initialize the state-tracking issue
+bitbot init-state
 ```
 
 ## Development

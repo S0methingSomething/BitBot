@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # Define sub-models for clarity and strictness
@@ -43,11 +43,31 @@ class Config(BaseModel):
     skip_content: dict[str, str] = Field(alias="skipContent")
     templates: dict[str, str]
 
+    @field_validator("messages")
+    def validate_templates(cls, messages: dict[str, str]) -> dict[str, str]:
+        """
+        Validates that the message templates contain expected placeholders.
+        This prevents runtime errors from misconfigured templates.
+        """
+        required_placeholders = {
+            "releaseTitle": ["{{asset_name}}", "{{version}}"],
+            "postTitle": ["{{asset_name}}", "{{version}}"],
+            "statusLine": ["{{status}}"],
+        }
+        for key, placeholders in required_placeholders.items():
+            if key in messages:
+                for placeholder in placeholders:
+                    if placeholder not in messages[key]:
+                        raise ValueError(
+                            f"Template '{key}' is missing placeholder: {placeholder}"
+                        )
+        return messages
+
 
 class BotState(BaseModel):
     """A model for the bot's persistent state."""
 
     active_post_id: str | None = Field(alias="activePostId", default=None)
-    last_check_timestamp: str = Field(alias="lastCheckTimestamp")
-    current_interval_seconds: int = Field(alias="currentIntervalSeconds")
-    last_comment_count: int = Field(alias="lastCommentCount")
+    last_check_timestamp: str
+    current_interval_seconds: int
+    last_comment_count: int

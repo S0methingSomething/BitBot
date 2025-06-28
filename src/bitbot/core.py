@@ -1,5 +1,5 @@
 import base64
-import binascii  # <-- FIX: Import binascii to handle its specific error
+import binascii
 
 _B64_NET_BOOLEAN_TRUE = (
     "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAQs="
@@ -66,29 +66,28 @@ def patch_monetization_vars(content: str) -> str:
     sets all boolean 'false' values to 'true', and returns the re-obfuscated content.
     """
     obfuscated_key = _get_obfuscated_key(_CIPHER_KEY)
-    lines = []
+    output_lines = []
 
-    for line in content.strip().split("\n"):
-        line = line.strip()  # <-- FIX: Remove whitespace that causes test failures
+    for line in content.strip().splitlines():
+        line = line.strip()
         if ":" not in line:
             continue
         try:
             enc_key, enc_val = line.split(":", 1)
-            dec_key = _b64_decode_and_xor(enc_key, obfuscated_key)
+
             dec_val_b64 = _b64_decode_and_xor(enc_val, obfuscated_key)
 
             if dec_val_b64 == _B64_NET_BOOLEAN_FALSE:
-                dec_val_b64 = _B64_NET_BOOLEAN_TRUE
-
-            lines.append((dec_key, dec_val_b64))
-        # <-- FIX: Catch the correct exception type -->
+                # The value is the target 'false' boolean.
+                # Re-encode the 'true' boolean to get the new value.
+                new_enc_val = _xor_and_b64_encode(_B64_NET_BOOLEAN_TRUE, obfuscated_key)
+                output_lines.append(f"{enc_key}:{new_enc_val}")
+            else:
+                # Not the target boolean, so add the original line back.
+                output_lines.append(line)
         except (ValueError, IndexError, binascii.Error):
+            # If a line is malformed, add it back to preserve file structure.
+            output_lines.append(line)
             continue
-
-    output_lines = []
-    for dec_key, dec_val_b64 in lines:
-        enc_key = _xor_and_b64_encode(dec_key, obfuscated_key)
-        enc_val = _xor_and_b64_encode(dec_val_b64, obfuscated_key)
-        output_lines.append(f"{enc_key}:{enc_val}")
 
     return "\n".join(output_lines)
