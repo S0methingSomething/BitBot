@@ -20,15 +20,26 @@ logging.basicConfig(
 
 
 def _get_active_post_id() -> str | None:
-    """Reads the active post ID from the state file."""
+    """
+    Reads the active post ID from the state file.
+    Returns None if the file is missing, empty, or contains only whitespace.
+    """
     try:
-        return STATE_FILE.read_text(encoding="utf-8").strip()
+        content = STATE_FILE.read_text(encoding="utf-8").strip()
+        if content:  # Explicitly check if the string is not empty
+            return content
+        # If content is empty or just whitespace, treat it as invalid
+        logging.warning(f"State file '{STATE_FILE}' was found but is empty.")
+        return None
     except FileNotFoundError:
         return None
 
 
 def _save_active_post_id(post_id: str) -> None:
-    """Saves the active post ID to the state file."""
+    """Saves a valid, non-empty post ID to the state file."""
+    if not post_id:
+        logging.error("Attempted to save an empty post ID. Aborting.")
+        return
     STATE_FILE.write_text(post_id + "\n", encoding="utf-8")
     logging.info(f"State file '{STATE_FILE}' updated with new post ID: {post_id}")
 
@@ -36,19 +47,26 @@ def _save_active_post_id(post_id: str) -> None:
 def _recover_active_post_id(reddit: RedditClient) -> str | None:
     """
     Recovers the active post ID by finding the latest post on Reddit and
-    creating the state file if it's missing.
+    creating the state file if it's missing or invalid.
     """
-    logging.warning("State file not found. Attempting to recover from the latest Reddit post.")
+    logging.warning(
+        "State file is missing or invalid. Attempting to recover from Reddit."
+    )
     latest_posts = reddit.get_bot_submissions(limit=1)
 
     if not latest_posts:
-        logging.error("Recovery failed: Could not find any previous posts by the bot in the subreddit.")
+        logging.error("Recovery failed: Could not find any previous posts by the bot.")
         return None
 
-    latest_post_id = latest_posts[0].id
-    logging.info(f"Recovery successful. Found latest post: {latest_post_id}")
-    _save_active_post_id(latest_post_id)
-    return latest_post_id
+    # Use cast to inform mypy that submission.id is a string
+    latest_post_id = cast(str, latest_posts[0].id)
+    if latest_post_id:
+        logging.info(f"Recovery successful. Found latest post: {latest_post_id}")
+        _save_active_post_id(latest_post_id)
+        return latest_post_id
+
+    logging.error("Recovery failed: Found a post but its ID was empty.")
+    return None
 
 
 def _render_template(
@@ -286,13 +304,15 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
     logging.info("--- Starting Comment Check Cycle ---")
     active_post_id = _get_active_post_id()
 
+    # This condition now handles missing file, empty file, and whitespace-only file
     if not active_post_id:
-        # If the state file is missing, try to recover it.
         active_post_id = _recover_active_post_id(reddit)
 
     if not active_post_id:
         # If still no ID after recovery attempt, then we must exit.
-        logging.warning("No active post ID found and could not recover. Skipping comment check.")
+        logging.warning(
+            "No active post ID found and could not recover. Skipping comment check."
+        )
         return
 
     logging.info(f"Performing check on active post: {active_post_id}")
