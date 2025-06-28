@@ -30,9 +30,7 @@ class GitHubClient:
         }
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))  # type: ignore[misc]
-    def _request(
-        self, method: str, url: str, **kwargs: Any
-    ) -> requests.Response | None:
+    def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response | None:
         """Makes a request with unified headers, timeout, and retry logic."""
         try:
             response = requests.request(

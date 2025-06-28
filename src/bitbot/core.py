@@ -55,8 +55,7 @@ def _b64_decode_and_xor(b64_text: str, key: str) -> str:
     """Decodes a Base64 string and then performs a repeating-key XOR."""
     decoded_bytes = base64.b64decode(b64_text)
     return "".join(
-        chr(decoded_bytes[i] ^ ord(key[i % len(key)]))
-        for i in range(len(decoded_bytes))
+        chr(decoded_bytes[i] ^ ord(key[i % len(key)])) for i in range(len(decoded_bytes))
     )
 
 
