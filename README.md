@@ -29,7 +29,7 @@ This project uses **uv** for fast environment creation and dependency management
     ```
 3.  **Create the virtual environment and install dependencies:**
     ```bash
-    uv pip install -e .[dev]
+    uv pip install -e .
     ```
 4.  **Set up pre-commit hooks (Developer Guardrail):**
     ```bash
