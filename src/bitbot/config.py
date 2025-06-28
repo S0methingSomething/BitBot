@@ -14,7 +14,6 @@ class RedditConfig(BaseModel):
     subreddit: str
     creator: str
     bot_name: str = Field(alias="botName")
-    state_issue_number: int
 
 
 class FeedbackConfig(BaseModel):
@@ -25,12 +24,6 @@ class FeedbackConfig(BaseModel):
     min_feedback_count: int = Field(alias="minFeedbackCount", gt=0)
 
 
-class TimingConfig(BaseModel):
-    first_check: int = Field(alias="firstCheck", gt=0)
-    max_wait: int = Field(alias="maxWait", gt=0)
-    increase_by: int = Field(alias="increaseBy", gt=0)
-
-
 class Config(BaseModel):
     """The main application configuration model."""
 
@@ -39,7 +32,6 @@ class Config(BaseModel):
     outdated_post_handling: dict[str, Any] = Field(alias="outdatedPostHandling")
     messages: dict[str, str]
     feedback: FeedbackConfig
-    timing: TimingConfig
     skip_content: dict[str, str] = Field(alias="skipContent")
     templates: dict[str, str]
 
@@ -62,12 +54,3 @@ class Config(BaseModel):
                             f"Template '{key}' is missing placeholder: {placeholder}"
                         )
         return messages
-
-
-class BotState(BaseModel):
-    """A model for the bot's persistent state."""
-
-    active_post_id: str | None = Field(alias="activePostId", default=None)
-    last_check_timestamp: str
-    current_interval_seconds: int
-    last_comment_count: int

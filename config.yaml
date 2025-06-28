@@ -12,8 +12,6 @@ reddit:
   subreddit: BitLifeRebels
   creator: C1oudyLol
   botName: BitBot
-  # The issue number in botRepo used for persistent state storage.
-  state_issue_number: 1
 
 # --- Outdated Post Handling ---
 # mode: 'inject' to add a notice at the top, 'overwrite' to replace the whole post.
@@ -46,12 +44,6 @@ feedback:
     - "broken"
     - "doesnt work"
   minFeedbackCount: 2
-
-# --- Adaptive Polling Timings (in seconds) ---
-timing:
-  firstCheck: 300
-  maxWait: 3600
-  increaseBy: 300
 
 # --- Template Content Parsing ---
 # Defines tags for tutorial/comment blocks to be removed before posting.

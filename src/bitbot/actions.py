@@ -1,6 +1,5 @@
 import logging
 import re
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, cast
 
@@ -8,14 +7,31 @@ import semver
 from praw.models import Submission
 
 from .clients import GitHubClient, RedditClient
-from .config import BotState, Config
+from .config import Config
 from .core import patch_monetization_vars
+
+STATE_FILE = Path("latest_postid.txt")
 
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] %(levelname)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
+
+def _get_active_post_id() -> str | None:
+    """Reads the active post ID from the state file."""
+    try:
+        return STATE_FILE.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        logging.warning(f"State file '{STATE_FILE}' not found.")
+        return None
+
+
+def _save_active_post_id(post_id: str) -> None:
+    """Saves the active post ID to the state file."""
+    STATE_FILE.write_text(post_id + "\n", encoding="utf-8")
+    logging.info(f"State file '{STATE_FILE}' updated with new post ID: {post_id}")
 
 
 def _render_template(
@@ -175,13 +191,7 @@ def run_release_and_post(
     logging.info(f"Submitting new post to r/{config.reddit.subreddit}...")
     new_submission = reddit.submit_post(title=post_title, selftext=post_body)
 
-    new_state = BotState(
-        active_post_id=new_submission.id,
-        last_check_timestamp=datetime.now(timezone.utc).isoformat(),
-        current_interval_seconds=config.timing.first_check,
-        last_comment_count=0,
-    )
-    gh.save_state(new_state)
+    _save_active_post_id(new_submission.id)
     logging.info(f"State updated to monitor new post: {new_submission.id}")
 
     _update_old_reddit_posts(old_posts, new_submission, config)
@@ -255,61 +265,18 @@ def _parse_version_from_release(release_data: dict[str, Any]) -> str | None:
     return None
 
 
-def init_state(config: Config, gh: GitHubClient) -> None:
-    """
-    Initializes the state by creating a new GitHub issue with a default
-    BotState object.
-    """
-    logging.info("--- Initializing State ---")
-
-    initial_state = BotState(
-        active_post_id=None,
-        last_check_timestamp=datetime.now(timezone.utc).isoformat(),
-        current_interval_seconds=config.timing.first_check,
-        last_comment_count=0,
-    )
-
-    state_json = initial_state.model_dump_json(indent=2, by_alias=True)
-    body = (
-        "This issue is used by BitBot to persist its state.\n\n"
-        f"```json\n{state_json}\n```"
-    )
-    title = "BitBot State"
-
-    issue = gh.create_issue_for_state(title, body)
-    if issue:
-        logging.info(
-            f"Successfully created state issue #{issue['number']} in repo "
-            f"{config.github.bot_repo}"
-        )
-        logging.info("Please update your config.yaml with this new issue number.")
-
-
 def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) -> None:
     """Checks for comments on the active post and updates status."""
     logging.info("--- Starting Comment Check Cycle ---")
-    state = gh.load_state()
+    active_post_id = _get_active_post_id()
 
-    if not state or not state.active_post_id:
+    if not active_post_id:
         logging.warning("No active post ID found in state. Skipping comment check.")
         return
 
-    now = datetime.now(timezone.utc)
-    last_check_time = datetime.fromisoformat(state.last_check_timestamp)
-    next_check_time = last_check_time + timedelta(
-        seconds=state.current_interval_seconds
-    )
-
-    if now < next_check_time:
-        wait_seconds = (next_check_time - now).total_seconds()
-        logging.info(
-            f"Not time for a full check yet. Next check in {int(wait_seconds)}s."
-        )
-        return
-
-    logging.info(f"Performing check on active post: {state.active_post_id}")
+    logging.info(f"Performing check on active post: {active_post_id}")
     try:
-        submission = reddit.reddit.submission(id=state.active_post_id)
+        submission = reddit.reddit.submission(id=active_post_id)
         submission.comments.replace_more(limit=0)
         comments = submission.comments.list()
 
@@ -347,21 +314,6 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
             logging.info(f"Post status updated to: '{new_status_text}'")
         else:
             logging.info("Post status is already correct.")
-
-        state.last_check_timestamp = now.isoformat()
-        if len(comments) > state.last_comment_count:
-            state.current_interval_seconds = config.timing.first_check
-        else:
-            state.current_interval_seconds = min(
-                config.timing.max_wait,
-                state.current_interval_seconds + config.timing.increase_by,
-            )
-        state.last_comment_count = len(comments)
-
-        gh.save_state(state)
-        logging.info(
-            f"State saved. Next check interval: {state.current_interval_seconds}s"
-        )
 
     except Exception as e:
         logging.error(f"An error occurred during comment check: {e}", exc_info=True)

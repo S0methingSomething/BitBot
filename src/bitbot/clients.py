@@ -1,7 +1,5 @@
-import json
 import logging
 import os
-import re
 import sys
 from typing import Any, cast
 
@@ -10,7 +8,7 @@ import requests
 from praw.models import Submission
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
-from .config import BotState, Config
+from .config import Config
 
 
 class GitHubClient:
@@ -26,10 +24,6 @@ class GitHubClient:
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         }
-        self.state_issue_url = (
-            f"{self.api_base}/repos/{self.config.bot_repo}/issues/"
-            f"{config.reddit.state_issue_number}"
-        )
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))  # type: ignore[misc]
     def _request(
@@ -117,73 +111,6 @@ class GitHubClient:
                 update_url = release["url"]
                 payload = {"name": f"[OUTDATED] {release['name']}"}
                 self._request("PATCH", update_url, json=payload)
-
-    def load_state(self) -> BotState | None:
-        """Loads the bot's state from the dedicated GitHub issue."""
-        try:
-            response = self._request("GET", self.state_issue_url)
-            if not response:
-                return None
-            issue_data = cast(dict[str, Any], response.json())
-            issue_body = issue_data.get("body", "")
-
-            match = re.search(r"```json\s*(\{.*?\})\s*```", issue_body, re.DOTALL)
-            if not match:
-                logging.error(
-                    "Could not find a JSON code block in state issue %s",
-                    self.state_issue_url,
-                )
-                return None
-
-            return BotState.model_validate_json(match.group(1))
-        except json.JSONDecodeError:
-            logging.error("Failed to parse JSON from state issue.")
-            return None
-        except Exception as e:
-            logging.error(
-                f"Failed to load or parse state from GitHub issue: {e}", exc_info=True
-            )
-            return None
-
-    def save_state(self, state: BotState) -> None:
-        """Saves the bot's state to the dedicated GitHub issue."""
-        try:
-            response = self._request("GET", self.state_issue_url)
-            if not response:
-                return
-            issue_data = cast(dict[str, Any], response.json())
-            issue_body = issue_data.get("body", "")
-
-            state_json_str = state.model_dump_json(by_alias=True, indent=2)
-            new_state_block = f"```json\n{state_json_str}\n```"
-
-            json_block_pattern = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
-            if json_block_pattern.search(issue_body):
-                new_body = json_block_pattern.sub(new_state_block, issue_body)
-            else:
-                new_body = f"{issue_body}\n\n{new_state_block}"
-
-            self._request("PATCH", self.state_issue_url, json={"body": new_body})
-            logging.info(
-                "Successfully saved state to issue %s#%s",
-                self.config.bot_repo,
-                self.state_issue_url.split("/")[-1],
-            )
-        except Exception as e:
-            logging.error(f"Failed to save state to GitHub issue: {e}", exc_info=True)
-
-    def create_issue_for_state(self, title: str, body: str) -> dict[str, Any] | None:
-        """Creates an issue, typically for initializing state."""
-        url = f"{self.api_base}/repos/{self.config.bot_repo}/issues"
-        payload = {"title": title, "body": body}
-        try:
-            response = self._request("POST", url, json=payload)
-            if response:
-                return cast(dict[str, Any], response.json())
-            return None
-        except Exception as e:
-            logging.error(f"Failed to create state issue: {e}", exc_info=True)
-            return None
 
 
 class RedditClient:
