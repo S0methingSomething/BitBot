@@ -16,8 +16,6 @@ venv/
 .poetry/
 .uv_cache/
 .pip_cache/
-# In Poetry projects, requirements.txt is often an export, not the source of truth.
-requirements.txt
 
 # Build artifacts
 build/
