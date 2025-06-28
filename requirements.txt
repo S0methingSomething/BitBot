@@ -122,7 +122,7 @@ shellingham==1.5.4
     # via python-semantic-release
 smmap==5.0.2
     # via gitdb
-tenacity==8.5.0
+tenacity==9.1.2
     # via bitbot (pyproject.toml)
 tomlkit==0.13.3
     # via python-semantic-release
