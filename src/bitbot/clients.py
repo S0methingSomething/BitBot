@@ -10,6 +10,10 @@ from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from .config import Config
 
+# Use DEBUG for verbose, step-by-step logging during development/troubleshooting
+# Change to logging.INFO for production to reduce noise
+LOG_LEVEL = logging.DEBUG
+
 
 class GitHubClient:
     """A resilient client for all GitHub API interactions."""
@@ -136,48 +140,84 @@ class RedditClient:
             username=os.environ["REDDIT_USERNAME"],
             password=os.environ["REDDIT_PASSWORD"],
         )
-        self.subreddit = self.reddit.subreddit(config.reddit.subreddit)
+        self.subreddit_name = config.reddit.subreddit
+        self.subreddit = self.reddit.subreddit(self.subreddit_name)
         self.post_title_template = config.messages["postTitle"]
         self.asset_name = config.github.asset_file_name
 
     def get_bot_submissions(self, limit: int = 100) -> list[Submission]:
         """
-        Gets the bot's recent submissions that match the release post format
-        using a robust subreddit search query.
+        Gets the bot's recent submissions by fetching its user profile and
+        filtering the posts for the correct subreddit and title format.
+        This method is highly reliable and provides detailed logging.
         """
-        # Ensure we can get the bot's username for the search query
         try:
-            bot_username = self.reddit.user.me().name
-        except Exception:
-            logging.error("Could not authenticate with Reddit to get bot username.")
+            bot_user = self.reddit.user.me()
+            if not bot_user:
+                logging.error("Failed to authenticate with Reddit. Bot user is None.")
+                return []
+            logging.log(LOG_LEVEL, f"Authenticated as Reddit user: '{bot_user.name}'")
+        except Exception as e:
+            logging.error(
+                f"Could not authenticate with Reddit to get bot user: {e}",
+                exc_info=True,
+            )
             return []
 
-        # Construct a search query that is more reliable than iterating.
-        # This searches for posts by the bot with a title matching the format.
         post_identifier = (
             self.post_title_template.split("{{version}}")[0]
             .replace("{{asset_name}}", self.asset_name)
             .strip()
         )
-
-        # We need to escape special characters for Reddit's search syntax.
-        # For this title, double quotes are the most likely issue.
-        search_title = post_identifier.replace('"', '\\"')
-
-        query = f'author:"{bot_username}" title:"{search_title}"'
-
-        logging.info(
-            f"Searching subreddit '{self.subreddit.display_name}' with query: {query}"
+        logging.log(LOG_LEVEL, f"Target subreddit: '{self.subreddit_name}'")
+        logging.log(
+            LOG_LEVEL, f"Looking for post titles starting with: '{post_identifier}'"
         )
 
+        matching_posts = []
         try:
-            # Use list() to execute the search generator and get results
-            search_results = list(self.subreddit.search(query, sort="new", limit=limit))
-            logging.info(f"Found {len(search_results)} post(s) matching the query.")
-            return search_results
-        except Exception as e:
+            logging.log(
+                LOG_LEVEL, f"Fetching last {limit} submissions from bot's profile..."
+            )
+            # Fetch the bot's most recent submissions directly from its profile
+            for submission in bot_user.submissions.new(limit=limit):
+                logging.log(
+                    LOG_LEVEL,
+                    (
+                        f"  - Checking post ID {submission.id}: '{submission.title}' "
+                        f"in r/{submission.subreddit.display_name}"
+                    ),
+                )
+
+                # 1. Check if the subreddit matches the one in the config
+                is_correct_subreddit = (
+                    submission.subreddit.display_name.lower()
+                    == self.subreddit_name.lower()
+                )
+                if not is_correct_subreddit:
+                    logging.log(LOG_LEVEL, "    - REJECT: Subreddit mismatch.")
+                    continue
+
+                # 2. Check if the title starts with the expected format
+                is_correct_title = submission.title.startswith(post_identifier)
+                if not is_correct_title:
+                    logging.log(LOG_LEVEL, "    - REJECT: Title format mismatch.")
+                    continue
+
+                # If both checks pass, this is a valid post
+                logging.info(f"    - ACCEPT: Found valid post {submission.id}.")
+                matching_posts.append(submission)
+
+            logging.info(
+                f"Finished checking. Found {len(matching_posts)} total matching"
+                " post(s)."
+            )
+            return matching_posts
+
+        except Exception:
             logging.error(
-                f"An exception occurred during Reddit search: {e}", exc_info=True
+                "An unexpected error occurred while fetching bot submissions: {e}",
+                exc_info=True,
             )
             return []
 
