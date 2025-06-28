@@ -7,9 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # We will stick to stable Python versions that our dependencies support.
-        # We can add 3.13 and 3.14 back when they are stable and supported.
-        python-version: ["3.10", "3.12"]
+        python-version: ["3.10", "3.12", "3.14.0-beta.2"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
