@@ -4,8 +4,8 @@ on:
   schedule:
     # Run the release check every hour at 5 past
     - cron: '5 * * * *'
-    # Run the comment check every 15 minutes
-    - cron: '*/15 * * * *'
+    # Run the comment check every 15 hours
+    - cron: '0 */15 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
