@@ -142,81 +142,75 @@ class RedditClient:
         )
         self.subreddit_name = config.reddit.subreddit
         self.subreddit = self.reddit.subreddit(self.subreddit_name)
+        self.bot_name = config.reddit.bot_name
         self.post_title_template = config.messages["postTitle"]
         self.asset_name = config.github.asset_file_name
 
     def get_bot_submissions(self, limit: int = 100) -> list[Submission]:
         """
-        Gets the bot's recent submissions by fetching its user profile and
-        filtering the posts for the correct subreddit and title format.
-        This method is highly reliable and provides detailed logging.
+        Gets the bot's recent submissions by searching the configured subreddit
+        for posts made by the bot. This is more resilient to title changes.
         """
         try:
             bot_user = self.reddit.user.me()
             if not bot_user:
                 logging.error("Failed to authenticate with Reddit. Bot user is None.")
                 return []
-            logging.log(LOG_LEVEL, f"Authenticated as Reddit user: '{bot_user.name}'")
+            bot_username = bot_user.name
+            logging.info(
+                "Will search for posts by authenticated user: u/%s", bot_username
+            )
         except Exception as e:
             logging.error(
-                f"Could not authenticate with Reddit to get bot user: {e}",
+                "Could not authenticate with Reddit to get bot user: %s",
+                e,
                 exc_info=True,
             )
             return []
 
-        post_identifier = (
-            self.post_title_template.split("{{version}}")[0]
-            .replace("{{asset_name}}", self.asset_name)
-            .strip()
-        )
-        logging.log(LOG_LEVEL, f"Target subreddit: '{self.subreddit_name}'")
-        logging.log(
-            LOG_LEVEL, f"Looking for post titles starting with: '{post_identifier}'"
+        # Search for posts by the bot in the target subreddit.
+        query = f"author:{bot_username}"
+        # The title prefix, e.g., "[BitBot]", is a stable identifier.
+        post_prefix = f"[{self.bot_name}]"
+
+        logging.info(
+            "Searching r/%s for posts with query: '%s' and title prefix: '%s'",
+            self.subreddit_name,
+            query,
+            post_prefix,
         )
 
         matching_posts = []
         try:
-            logging.log(
-                LOG_LEVEL, f"Fetching last {limit} submissions from bot's profile..."
-            )
-            # Fetch the bot's most recent submissions directly from its profile
-            for submission in bot_user.submissions.new(limit=limit):
-                logging.log(
-                    LOG_LEVEL,
-                    (
-                        f"  - Checking post ID {submission.id}: '{submission.title}' "
-                        f"in r/{submission.subreddit.display_name}"
-                    ),
-                )
-
-                # 1. Check if the subreddit matches the one in the config
-                is_correct_subreddit = (
-                    submission.subreddit.display_name.lower()
-                    == self.subreddit_name.lower()
-                )
-                if not is_correct_subreddit:
-                    logging.log(LOG_LEVEL, "    - REJECT: Subreddit mismatch.")
-                    continue
-
-                # 2. Check if the title starts with the expected format
-                is_correct_title = submission.title.startswith(post_identifier)
-                if not is_correct_title:
-                    logging.log(LOG_LEVEL, "    - REJECT: Title format mismatch.")
-                    continue
-
-                # If both checks pass, this is a valid post
-                logging.info(f"    - ACCEPT: Found valid post {submission.id}.")
-                matching_posts.append(submission)
+            # Search the subreddit and sort by new to get the most recent posts first.
+            for submission in self.subreddit.search(query, sort="new", limit=limit):
+                # The search query handles the author,
+                # Now we apply a stable title check.
+                if submission.title.strip().startswith(post_prefix):
+                    logging.info(
+                        "    - ACCEPT: Found valid post %s ('%s')",
+                        submission.id,
+                        submission.title,
+                    )
+                    matching_posts.append(submission)
+                else:
+                    logging.log(
+                        LOG_LEVEL,
+                        "    - REJECT: Post %s from search results "
+                        "did not match title prefix '%s'",
+                        submission.id,
+                        post_prefix,
+                    )
 
             logging.info(
-                f"Finished checking. Found {len(matching_posts)} total matching"
-                " post(s)."
+                "Search complete. Found %d matching post(s).", len(matching_posts)
             )
             return matching_posts
 
-        except Exception:
+        except Exception as e:
             logging.error(
-                "An unexpected error occurred while fetching bot submissions: {e}",
+                "An unexpected error occurred while searching Reddit: %s",
+                e,
                 exc_info=True,
             )
             return []
