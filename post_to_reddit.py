@@ -26,10 +26,11 @@ def _get_bot_posts_on_subreddit(reddit, config):
             bot_posts.append(submission)
     return bot_posts
 
+
 def _update_older_posts(older_posts, latest_release_details, config):
     """
-    Updates older posts by either overwriting them or injecting a banner,
-    based on the configuration in `config.json`.
+    Updates older posts by either overwriting them or injecting/updating a banner,
+    based on the configuration in config.json.
     """
     handling_config = config.get('outdatedPostHandling', {})
     mode = handling_config.get('mode', 'overwrite')
@@ -57,11 +58,148 @@ def _update_older_posts(older_posts, latest_release_details, config):
             print(f"::error::Inject template file not found at '{template_path}'.")
             return
         
-        if "⚠️ Outdated Post" in raw_template:
-            existence_check_string = "⚠️ Outdated Post"
-        else:
-            existence_check_string = "This post is outdated."
+        banner_start_marker = "<!-- BANNER START -->"
+        banner_end_marker = "<!-- BANNER END -->"
+        
+        # Ensure the template has the markers for future updates
+        if banner_start_marker not in raw_template or banner_end_marker not in raw_template:
+            print(f"::error::Inject template file '{template_path}' must contain '<!-- BANNER START -->' and '<!-- BANNER END -->' markers.")
+            return
 
+        injection_banner = raw_template
+        for placeholder, value in placeholders.items():
+            injection_banner = injection_banner.replace(placeholder, value)
+        
+        updated_count = 0
+        for old_post in older_posts:
+            original_body = old_post.selftext
+            new_body = ""
+            
+            try:
+                # If the banner already exists, replace it
+                if banner_start_marker in original_body:
+                    print(f"-> Updating outdated banner in post {old_post.id}.")
+                    # Regex to find and replace the existing banner
+                    pattern = re.compile(f"{re.escape(banner_start_marker)}.*?{re.escape(banner_end_marker)}", re.DOTALL)
+                    new_body = pattern.sub(injection_banner, original_body)
+                # If the banner does not exist, inject it at the top
+                else:
+                    print(f"-> Injecting outdated banner into post {old_post.id}.")
+                    new_body = f"{injection_banner}\n\n---\n\n{original_body}"
+                
+                if new_body != original_body:
+                    old_post.edit(body=new_body)
+                    updated_count += 1
+                else:
+                    print(f"-> Post {old_post.id} is already up-to-date. No changes made.")
+
+            except Exception as e:
+                print(f"::warning::Failed to update banner in post {old_post.id}: {e}")
+    
+        if updated_count > 0: print(f"Successfully updated banner in {updated_count} older posts.")
+
+    else: # Overwrite mode
+        template_path = config['reddit']['outdatedTemplateFile']
+        try:
+            with open(template_path, 'r') as f:
+                overwrite_template = f.read()
+        except FileNotFoundError:
+            print(f"::error::Overwrite template file not found at '{template_path}'.")
+            return
+
+        updated_count = 0
+        for old_post in older_posts:
+            try:
+                new_body = overwrite_template
+                for placeholder, value in placeholders.items():
+                    new_body = new_body.replace(placeholder, value)
+                
+                print(f"-> Overwriting post {old_post.id} with outdated template.")
+                old_post.edit(body=new_body)
+                updated_count += 1
+            except Exception as e:
+                print(f"::warning::Failed to overwrite post {old_post.id}: {e}")
+        
+        if updated_count > 0: print(f"Successfully overwrote {updated_count} older posts.")
+
+def _update_bot_state(post_id, config):
+    """Resets bot_state.json to monitor a new post."""
+    new_state = {
+        "activePostId": post_id, 
+        "lastCheckTimestamp": "2024-01-01T00:00:00Z",
+        "currentIntervalSeconds": config['timing']['firstCheck'], 
+        "lastCommentCount": 0
+    }
+    with open('bot_state.json', 'w') as f:
+        json.dump(new_state, f, indent=2)
+
+def _post_new_release(reddit, version, direct_download_url, config):
+    """Composes and submits a new release post to Reddit."""
+    with open(config['reddit']['templateFile'], 'r') as f:
+        post_body_template = f.read()
+
+    initial_status_line = config['feedback']['statusLineFormat'].replace("{{status}}", config['feedback']['labels']['unknown'])
+    placeholders = {
+        "{{version}}": version,
+        "{{direct_download_url}}": direct_download_url,
+        "{{bot_name}}": config['reddit']['botName'],
+        "{{bot_repo}}": config['github']['botRepo'],
+        "{{asset_name}}": config['github']['assetFileName'],
+        "{{creator_username}}": config['reddit']['creator'],
+        "{{initial_status}}": initial_status_line
+    }
+
+    title = config['reddit']['postTitle']
+    post_body = post_body_template
+    for placeholder, value in placeholders.items():
+        post_body = post_body.replace(placeholder, value)
+        title = title.replace(placeholder, value)
+
+    print(f"Submitting new post for v{version} to r/{config['reddit']['subreddit']}...")
+    submission = reddit.subreddit(config['reddit']['subreddit']).submit(title, selftext=post_body)
+    print(f"Post successful: {submission.shortlink}")
+    return submission
+
+def main():
+    """Handles posting a new release to Reddit when a new version is built."""
+    parser = argparse.ArgumentParser(description="Post a new release to Reddit.")
+    parser.add_argument('--version', required=True)
+    parser.add_argument('--direct-download-url', required=True)
+    args = parser.parse_args()
+    
+    config = _load_config()
+
+    print("Authenticating with Reddit...")
+    reddit = praw.Reddit(
+        client_id=os.environ["REDDIT_CLIENT_ID"], 
+        client_secret=os.environ["REDDIT_CLIENT_SECRET"],
+        user_agent=os.environ["REDDIT_USER_AGENT"], 
+        username=os.environ["REDDIT_USERNAME"],
+        password=os.environ["REDDIT_PASSWORD"],
+    )
+
+    print("Fetching existing posts to prepare for update...")
+    existing_posts = _get_bot_posts_on_subreddit(reddit, config)
+
+    new_submission = _post_new_release(reddit, args.version, args.direct_download_url, config)
+
+    if existing_posts:
+        print(f"Found {len(existing_posts)} older post(s) to update.")
+        latest_release_details = {
+            "title": new_submission.title,
+            "url": new_submission.shortlink,
+            "version": args.version,
+            "direct_download_url": args.direct_download_url,
+        }
+        _update_older_posts(existing_posts, latest_release_details, config)
+
+    print("Updating state file to monitor latest post.")
+    _update_bot_state(new_submission.id, config)
+
+    print("Post and update process complete.")
+
+if __name__ == "__main__":
+    main()
         ignore_block = config.get('skipContent', {})
         start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
         if start_marker and end_marker and start_marker in raw_template:
