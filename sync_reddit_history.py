@@ -98,18 +98,29 @@ def _update_older_posts(older_posts, latest_release_details, config):
             new_body = ""
             
             try:
-                if existence_check_string in original_body:
+                # --- REPAIR LOGIC ---
+                # 1. Check for and repair posts broken by the previous buggy script
+                if "<!-- TUTORIAL-START -->" in original_body:
+                    print(f"-> Found and cleaning up previously broken post {old_post.id}.")
+                    parts = original_body.split("\n\n---\n\n", 1)
+                    clean_original_content = parts[1] if len(parts) > 1 else ""
+                    new_body = f"{injection_banner}\n\n---\n\n{clean_original_content}"
+
+                # 2. If not broken, check for a normal banner to replace
+                elif existence_check_string in original_body:
                     print(f"-> Replacing outdated banner in post {old_post.id}.")
                     pattern = re.compile(f"^{re.escape(existence_check_string)}.*?(\n---\n)", re.DOTALL | re.MULTILINE)
                     if pattern.search(original_body):
                         new_body = pattern.sub(f"{injection_banner}\\1", original_body, 1)
                     else:
                         new_body = f"{injection_banner}\n\n---\n\n{original_body}"
+                
+                # 3. If no banner exists, inject a new one
                 else:
                     print(f"-> Injecting new outdated banner into post {old_post.id}.")
                     new_body = f"{injection_banner}\n\n---\n\n{original_body}"
                 
-                if new_body != original_body:
+                if new_body.strip() and new_body != original_body:
                     old_post.edit(body=new_body)
                     updated_count += 1
                 else:
@@ -121,6 +132,8 @@ def _update_older_posts(older_posts, latest_release_details, config):
         if updated_count > 0: print(f"Successfully updated banner in {updated_count} older posts.")
 
     else: # Overwrite mode
+        # ...
+
         template_path = config['reddit']['outdatedTemplateFile']
         try:
             with open(template_path, 'r') as f:
@@ -151,6 +164,7 @@ def _update_older_posts(older_posts, latest_release_details, config):
                     print(f"::warning::Failed to overwrite post {old_post.id}: {e}")
         
         if updated_count > 0: print(f"Successfully overwrote {updated_count} older posts.")
+
 
 def _update_bot_state(post_id, config):
     new_state = {
