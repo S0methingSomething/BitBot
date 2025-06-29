@@ -5,8 +5,6 @@ import re
 import requests
 import praw
 
-# Note: Helper functions are duplicated to keep scripts self-contained.
-
 def _load_config():
     """Loads the main configuration file."""
     with open('config.json', 'r') as f:
@@ -61,7 +59,7 @@ def _parse_version_from_title(title):
 
 def _update_older_posts(older_posts, latest_release_details, config):
     """
-    Updates older posts by either overwriting them or injecting a banner,
+    Updates older posts by either overwriting them or injecting/updating a banner,
     based on the configuration in `config.json`.
     """
     handling_config = config.get('outdatedPostHandling', {})
@@ -90,60 +88,53 @@ def _update_older_posts(older_posts, latest_release_details, config):
             print(f"::error::Inject template file not found at '{template_path}'.")
             return
         
-        if "⚠️ Outdated Post" in raw_template:
-            existence_check_string = "⚠️ Outdated Post"
-        else:
-            existence_check_string = "This post is outdated."
+        banner_start_marker = "<!-- BANNER START -->"
+        banner_end_marker = "<!-- BANNER END -->"
+        
+        if banner_start_marker not in raw_template or banner_end_marker not in raw_template:
+            print(f"::error::Inject template file '{template_path}' must contain '<!-- BANNER START -->' and '<!-- BANNER END -->' markers.")
+            return
 
-        ignore_block = config.get('skipContent', {})
-        start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
-        if start_marker and end_marker and start_marker in raw_template:
-            pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
-            banner_template = re.sub(pattern, '', raw_template).strip()
-        else:
-            banner_template = raw_template
-
-        injection_banner = banner_template
+        injection_banner = raw_template
         for placeholder, value in placeholders.items():
             injection_banner = injection_banner.replace(placeholder, value)
             
         updated_count = 0
         for old_post in older_posts:
-            if existence_check_string in old_post.selftext:
-                continue
-            
-            try:
-                new_body = f"{injection_banner}\n\n---\n\n{old_post.selftext}"
-                print(f"-> Injecting outdated banner into post {old_post.id}.")
-                old_post.edit(body=new_body)
-                updated_count += 1
-            except Exception as e:
-                print(f"::warning::Failed to inject banner into post {old_post.id}: {e}")
-        
-        if updated_count > 0: print(f"Successfully injected banner into {updated_count} older posts.")
+            original_body = old_post.selftext
+            new_body = ""
 
-    else:
+            try:
+                if banner_start_marker in original_body:
+                    print(f"-> Updating outdated banner in post {old_post.id}.")
+                    pattern = re.compile(f"{re.escape(banner_start_marker)}.*?{re.escape(banner_end_marker)}", re.DOTALL)
+                    new_body = pattern.sub(injection_banner, original_body)
+                else:
+                    print(f"-> Injecting outdated banner into post {old_post.id}.")
+                    new_body = f"{injection_banner}\n\n---\n\n{original_body}"
+
+                if new_body != original_body:
+                    old_post.edit(body=new_body)
+                    updated_count += 1
+                else:
+                    print(f"-> Post {old_post.id} is already up-to-date. No changes made.")
+
+            except Exception as e:
+                print(f"::warning::Failed to update banner in post {old_post.id}: {e}")
+        
+        if updated_count > 0: print(f"Successfully updated banner in {updated_count} older posts.")
+
+    else: # Overwrite mode
         template_path = config['reddit']['outdatedTemplateFile']
         try:
             with open(template_path, 'r') as f:
-                raw_template = f.read()
+                overwrite_template = f.read()
         except FileNotFoundError:
             print(f"::error::Overwrite template file not found at '{template_path}'.")
             return
-
-        ignore_block = config.get('skipContent', {})
-        start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
-        if start_marker and end_marker and start_marker in raw_template:
-            pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
-            overwrite_template = re.sub(pattern, '', raw_template).strip()
-        else:
-            overwrite_template = raw_template
         
         updated_count = 0
         for old_post in older_posts:
-            if "This post is outdated." in old_post.selftext:
-                continue
-                
             try:
                 new_body = overwrite_template
                 for placeholder, value in placeholders.items():
@@ -160,8 +151,10 @@ def _update_older_posts(older_posts, latest_release_details, config):
 def _update_bot_state(post_id, config):
     """Resets bot_state.json and signals a change to the workflow."""
     new_state = {
-        "activePostId": post_id, "lastCheckTimestamp": "2024-01-01T00:00:00Z",
-        "currentIntervalSeconds": config['timing']['firstCheck'], "lastCommentCount": 0
+        "activePostId": post_id, 
+        "lastCheckTimestamp": "2024-01-01T00:00:00Z",
+        "currentIntervalSeconds": config['timing']['firstCheck'], 
+        "lastCommentCount": 0
     }
     with open('bot_state.json', 'w') as f:
         json.dump(new_state, f, indent=2)
@@ -172,16 +165,8 @@ def _update_bot_state(post_id, config):
 def _post_new_release(reddit, version, direct_download_url, config):
     """Composes and submits a new release post to Reddit."""
     with open(config['reddit']['templateFile'], 'r') as f:
-        raw_template = f.read()
+        post_body_template = f.read()
     
-    ignore_block = config.get('skipContent', {})
-    start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
-    if start_marker and end_marker and start_marker in raw_template:
-        pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
-        post_body_template = re.sub(pattern, '', raw_template).strip()
-    else:
-        post_body_template = raw_template
-
     initial_status_line = config['feedback']['statusLineFormat'].replace("{{status}}", config['feedback']['labels']['unknown'])
     placeholders = {
         "{{version}}": version,
@@ -210,8 +195,10 @@ def main():
     
     print("Authenticating with Reddit...")
     reddit = praw.Reddit(
-        client_id=os.environ["REDDIT_CLIENT_ID"], client_secret=os.environ["REDDIT_CLIENT_SECRET"],
-        user_agent=os.environ["REDDIT_USER_AGENT"], username=os.environ["REDDIT_USERNAME"],
+        client_id=os.environ["REDDIT_CLIENT_ID"], 
+        client_secret=os.environ["REDDIT_CLIENT_SECRET"],
+        user_agent=os.environ["REDDIT_USER_AGENT"], 
+        username=os.environ["REDDIT_USERNAME"],
         password=os.environ["REDDIT_PASSWORD"],
     )
 
@@ -257,15 +244,19 @@ def main():
     else:
         print("No older posts found to sync.")
     
-    with open('bot_state.json', 'r') as f:
-        state = json.load(f)
-    if state.get('activePostId') != latest_reddit_post.id:
-        print("State file is out of sync. Correcting it.")
+    try:
+        with open('bot_state.json', 'r') as f:
+            state = json.load(f)
+        if state.get('activePostId') != latest_reddit_post.id:
+            print("State file is out of sync. Correcting it.")
+            _update_bot_state(latest_reddit_post.id, config)
+        else:
+            print("State file is already in sync.")
+            with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+                print("state_changed=false", file=f)
+    except FileNotFoundError:
+        print("bot_state.json not found. Creating it now.")
         _update_bot_state(latest_reddit_post.id, config)
-    else:
-        print("State file is already in sync.")
-        with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-            print("state_changed=false", file=f)
 
 if __name__ == "__main__":
     main()
