@@ -17,10 +17,8 @@ Available Placeholders:
 | {{bot_repo}}              | The bot's repository name (from `config.json`).       |
 <!-- TUTORIAL-END -->
 
-<!-- BANNER START -->
 ## ⚠️ Outdated Post
 
 A newer version of **{{asset_name}}** (v{{latest_version}}) is now available. Please refer to the latest post to download.
 
 👉 [**Go to the latest post: {{latest_post_title}}**]({{latest_post_url}})
-<!-- BANNER END -->
