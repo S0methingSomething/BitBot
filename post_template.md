@@ -27,16 +27,16 @@ Available Placeholders:
 ---
 
 ## 🔧 Project Information
-**👤 Creator:** u/{{creator_username}}  
-**📦 Repository:** [{{bot_repo}}](https://github.com/{{bot_repo}})  
-**🤖 Bot:** [{{bot_name}}](https://github.com/{{bot_repo}})
+**Creator:** u/{{creator_username}}  
+**Repository:** [{{bot_repo}}](https://github.com/{{bot_repo}})  
+**Bot:** [{{bot_name}}](https://github.com/{{bot_repo}})
 
 ## 🛠️ Related Projects
 **BitEdit** - [Modify MonetizationVars on the web in a human readable format JSON](https://s0methingsomething.github.io/BitEdit/)
 
 ---
 
-## 📊 Release Status
+## Release Status
 {{initial_status}}
 
 ---
