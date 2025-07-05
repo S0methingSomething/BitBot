@@ -31,9 +31,12 @@ Available Placeholders:
 **📦 Repository:** [{{bot_repo}}](https://github.com/{{bot_repo}})  
 **🤖 Bot:** [{{bot_name}}](https://github.com/{{bot_repo}})
 
+## 🛠️ Related Projects
+**BitEdit** - [Modify MonetizationVars on the web in a human readable format JSON](https://s0methingsomething.github.io/BitEdit/)
+
 ---
 
-## 📊 status:
+## 📊 Release Status
 {{initial_status}}
 
 ---
