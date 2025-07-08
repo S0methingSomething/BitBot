@@ -2,7 +2,7 @@ name: '[Pulse] Check Reddit Comments'
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 */3 * * *'
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
