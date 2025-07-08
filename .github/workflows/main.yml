@@ -2,7 +2,7 @@ name: '[Release] Check, Patch, and Manage Reddit'
 on:
   workflow_dispatch:
   schedule:
-    - cron: '5 * * * *'
+    - cron: '0 0,15 * * *'
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: true
