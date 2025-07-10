@@ -4,6 +4,7 @@ on:
   # on pull requests from forks and dependabot.
   pull_request_target:
     types: [opened, edited, synchronize]
+  workflow_dispatch:
 
 # Explicitly grant the required permissions
 permissions:
