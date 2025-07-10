@@ -55,7 +55,8 @@ def _b64_decode_and_xor(b64_text: str, key: str) -> str:
     """Decodes a Base64 string and then performs a repeating-key XOR."""
     decoded_bytes = base64.b64decode(b64_text)
     return "".join(
-        chr(decoded_bytes[i] ^ ord(key[i % len(key)])) for i in range(len(decoded_bytes))
+        chr(decoded_bytes[i] ^ ord(key[i % len(key)]))
+        for i in range(len(decoded_bytes))
     )
 
 
@@ -70,6 +71,7 @@ def patch_monetization_vars(content: str) -> str:
     for line in content.strip().splitlines():
         line = line.strip()
         if ":" not in line:
+            output_lines.append(line)
             continue
         try:
             enc_key, enc_val = line.split(":", 1)
@@ -87,6 +89,5 @@ def patch_monetization_vars(content: str) -> str:
         except (ValueError, IndexError, binascii.Error):
             # If a line is malformed, add it back to preserve file structure.
             output_lines.append(line)
-            continue
 
-    return "\n".join(output_lines)
+    return "\n".join(output_lines) + "\n"

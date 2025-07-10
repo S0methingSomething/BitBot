@@ -10,8 +10,11 @@ updates:
     labels:
       - "dependencies"
       - "CI/CD"
+    # --- BETTER COMMIT MESSAGE BLOCK ---
     commit-message:
+      # Use a clear, conventional prefix. 'build' is common for dependency updates.
       prefix: "build(deps)"
+      # This ensures the prefix includes the scope (e.g., "build(deps):")
       include: "scope"
     open-pull-requests-limit: 5
     groups:
@@ -20,7 +23,7 @@ updates:
           - "minor"
           - "patch"
 
-  # === Configuration for Python with uv.lock ===
+  # === Configuration for Python (pip) with Top-Level Pinning ===
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -30,8 +33,9 @@ updates:
     labels:
       - "dependencies"
       - "python"
-      - "automerge" # Special label for our lockfile updater
+    # --- BETTER COMMIT MESSAGE BLOCK ---
     commit-message:
+      # Use the same prefix for consistency.
       prefix: "build(deps)"
       include: "scope"
     open-pull-requests-limit: 2

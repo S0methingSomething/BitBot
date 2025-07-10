@@ -68,7 +68,9 @@ def _recover_active_post_id(reddit: RedditClient) -> str | None:
     return None
 
 
-def _render_template(template_name: str, context: dict[str, Any], config: Config) -> str:
+def _render_template(
+    template_name: str, context: dict[str, Any], config: Config
+) -> str:
     """Loads and renders a template from the templates directory."""
     try:
         template_path = Path(__file__).parent / "templates" / template_name
@@ -79,13 +81,9 @@ def _render_template(template_name: str, context: dict[str, Any], config: Config
 
     content = raw_template
     skip_tags = config.skip_content
-    if (
-        skip_tags["startTag"]
-        and skip_tags["endTag"]
-        and skip_tags["startTag"] in content
-    ):
+    if skip_tags.start_tag and skip_tags.end_tag and skip_tags.start_tag in content:
         pattern = re.compile(
-            f"{re.escape(skip_tags['startTag'])}.*?{re.escape(skip_tags['endTag'])}",
+            f"{re.escape(skip_tags.start_tag)}.*?{re.escape(skip_tags.end_tag)}",
             re.DOTALL,
         )
         content = re.sub(pattern, "", content).strip()
@@ -136,7 +134,9 @@ def _get_versions(
             latest_posted_version_str = parsed_version
             logging.info(f"Latest post on Reddit is for version: v{parsed_version}")
         else:
-            logging.warning(f"Could not parse version from Reddit post title: '{title}'")
+            logging.warning(
+                f"Could not parse version from Reddit post title: '{title}'"
+            )
     else:
         logging.info("No previous posts found on Reddit.")
     latest_posted_version = semver.Version.parse(latest_posted_version_str)
@@ -172,10 +172,10 @@ def _manage_github_release(
             gh.delete_asset(existing_asset["id"])
     else:
         logging.info(f"Creating new GitHub release: {tag_name}")
-        release_title = config.messages["releaseTitle"].replace(
+        release_title = config.messages.release_title.replace(
             "{{version}}", str(source_version)
         )
-        release_body = config.messages["releaseDescription"]
+        release_body = config.messages.release_description
         release_data = gh.create_release(tag_name, release_title, release_body)
 
     if not release_data:
@@ -208,7 +208,7 @@ def _publish_to_reddit(
     asset_url = release_data["assets"][0]["browser_download_url"]
     # *** FIX STARTS HERE: The corrected line that was too long ***
     initial_status_text = config.feedback.labels["unknown"]
-    initial_status_line = config.messages["statusLine"].replace(
+    initial_status_line = config.messages.status_line.replace(
         "{{status}}", initial_status_text
     )
     # *** FIX ENDS HERE ***
@@ -221,8 +221,8 @@ def _publish_to_reddit(
         "bot_name": config.reddit.bot_name,
         "initial_status": initial_status_line,
     }
-    post_title = config.messages["postTitle"].replace("{{version}}", str(source_version))
-    post_body = _render_template(config.templates["post"], post_context, config)
+    post_title = config.messages.post_title.replace("{{version}}", str(source_version))
+    post_body = _render_template(config.templates.post, post_context, config)
 
     logging.info(f"Submitting new post to r/{config.reddit.subreddit}...")
     old_posts = reddit.get_bot_submissions(limit=20)
@@ -232,7 +232,9 @@ def _publish_to_reddit(
     _update_old_reddit_posts(old_posts, new_submission, config)
 
 
-def run_release_and_post(config: Config, gh: GitHubClient, reddit: RedditClient) -> None:
+def run_release_and_post(
+    config: Config, gh: GitHubClient, reddit: RedditClient
+) -> None:
     """The main application function to check, patch, release, and post."""
     logging.info("--- Starting Release & Post Cycle ---")
 
@@ -308,8 +310,8 @@ def _update_old_reddit_posts(
         return
 
     logging.info(f"Updating {len(old_posts)} old Reddit post(s)...")
-    outdated_mode = config.outdated_post_handling["mode"]
-    template_name = config.templates.get(outdated_mode)
+    outdated_mode = config.outdated_post_handling.mode
+    template_name = getattr(config.templates, outdated_mode)
     if not template_name:
         logging.error(f"Template for outdated mode '{outdated_mode}' not in config.")
         return
@@ -354,7 +356,9 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
         comments = submission.comments.list()
 
         working_kw = re.compile("|".join(config.feedback.working_keywords), re.I)
-        not_working_kw = re.compile("|".join(config.feedback.not_working_keywords), re.I)
+        not_working_kw = re.compile(
+            "|".join(config.feedback.not_working_keywords), re.I
+        )
         positive_score = sum(1 for c in comments if working_kw.search(c.body))
         negative_score = sum(1 for c in comments if not_working_kw.search(c.body))
         logging.info(
@@ -370,7 +374,7 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
         else:
             new_status_text = config.feedback.labels["unknown"]
 
-        new_status_line = config.messages["statusLine"].replace(
+        new_status_line = config.messages.status_line.replace(
             "{{status}}", new_status_text
         )
         status_regex = re.compile(config.feedback.status_line_regex, re.MULTILINE)

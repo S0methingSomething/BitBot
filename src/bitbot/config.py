@@ -1,56 +1,96 @@
-from typing import Any
+from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator
+import logging
+from pathlib import Path
+from typing import ClassVar
+
+import yaml
+from pydantic import BaseModel, Field, ValidationError
 
 
-# Define sub-models for clarity and strictness
 class GitHubConfig(BaseModel):
-    source_repo: str = Field(alias="sourceRepo")
-    bot_repo: str = Field(alias="botRepo")
-    asset_file_name: str = Field(alias="assetFileName")
+    source_repo: str = Field(..., alias="sourceRepo")
+    bot_repo: str = Field(..., alias="botRepo")
+    asset_file_name: str = Field(..., alias="assetFileName")
 
 
 class RedditConfig(BaseModel):
     subreddit: str
     creator: str
-    bot_name: str = Field(alias="botName")
+    bot_name: str = Field(..., alias="botName")
+
+
+class OutdatedPostHandlingConfig(BaseModel):
+    mode: str
+
+
+class MessagesConfig(BaseModel):
+    release_title: str = Field(..., alias="releaseTitle")
+    release_description: str = Field(..., alias="releaseDescription")
+    post_title: str = Field(..., alias="postTitle")
+    status_line: str = Field(..., alias="statusLine")
 
 
 class FeedbackConfig(BaseModel):
-    status_line_regex: str = Field(alias="statusLineRegex")
+    status_line_regex: str = Field(..., alias="statusLineRegex")
     labels: dict[str, str]
-    working_keywords: list[str] = Field(alias="workingKeywords")
-    not_working_keywords: list[str] = Field(alias="notWorkingKeywords")
-    min_feedback_count: int = Field(alias="minFeedbackCount", gt=0)
+    working_keywords: list[str] = Field(..., alias="workingKeywords")
+    not_working_keywords: list[str] = Field(..., alias="notWorkingKeywords")
+    min_feedback_count: int = Field(..., alias="minFeedbackCount")
+
+
+class SkipContentConfig(BaseModel):
+    start_tag: str = Field(..., alias="startTag")
+    end_tag: str = Field(..., alias="endTag")
+
+
+class TemplatesConfig(BaseModel):
+    post: str
+    outdated: str
+    inject: str
+
+
+class TimingConfig(BaseModel):
+    first_check: int = Field(..., alias="firstCheck")
+    max_wait: int = Field(..., alias="maxWait")
+    increase_by: int = Field(..., alias="increaseBy")
 
 
 class Config(BaseModel):
-    """The main application configuration model."""
-
     github: GitHubConfig
     reddit: RedditConfig
-    outdated_post_handling: dict[str, Any] = Field(alias="outdatedPostHandling")
-    messages: dict[str, str]
+    outdated_post_handling: OutdatedPostHandlingConfig = Field(
+        ..., alias="outdatedPostHandling"
+    )
+    messages: MessagesConfig
     feedback: FeedbackConfig
-    skip_content: dict[str, str] = Field(alias="skipContent")
-    templates: dict[str, str]
+    skip_content: SkipContentConfig = Field(..., alias="skipContent")
+    templates: TemplatesConfig
+    timing: TimingConfig
 
-    @field_validator("messages")
-    def validate_templates(cls, messages: dict[str, str]) -> dict[str, str]:
-        """
-        Validates that the message templates contain expected placeholders.
-        This prevents runtime errors from misconfigured templates.
-        """
-        required_placeholders = {
-            "releaseTitle": ["{{asset_name}}", "{{version}}"],
-            "postTitle": ["{{asset_name}}", "{{version}}"],
-            "statusLine": ["{{status}}"],
-        }
-        for key, placeholders in required_placeholders.items():
-            if key in messages:
-                for placeholder in placeholders:
-                    if placeholder not in messages[key]:
-                        raise ValueError(
-                            f"Template '{key}' is missing placeholder: {placeholder}"
-                        )
-        return messages
+    _config: ClassVar[Config | None] = None
+
+    @classmethod
+    def get_instance(cls) -> Config:
+        if cls._config is None:
+            raise RuntimeError("Config has not been loaded.")
+        return cls._config
+
+    @classmethod
+    def load(cls, config_path: str | Path = "config.yaml") -> Config:
+        config_p = Path(config_path)
+        if not config_p.exists():
+            logging.critical(f"Configuration file not found at: {config_p}")
+            raise FileNotFoundError(f"Config file not found: {config_p}")
+
+        with config_p.open("r", encoding="utf-8") as f:
+            raw_config = yaml.safe_load(f)
+
+        try:
+            config = cls.model_validate(raw_config)
+            cls._config = config
+            logging.info("Configuration loaded and validated successfully.")
+            return config
+        except ValidationError as e:
+            logging.critical(f"Configuration validation failed:\n{e}")
+            raise

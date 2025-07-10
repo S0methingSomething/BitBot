@@ -1,73 +1,61 @@
 [project]
 name = "bitbot"
-version = "1.0.0"
-description = "A bot for managing Reddit posts for BitLife patches."
-authors = [{name = "S0methingSomething"}]
+version = "0.1.0"
+description = "A Reddit bot for managing release posts."
 readme = "README.md"
-requires-python = ">=3.10,<3.15"
+requires-python = "~=3.12"
 dependencies = [
-    "praw>=7.8.1, <8",
-    "requests>=2.31.0, <3",
-    "pyyaml>=6.0.1, <7",
-    "pydantic>=2.7.0, <3",
-    "tenacity>=8.2.3, <9",
-    "semver>=3.0.2, <4",
+    "praw>=7.8.1",
+    "requests==2.32.4",
+    "toml==0.10.2",
+    "pydantic>=2.8.2",
+    "semver>=3.0.2",
+    "tenacity>=8.5.0",
+    "types-PyYAML>=6.0.0",
 ]
+license = { text = "MIT" }
+authors = [
+  {name = "Your Name", email = "your@email.com"},
+]
+
+[project.urls]
+"Homepage" = "https://github.com/your-username/BitBot"
+"Bug Tracker" = "https://github.com/your-username/BitBot/issues"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.2.2, <9",
-    "pytest-cov>=5.0.0, <6",
-    "pytest-mock>=3.12.0, <4",
-    "black>=24.4.2, <25",
-    "ruff>=0.4.4, <1",
-    "mypy>=1.10.0, <2",
-    "python-semantic-release>=9.5.0, <10",
-    "types-requests>=2.31.0, <3",
-    "types-PyYAML>=6.0.12, <7",
-    "pre-commit>=3.7.0, <4",
+    "pre-commit>=3.7.1",
 ]
 
 [project.scripts]
-bitbot = "bitbot.cli:main"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.black]
-line-length = 89
-target-version = ['py312']
+bitbot = "bitbot.__main__:main"
 
 [tool.ruff]
-line-length = 89
-# Exclude common folders from scanning
-exclude = [
-    ".git",
-    ".ruff_cache",
-    ".venv",
-    "__pypackages__",
-    "build",
-    "dist",
-]
-
+line-length = 120
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "C90", "N", "UP", "B", "A", "T20", "SIM", "PTH"]
-ignore = [
-    "N805", # Ignore cls as first arg for Pydantic validators
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "A",  # flake8-builtins
+    "C90",  # mccabe complexity
+    "SIM",  # flake8-simplify
+    "T20",  # flake8-print
 ]
+ignore = ["E501"]  # Ignore line length, handled by black
 
 [tool.mypy]
-python_version = "3.13"
-warn_return_any = true
-ignore_missing_imports = true
 strict = true
-
-[tool.pytest.ini_options]
-pythonpath = "src"
-testpaths = [
-    "tests",
-]
-
-[tool.mypy.plugins]
-"pydantic.mypy" = { "infer_constructors" = true }
+ignore_missing_imports = true
+allow_redefinition = true
+show_error_codes = true
+pretty = true
+exclude = []
+disallow_untyped_defs = true
+warn_return_any = true
+no_implicit_optional = true
+warn_unused_ignores = true
+disallow_untyped_decorators = false
+plugins = ["pydantic.mypy"]

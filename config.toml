@@ -1,0 +1,133 @@
+# ==============================================================================
+# BitBot Configuration
+#
+# This file contains the complete configuration for the BitBot.
+# It is the single source of truth for all settings.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# GitHub Configuration
+#
+# Configure which repositories the bot monitors and updates.
+# ------------------------------------------------------------------------------
+[github]
+# The repository from which to pull the asset file.
+sourceRepo = "S0methingSomething/BitEdit"
+
+# The repository where the bot's code is hosted.
+botRepo = "S0methingSomething/BitBot"
+
+# The name of the asset file to download from the source repository.
+assetFileName = "MonetizationVars"
+
+
+# ------------------------------------------------------------------------------
+# Reddit Configuration
+#
+# Settings for posting and managing Reddit content.
+# ------------------------------------------------------------------------------
+[reddit]
+# The subreddit to post to.
+subreddit = "BitLifeRebels"
+
+# The template file to use for new posts.
+templateFile = "post_template.md"
+
+# The template file to use for outdated posts.
+outdatedTemplateFile = "outdated_template.md"
+
+# The title of the Reddit post.
+# Available placeholders: {{asset_name}}, {{version}}
+postTitle = "[BitBot] {{asset_name}} for BitLife v{{version}}"
+
+# The username of the bot.
+botName = "BitBot"
+
+# The creator of the bot.
+creator = "C1oudyLol"
+
+
+# ------------------------------------------------------------------------------
+# Post Handling Configuration
+#
+# Controls how old posts are marked.
+# ------------------------------------------------------------------------------
+[outdatedPostHandling]
+# The mode for handling outdated posts. Can be 'overwrite' or 'inject'.
+mode = "inject"
+
+# The template file to use when injecting content into an outdated post.
+injectTemplateFile = "inject_template.md"
+
+
+# ------------------------------------------------------------------------------
+# Message Configuration
+#
+# Text formats for GitHub releases and other messages.
+# ------------------------------------------------------------------------------
+[messages]
+# The title of the GitHub release.
+# Available placeholders: {{asset_name}}, {{version}}
+releaseTitle = "{{asset_name}} v{{version}}"
+
+# The description of the GitHub release.
+# Available placeholders: {{asset_name}}
+releaseDescription = "Automated release of the pre-patched `{{asset_name}}` file. All boolean values have been set to true."
+
+
+# ------------------------------------------------------------------------------
+# Content Skipping Configuration
+#
+# Defines tags for tutorial/comment blocks to be removed before posting.
+# ------------------------------------------------------------------------------
+[skipContent]
+# The start tag for content to be skipped.
+startTag = "<!-- TUTORIAL-START -->"
+
+# The end tag for content to be skipped.
+endTag = "<!-- TUTORIAL-END -->"
+
+
+# ------------------------------------------------------------------------------
+# Feedback Analysis Configuration
+#
+# Rules for analyzing Reddit comments and updating the post status.
+# ------------------------------------------------------------------------------
+[feedback]
+# The format of the status line to be added to the post.
+# Available placeholders: {{status}}
+statusLineFormat = "**Status:** {{status}} (based on comments)."
+
+# A regex to find the status line in the post.
+statusLineRegex = "^\\*\\*Status:\\*\\*.*$"
+
+# The labels to use for the post status.
+[feedback.labels]
+working = "Working"
+broken = "Potentially Not Working"
+unknown = "Not enough feedback..."
+
+# Keywords to identify positive feedback.
+workingKeywords = ["working", "works for me", "no issues", "perfect", "thanks"]
+
+# Keywords to identify negative feedback.
+notWorkingKeywords = ["not working", "broken", "doesnt work"]
+
+# The minimum number of comments required to determine the status.
+minFeedbackCount = 2
+
+
+# ------------------------------------------------------------------------------
+# Timing Configuration
+#
+# Controls the adaptive polling interval for the comment checker (in seconds).
+# ------------------------------------------------------------------------------
+[timing]
+# The initial time to wait before the first check.
+firstCheck = 300
+
+# The maximum time to wait between checks.
+maxWait = 3600
+
+# The amount to increase the wait time by after each check.
+increaseBy = 300

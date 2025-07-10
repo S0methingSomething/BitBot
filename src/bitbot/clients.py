@@ -29,8 +29,10 @@ class GitHubClient:
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))  # type: ignore[misc]
-    def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response | None:
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
+    def _request(
+        self, method: str, url: str, **kwargs: Any
+    ) -> requests.Response | None:
         """Makes a request with unified headers, timeout, and retry logic."""
         try:
             response = requests.request(
@@ -161,7 +163,7 @@ class RedditClient:
         self.subreddit_name = config.reddit.subreddit
         self.subreddit = self.reddit.subreddit(self.subreddit_name)
         self.bot_name = config.reddit.bot_name
-        self.post_title_template = config.messages["postTitle"]
+        self.post_title_template = config.messages.post_title
         self.asset_name = config.github.asset_file_name
 
     def get_bot_submissions(self, limit: int = 100) -> list[Submission]:

@@ -1,47 +1,18 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-*.so
-
-# Virtual Environments
-.env
-.venv/
-env/
-venv/
-.Python
-
-# Dependency Management Caches & Files
-.poetry/
-.uv_cache/
-.pip_cache/
-
-# Build artifacts
-build/
-dist/
-*.egg-info/
-
-# Testing & Code Quality Caches
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
+*.egg-info
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
 .coverage
-coverage.xml
-htmlcov/
-nosetests.xml
-*.cover
+build
 
-# IDE / Editor directories
-.vscode/
-.idea/
-*.swp
-*.swo
+# Node.js
+node_modules/
+dist/
+npm-debug.log*
 
-# OS-specific files
+# OS-specific
 .DS_Store
-Thumbs.db
-
-# Secrets - IMPORTANT: Never commit secrets.
-secrets.yaml
-*.env
