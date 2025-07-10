@@ -1,6 +1,8 @@
 name: '[Bot] Run Bot Actions'
 on:
   workflow_dispatch:
+  push:
+    branches: [ main, dev ]
   schedule:
     # Run the release check every hour at 5 past
     - cron: '5 * * * *'
