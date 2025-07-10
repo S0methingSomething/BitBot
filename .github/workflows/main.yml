@@ -1,6 +1,8 @@
-name: '[Release - test] Check, Patch, and Manage Reddit'
+name: '[Release] Check, Patch, and Manage Reddit'
 on:
   workflow_dispatch:
+  push:
+    branches: [dev]
   schedule:
     - cron: '5 * * * *'
 concurrency:
@@ -60,7 +62,7 @@ jobs:
           else
             echo "New version $SOURCE_VERSION found. Proceeding with release."
             echo "new_version_found=true" >> $GITHUB_OUTPUT
-            echo "version=${{ steps.parse_version.outputs.version }}" >> $GITHUB_OUTPUT
+            echo "version=${{ steps.parse_versions.outputs.version }}" >> $GITHUB_OUTPUT
           fi
       - name: Create working directory
         if: steps.compare_versions.outputs.new_version_found == 'true'

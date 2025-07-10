@@ -1,6 +1,8 @@
 name: '[Pulse] Check Reddit Comments'
 on:
   workflow_dispatch:
+  push:
+    branches: [dev]
   schedule:
     - cron: '*/5 * * * *'
 concurrency:

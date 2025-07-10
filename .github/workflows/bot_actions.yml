@@ -2,7 +2,7 @@ name: '[Bot] Run Bot Actions'
 on:
   workflow_dispatch:
   push:
-    branches: [ main, dev ]
+    branches: [dev]
   schedule:
     # Run the release check every hour at 5 past
     - cron: '5 * * * *'
@@ -44,7 +44,7 @@ jobs:
         run: uv pip install -e .
 
       - name: Execute Main Release & Post Logic
-        if: github.event_name == 'workflow_dispatch' || (github.event.schedule == '5 * * * *')
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event.schedule == '5 * * * *')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
@@ -55,7 +55,7 @@ jobs:
         run: uv run bitbot release
 
       - name: Commit and Push state file
-        if: github.event_name == 'workflow_dispatch' || (github.event.schedule == '5 * * * *')
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event.schedule == '5 * * * *')
         run: |
           # Only proceed if the state file exists
           if [ -f "latest_postid.txt" ]; then
@@ -74,7 +74,7 @@ jobs:
           fi
 
       - name: Execute Comment Check Logic
-        if: github.event_name == 'workflow_dispatch' || (github.event.schedule == '*/15 * * * *')
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event.schedule == '*/15 * * * *')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}

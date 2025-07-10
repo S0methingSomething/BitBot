@@ -101,12 +101,6 @@ statusLineFormat = "**Status:** {{status}} (based on comments)."
 # A regex to find the status line in the post.
 statusLineRegex = "^\\*\\*Status:\\*\\*.*$"
 
-# The labels to use for the post status.
-[feedback.labels]
-working = "Working"
-broken = "Potentially Not Working"
-unknown = "Not enough feedback..."
-
 # Keywords to identify positive feedback.
 workingKeywords = ["working", "works for me", "no issues", "perfect", "thanks"]
 
@@ -115,6 +109,12 @@ notWorkingKeywords = ["not working", "broken", "doesnt work"]
 
 # The minimum number of comments required to determine the status.
 minFeedbackCount = 2
+
+# The labels to use for the post status.
+[feedback.labels]
+working = "Working"
+broken = "Potentially Not Working"
+unknown = "Not enough feedback..."
 
 
 # ------------------------------------------------------------------------------

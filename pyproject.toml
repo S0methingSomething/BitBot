@@ -3,15 +3,13 @@ name = "bitbot"
 version = "0.1.0"
 description = "A Reddit bot for managing release posts."
 readme = "README.md"
-requires-python = "~=3.12"
+requires-python = "~=3.13.0"
 dependencies = [
     "praw>=7.8.1",
     "requests==2.32.4",
-    "toml==0.10.2",
     "pydantic>=2.8.2",
     "semver>=3.0.2",
     "tenacity>=8.5.0",
-    "types-PyYAML>=6.0.0",
 ]
 license = { text = "MIT" }
 authors = [

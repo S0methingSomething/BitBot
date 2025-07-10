@@ -1,6 +1,0 @@
-praw
-requests
-toml
-pydantic
-semver
-tenacity

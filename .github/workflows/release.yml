@@ -1,7 +1,7 @@
 name: '[Process] Semantic Release'
 on:
   push:
-    branches: [main, dev]
+    branches: [dev]
   workflow_dispatch:
 
 permissions:

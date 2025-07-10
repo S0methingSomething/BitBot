@@ -1,5 +1,8 @@
 name: '[Maintenance] Update Old Release Titles'
 on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
   workflow_run:
     workflows: ["[Release] Check, Patch, and Manage Reddit"]
     types:
