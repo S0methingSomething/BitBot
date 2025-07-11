@@ -23,4 +23,4 @@ def get_state() -> Dict[str, Any]:
 def save_state(state: Dict[str, Any], state_path: str = "bot_state.toml") -> None:
     """Saves the bot's monitoring state."""
     with open(state_path, "w") as f:
-        toml.dump(_state, f)
+        toml.dump(state, f)

@@ -18,7 +18,7 @@ LOG_LEVEL = logging.DEBUG
 class GitHubClient:
     """A resilient client for all GitHub API interactions."""
 
-    def __init__(self, config: Config, token: str):
+    def __init__(self, config: Config, token: str) -> None:
         if not token:
             raise ValueError("GitHub token cannot be empty.")
         self.config = config.github
@@ -46,15 +46,11 @@ class GitHubClient:
             logging.error(f"GitHub API connection failed after multiple retries: {e}")
             return False
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
-    def _request(
-        self, method: str, url: str, **kwargs: Any
-    ) -> requests.Response | None:
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))  # type: ignore
+    def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response | None:
         """Makes a request with unified headers, timeout, and retry logic."""
         try:
-            response = requests.request(
-                method, url, headers=self.headers, timeout=30, **kwargs
-            )
+            response = requests.request(method, url, headers=self.headers, timeout=30, **kwargs)
             response.raise_for_status()
         except requests.HTTPError as e:
             if 400 <= e.response.status_code < 500:
@@ -111,9 +107,7 @@ class GitHubClient:
             logging.error(f"Failed to download asset from {url}: {e}")
             raise
 
-    def create_release(
-        self, tag_name: str, release_name: str, body: str
-    ) -> dict[str, Any]:
+    def create_release(self, tag_name: str, release_name: str, body: str) -> dict[str, Any]:
         """Creates a new GitHub release."""
         url = f"{self.api_base}/repos/{self.config.bot_repo}/releases"
         payload = {"tag_name": tag_name, "name": release_name, "body": body}
@@ -134,9 +128,7 @@ class GitHubClient:
         logging.info(f"Deleted existing asset with ID: {asset_id}")
 
     def mark_old_releases_outdated(self) -> None:
-        """
-        Finds all releases except the latest and prepends '[OUTDATED]' to their titles.
-        """
+        """Finds all releases except the latest and prepends '[OUTDATED]' to their titles."""
         url = f"{self.api_base}/repos/{self.config.bot_repo}/releases"
         response = self._request("GET", url)
         if not response:
@@ -157,7 +149,7 @@ class GitHubClient:
 class RedditClient:
     """A client for all PRAW/Reddit interactions."""
 
-    def __init__(self, config: Config, creds: Credentials):
+    def __init__(self, config: Config, creds: Credentials) -> None:
         self.reddit = praw.Reddit(
             client_id=creds.reddit_client_id,
             client_secret=creds.reddit_client_secret,
@@ -176,9 +168,7 @@ class RedditClient:
         try:
             user = self.reddit.user.me()
             if user:
-                logging.info(
-                    f"Reddit API connection successful. Logged in as u/{user.name}."
-                )
+                logging.info(f"Reddit API connection successful. Logged in as u/{user.name}.")
                 return True
             logging.error("Reddit API connection failed. User is None.")
             return False
@@ -187,8 +177,7 @@ class RedditClient:
             return False
 
     def get_bot_submissions(self, limit: int = 100) -> list[Submission]:
-        """
-        Gets the bot's recent submissions by searching the configured subreddit
+        """Gets the bot's recent submissions by searching the configured subreddit
         for posts made by the bot. This is more resilient to title changes.
         """
         try:
@@ -197,9 +186,7 @@ class RedditClient:
                 logging.error("Failed to authenticate with Reddit. Bot user is None.")
                 return []
             bot_username = bot_user.name
-            logging.info(
-                "Will search for posts by authenticated user: u/%s", bot_username
-            )
+            logging.info("Will search for posts by authenticated user: u/%s", bot_username)
         except Exception as e:
             logging.error(
                 "Could not authenticate with Reddit to get bot user: %s",
@@ -236,15 +223,12 @@ class RedditClient:
                 else:
                     logging.log(
                         LOG_LEVEL,
-                        "    - REJECT: Post %s from search results "
-                        "did not match title prefix '%s'",
+                        "    - REJECT: Post %s from search results " "did not match title prefix '%s'",
                         submission.id,
                         post_prefix,
                     )
 
-            logging.info(
-                "Search complete. Found %d matching post(s).", len(matching_posts)
-            )
+            logging.info("Search complete. Found %d matching post(s).", len(matching_posts))
             return matching_posts
 
         except Exception as e:
@@ -260,9 +244,7 @@ class RedditClient:
         return self.subreddit.submit(title, selftext=selftext)
 
 
-def get_clients(
-    config: Config, creds: Credentials
-) -> tuple[GitHubClient, RedditClient] | None:
+def get_clients(config: Config, creds: Credentials) -> tuple[GitHubClient, RedditClient] | None:
     """Initializes and returns all API clients if credentials are valid."""
     if not creds.github_token:
         log_and_exit(ExitMessages.GITHUB_TOKEN_MISSING)

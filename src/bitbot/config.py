@@ -27,8 +27,7 @@ class Credentials(BaseModel):
 
     @classmethod
     def load(cls) -> "Credentials":
-        """
-        Loads credentials from environment variables, with an optional override
+        """Loads credentials from environment variables, with an optional override
         from a `credentials.toml` file. Environment variables always take precedence.
         """
         toml_creds = {}
@@ -37,24 +36,16 @@ class Credentials(BaseModel):
             with CREDENTIALS_PATH.open("rb") as f:
                 toml_creds = tomllib.load(f)
         else:
-            logging.info(
-                f"'{CREDENTIALS_PATH}' not found, loading from environment variables."
-            )
+            logging.info(f"'{CREDENTIALS_PATH}' not found, loading from environment variables.")
 
         # Load from environment, falling back to TOML, then to None
         return cls(
-            github_token=os.environ.get("GITHUB_TOKEN")
-            or toml_creds.get("GITHUB_TOKEN"),
-            reddit_client_id=os.environ.get("REDDIT_CLIENT_ID")
-            or toml_creds.get("REDDIT_CLIENT_ID"),
-            reddit_client_secret=os.environ.get("REDDIT_CLIENT_SECRET")
-            or toml_creds.get("REDDIT_CLIENT_SECRET"),
-            reddit_user_agent=os.environ.get("REDDIT_USER_AGENT")
-            or toml_creds.get("REDDIT_USER_AGENT"),
-            reddit_username=os.environ.get("REDDIT_USERNAME")
-            or toml_creds.get("REDDIT_USERNAME"),
-            reddit_password=os.environ.get("REDDIT_PASSWORD")
-            or toml_creds.get("REDDIT_PASSWORD"),
+            github_token=os.environ.get("GITHUB_TOKEN") or toml_creds.get("GITHUB_TOKEN"),
+            reddit_client_id=os.environ.get("REDDIT_CLIENT_ID") or toml_creds.get("REDDIT_CLIENT_ID"),
+            reddit_client_secret=os.environ.get("REDDIT_CLIENT_SECRET") or toml_creds.get("REDDIT_CLIENT_SECRET"),
+            reddit_user_agent=os.environ.get("REDDIT_USER_AGENT") or toml_creds.get("REDDIT_USER_AGENT"),
+            reddit_username=os.environ.get("REDDIT_USERNAME") or toml_creds.get("REDDIT_USERNAME"),
+            reddit_password=os.environ.get("REDDIT_PASSWORD") or toml_creds.get("REDDIT_PASSWORD"),
         )
 
 
@@ -113,9 +104,7 @@ class TimingConfig(BaseModel):
 class Config(BaseModel):
     github: GitHubConfig
     reddit: RedditConfig
-    outdated_post_handling: OutdatedPostHandlingConfig = Field(
-        ..., alias="outdatedPostHandling"
-    )
+    outdated_post_handling: OutdatedPostHandlingConfig = Field(..., alias="outdatedPostHandling")
     messages: MessagesConfig
     skip_content: SkipContentConfig = Field(..., alias="skipContent")
     feedback: FeedbackConfig
@@ -127,9 +116,7 @@ class Config(BaseModel):
     def resolve_template_paths(self) -> "Config":
         """Prepend the templates directory path to template file names."""
         self.reddit.template_file = TEMPLATES_DIR / self.reddit.template_file.name
-        self.reddit.outdated_template_file = (
-            TEMPLATES_DIR / self.reddit.outdated_template_file.name
-        )
+        self.reddit.outdated_template_file = TEMPLATES_DIR / self.reddit.outdated_template_file.name
         self.outdated_post_handling.inject_template_file = (
             TEMPLATES_DIR / self.outdated_post_handling.inject_template_file.name
         )

@@ -21,8 +21,7 @@ logging.basicConfig(
 
 
 def _get_active_post_id() -> str | None:
-    """
-    Reads the active post ID from the state file.
+    """Reads the active post ID from the state file.
     Returns None if the file is missing, empty, or contains only whitespace.
     """
     try:
@@ -45,13 +44,10 @@ def _save_active_post_id(post_id: str) -> None:
 
 
 def _recover_active_post_id(reddit: RedditClient) -> str | None:
-    """
-    Recovers the active post ID by finding the latest post on Reddit and
+    """Recovers the active post ID by finding the latest post on Reddit and
     creating the state file if it's missing or invalid.
     """
-    logging.warning(
-        "State file is missing or invalid. Attempting to recover from Reddit."
-    )
+    logging.warning("State file is missing or invalid. Attempting to recover from Reddit.")
     latest_posts = reddit.get_bot_submissions(limit=1)
 
     if not latest_posts:
@@ -68,9 +64,7 @@ def _recover_active_post_id(reddit: RedditClient) -> str | None:
     return None
 
 
-def _render_template(
-    template_path: Path, context: dict[str, Any], config: Config
-) -> str:
+def _render_template(template_path: Path, context: dict[str, Any], config: Config) -> str:
     """Loads and renders a template from the templates directory."""
     try:
         raw_template = template_path.read_text(encoding="utf-8")
@@ -117,12 +111,8 @@ def _get_versions(
 ) -> tuple[semver.Version | None, semver.Version]:
     """Fetch and parse the latest source and posted versions."""
     source_release = gh.get_latest_release(config.github.source_repo)
-    source_version_str = (
-        _parse_version_from_release(source_release) if source_release else None
-    )
-    source_version = (
-        semver.Version.parse(source_version_str) if source_version_str else None
-    )
+    source_version_str = _parse_version_from_release(source_release) if source_release else None
+    source_version = semver.Version.parse(source_version_str) if source_version_str else None
 
     latest_reddit_post = reddit.get_bot_submissions(limit=1)
     latest_posted_version_str = "0.0.0"
@@ -133,9 +123,7 @@ def _get_versions(
             latest_posted_version_str = parsed_version
             logging.info(f"Latest post on Reddit is for version: v{parsed_version}")
         else:
-            logging.warning(
-                f"Could not parse version from Reddit post title: '{title}'"
-            )
+            logging.warning(f"Could not parse version from Reddit post title: '{title}'")
     else:
         logging.info("No previous posts found on Reddit.")
     latest_posted_version = semver.Version.parse(latest_posted_version_str)
@@ -156,24 +144,15 @@ def _manage_github_release(
     if release_data:
         logging.info(f"Release {tag_name} already exists. Using it.")
         existing_asset = next(
-            (
-                asset
-                for asset in release_data.get("assets", [])
-                if asset["name"] == config.github.asset_file_name
-            ),
+            (asset for asset in release_data.get("assets", []) if asset["name"] == config.github.asset_file_name),
             None,
         )
         if existing_asset:
-            logging.info(
-                f"Asset '{config.github.asset_file_name}' already exists. "
-                "Deleting it first."
-            )
+            logging.info(f"Asset '{config.github.asset_file_name}' already exists. " "Deleting it first.")
             gh.delete_asset(existing_asset["id"])
     else:
         logging.info(f"Creating new GitHub release: {tag_name}")
-        release_title = config.messages.release_title.replace(
-            "{{version}}", str(source_version)
-        )
+        release_title = config.messages.release_title.replace("{{version}}", str(source_version))
         release_body = config.messages.release_description
         release_data = gh.create_release(tag_name, release_title, release_body)
 
@@ -189,9 +168,7 @@ def _manage_github_release(
             patched_content_bytes,
         )
     except HTTPError as e:
-        logging.critical(
-            f"Failed to upload asset. Status: {e.response.status_code}", exc_info=True
-        )
+        logging.critical(f"Failed to upload asset. Status: {e.response.status_code}", exc_info=True)
         return None
 
     return gh.get_release_by_tag(tag_name)
@@ -207,9 +184,7 @@ def _publish_to_reddit(
     asset_url = release_data["assets"][0]["browser_download_url"]
     # *** FIX STARTS HERE: The corrected line that was too long ***
     initial_status_text = config.feedback.labels.unknown
-    initial_status_line = config.feedback.status_line_format.replace(
-        "{{status}}", initial_status_text
-    )
+    initial_status_line = config.feedback.status_line_format.replace("{{status}}", initial_status_text)
     # *** FIX ENDS HERE ***
     post_context = {
         "asset_name": config.github.asset_file_name,
@@ -231,9 +206,7 @@ def _publish_to_reddit(
     _update_old_reddit_posts(old_posts, new_submission, config)
 
 
-def run_release_and_post(
-    config: Config, gh: GitHubClient, reddit: RedditClient
-) -> None:
+def run_release_and_post(config: Config, gh: GitHubClient, reddit: RedditClient) -> None:
     """The main application function to check, patch, release, and post."""
     logging.info("--- Starting Release & Post Cycle ---")
 
@@ -255,9 +228,7 @@ def run_release_and_post(
     if not patched_content_bytes:
         return
 
-    release_data = _manage_github_release(
-        gh, config, source_version, patched_content_bytes
-    )
+    release_data = _manage_github_release(gh, config, source_version, patched_content_bytes)
     if not release_data or not release_data.get("assets"):
         logging.critical("Failed to create release or upload asset. Aborting.")
         return
@@ -270,26 +241,18 @@ def run_release_and_post(
     logging.info("--- Release & Post Cycle Complete ---")
 
 
-def _download_and_patch_asset(
-    gh: GitHubClient, source_release: dict[str, Any] | None, config: Config
-) -> bytes | None:
+def _download_and_patch_asset(gh: GitHubClient, source_release: dict[str, Any] | None, config: Config) -> bytes | None:
     """Download the specified asset from the source release and patch it."""
     if not source_release:
         logging.error("Cannot download asset: source release is missing.")
         return None
 
     asset_to_download = next(
-        (
-            asset
-            for asset in source_release.get("assets", [])
-            if asset["name"] == config.github.asset_file_name
-        ),
+        (asset for asset in source_release.get("assets", []) if asset["name"] == config.github.asset_file_name),
         None,
     )
     if not asset_to_download:
-        logging.error(
-            "Asset '%s' not found in source release.", config.github.asset_file_name
-        )
+        logging.error("Asset '%s' not found in source release.", config.github.asset_file_name)
         return None
 
     logging.info("Downloading original asset...")
@@ -304,9 +267,7 @@ def _download_and_patch_asset(
     return patched_content.encode("utf-8")
 
 
-def _update_old_reddit_posts(
-    old_posts: list[Submission], new_submission: Submission, config: Config
-) -> None:
+def _update_old_reddit_posts(old_posts: list[Submission], new_submission: Submission, config: Config) -> None:
     """Find and update old Reddit posts to point to the new one."""
     if not old_posts:
         return
@@ -329,9 +290,7 @@ def _update_old_reddit_posts(
         is_outdated = "⚠️ Outdated Post" in post.selftext
         if post.id != new_submission.id and not is_outdated:
             new_body = (
-                f"{outdated_content}\n\n---\n\n{post.selftext}"
-                if outdated_mode == "inject"
-                else outdated_content
+                f"{outdated_content}\n\n---\n\n{post.selftext}" if outdated_mode == "inject" else outdated_content
             )
             try:
                 post.edit(body=new_body)
@@ -346,9 +305,7 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
     active_post_id = _get_active_post_id() or _recover_active_post_id(reddit)
 
     if not active_post_id:
-        logging.warning(
-            "No active post ID found and could not recover. Skipping comment check."
-        )
+        logging.warning("No active post ID found and could not recover. Skipping comment check.")
         return
 
     logging.info(f"Performing check on active post: {active_post_id}")
@@ -358,14 +315,10 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
         comments = submission.comments.list()
 
         working_kw = re.compile("|".join(config.feedback.working_keywords), re.I)
-        not_working_kw = re.compile(
-            "|".join(config.feedback.not_working_keywords), re.I
-        )
+        not_working_kw = re.compile("|".join(config.feedback.not_working_keywords), re.I)
         positive_score = sum(1 for c in comments if working_kw.search(c.body))
         negative_score = sum(1 for c in comments if not_working_kw.search(c.body))
-        logging.info(
-            f"Comment analysis: Positive={positive_score}, Negative={negative_score}"
-        )
+        logging.info(f"Comment analysis: Positive={positive_score}, Negative={negative_score}")
 
         threshold = config.feedback.min_feedback_count
         net_score = positive_score - negative_score
@@ -376,14 +329,9 @@ def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) ->
         else:
             new_status_text = config.feedback.labels.unknown
 
-        new_status_line = config.feedback.status_line_format.replace(
-            "{{status}}", new_status_text
-        )
+        new_status_line = config.feedback.status_line_format.replace("{{status}}", new_status_text)
         status_regex = re.compile(config.feedback.status_line_regex, re.MULTILINE)
-        if (
-            status_regex.search(submission.selftext)
-            and new_status_line not in submission.selftext
-        ):
+        if status_regex.search(submission.selftext) and new_status_line not in submission.selftext:
             updated_body = status_regex.sub(new_status_line, submission.selftext)
             submission.edit(body=updated_body)
             logging.info(f"Post status updated to: '{new_status_text}'")

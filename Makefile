@@ -1,4 +1,4 @@
-PYTHON_VERSION := 3.13
+PYTHON_VERSION := 3.13.5
 .PHONY: setup lint install-hooks
 
 setup:

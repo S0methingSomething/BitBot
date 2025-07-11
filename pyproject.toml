@@ -3,26 +3,31 @@ name = "bitbot"
 version = "0.1.0"
 description = "A Reddit bot for managing release posts."
 readme = "README.md"
-requires-python = "~=3.13.0"
-dependencies = [
-    "praw>=7.8.1",
-    "requests==2.32.4",
-    "pydantic>=2.8.2",
-    "semver>=3.0.2",
-    "tenacity>=8.5.0",
-]
+requires-python = "~=3.13.5"
 license = { text = "MIT" }
+
 authors = [
-  {name = "Your Name", email = "your@email.com"},
+  { name = "Your Name", email = "your@email.com" },
+]
+
+dependencies = [
+  "praw",
+  "requests",
+  "pydantic",
+  "semver",
+  "tenacity",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/your-username/BitBot"
+Homepage = "https://github.com/your-username/BitBot"
 "Bug Tracker" = "https://github.com/your-username/BitBot/issues"
 
 [project.optional-dependencies]
 dev = [
-    "pre-commit>=3.7.1",
+  "pre-commit",
+  "bandit",
+  "vulture",
+  "interrogate",
 ]
 
 [project.scripts]
@@ -30,19 +35,39 @@ bitbot = "bitbot.__main__:main"
 
 [tool.ruff]
 line-length = 120
+exclude = [
+  ".pdm-build",
+  "build",
+  "dist",
+  ".venv",
+  ".git",
+  ".mypy_cache",
+  ".ruff_cache",
+]
+
 [tool.ruff.lint]
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "A",  # flake8-builtins
-    "C90",  # mccabe complexity
-    "SIM",  # flake8-simplify
-    "T20",  # flake8-print
+  "E",     # pycodestyle errors
+  "W",     # pycodestyle warnings
+  "F",     # pyflakes
+  "I",     # isort
+  "B",     # flake8-bugbear
+  "A",     # flake8-builtins
+  "C90",   # mccabe complexity
+  "SIM",   # flake8-simplify
+  "T20",   # flake8-print
+  "RUF",   # Ruff-specific rules
+  "N",     # pep8-naming
+  "D",     # pydocstyle
+  "S",     # flake8-bandit
+  "ANN",   # flake8-annotations
 ]
-ignore = ["E501"]  # Ignore line length, handled by black
+ignore = [
+  "E501",     # line length
+  "ANN101", "ANN102", "ANN201", "ANN202",  # specific annotation rules
+  "D", "ANN"  # pydocstyle and all annotations (redundant with above but explicit)
+]
+per-file-ignores = { "src/bitbot/messages.py" = ["S105"] }
 
 [tool.mypy]
 strict = true
@@ -50,10 +75,55 @@ ignore_missing_imports = true
 allow_redefinition = true
 show_error_codes = true
 pretty = true
-exclude = []
+exclude = [
+  ".pdm-build",
+  "build",
+  "dist",
+  ".venv",
+  ".git",
+  ".mypy_cache",
+  ".ruff_cache",
+]
 disallow_untyped_defs = true
 warn_return_any = true
 no_implicit_optional = true
 warn_unused_ignores = true
 disallow_untyped_decorators = false
 plugins = ["pydantic.mypy"]
+
+[tool.black]
+line-length = 120
+target-version = ['py313']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.interrogate]
+fail_under = 60
+verbose = 2
+color = true
+exclude = [
+  "tests",
+  "build",
+  "dist",
+  ".venv",
+  ".git",
+  ".mypy_cache",
+  ".ruff_cache",
+]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"

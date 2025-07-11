@@ -15,9 +15,7 @@ def handle_test_credentials(creds: Credentials) -> None:
     logging.info("Performing credential check...")
     missing = [k for k, v in creds.model_dump().items() if v is None]
     if missing:
-        log_and_exit(
-            ExitMessages.CREDENTIALS_MISSING.format(missing=", ".join(missing))
-        )
+        log_and_exit(ExitMessages.CREDENTIALS_MISSING.format(missing=", ".join(missing)))
 
     logging.info("All required credentials are set.")
     logging.info("Now testing API connections...")
@@ -47,21 +45,15 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    parser = argparse.ArgumentParser(
-        description="BitBot: A Reddit bot for managing release posts."
-    )
+    parser = argparse.ArgumentParser(description="BitBot: A Reddit bot for managing release posts.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser(
         "release",
         help="Check for a new source release, patch it, and post it to Reddit.",
     )
-    subparsers.add_parser(
-        "check", help="Check for comments on the active post and update its status."
-    )
-    subparsers.add_parser(
-        "test-credentials", help="Test the GitHub and Reddit API credentials."
-    )
+    subparsers.add_parser("check", help="Check for comments on the active post and update its status.")
+    subparsers.add_parser("test-credentials", help="Test the GitHub and Reddit API credentials.")
 
     args = parser.parse_args()
 

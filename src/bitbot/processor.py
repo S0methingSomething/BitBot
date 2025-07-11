@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-This module orchestrates the file processing by calling the crypto module.
+"""This module orchestrates the file processing by calling the crypto module.
 """
 import sys
 
@@ -11,9 +10,7 @@ logger = get_logger(__name__)
 
 
 def process_file(input_file: str, output_file: str) -> None:
-    """
-    Uses the crypto module to decrypt, modify, and re-encrypt a file.
-    """
+    """Uses the crypto module to decrypt, modify, and re-encrypt a file."""
     try:
         with open(input_file, "r", encoding="utf-8") as f:
             encrypted_content = f.read()

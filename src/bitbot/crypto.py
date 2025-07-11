@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-BitBot Core Crypto Processor: Decrypts, Modifies, and Re-encrypts a target asset file.
+"""BitBot Core Crypto Processor: Decrypts, Modifies, and Re-encrypts a target asset file.
 This module is a Python port of the original process_vars.js script. It is
 specifically designed to handle a simple XOR-encrypted, base64-encoded
 key-value file format, where it sets all boolean `false` values to `true`.
@@ -16,12 +15,8 @@ logger = get_logger(__name__)
 
 # --- Constants ---
 DEFAULT_CIPHER_KEY = "com.wtfapps.apollo16"
-B64_NET_BOOLEAN_TRUE = (
-    "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAQs="
-)
-B64_NET_BOOLEAN_FALSE = (
-    "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAAw="
-)
+B64_NET_BOOLEAN_TRUE = "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAQs="
+B64_NET_BOOLEAN_FALSE = "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAAw="
 OBF_CHAR_MAP = {
     0x61: 0x7A,
     0x62: 0x6D,
@@ -53,9 +48,7 @@ OBF_CHAR_MAP = {
 
 
 def get_obfuscated_key(key: str) -> str:
-    """
-    Applies a simple character substitution obfuscation to the cipher key.
-    """
+    """Applies a simple character substitution obfuscation to the cipher key."""
     o_key = ""
     for char in key.lower():
         code = ord(char)
@@ -64,25 +57,17 @@ def get_obfuscated_key(key: str) -> str:
 
 
 def xor_and_b64_encode(text: str, key: str) -> str:
-    """
-    Performs an XOR operation on text and then Base64 encodes the result.
-    """
+    """Performs an XOR operation on text and then Base64 encodes the result."""
     xor_result_bytes = bytearray(
-        char.encode("latin-1")[0] ^ key.encode("latin-1")[i % len(key)]
-        for i, char in enumerate(text)
+        char.encode("latin-1")[0] ^ key.encode("latin-1")[i % len(key)] for i, char in enumerate(text)
     )
     return base64.b64encode(xor_result_bytes).decode("ascii")
 
 
 def b64_decode_and_xor(b64: str, key: str) -> str:
-    """
-    Decodes a Base64 string and then performs an XOR operation.
-    """
+    """Decodes a Base64 string and then performs an XOR operation."""
     decoded_bytes = base64.b64decode(b64.encode("ascii"))
-    xor_result = "".join(
-        chr(byte ^ key.encode("latin-1")[i % len(key)])
-        for i, byte in enumerate(decoded_bytes)
-    )
+    xor_result = "".join(chr(byte ^ key.encode("latin-1")[i % len(key)]) for i, byte in enumerate(decoded_bytes))
     return xor_result
 
 
@@ -108,9 +93,7 @@ def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, str | bool
 
 
 def modify(data_object: Dict[str, Union[str, bool]]) -> Dict[str, Union[str, bool]]:
-    """
-    Modifies the decrypted data object by setting all boolean false values to true.
-    """
+    """Modifies the decrypted data object by setting all boolean false values to true."""
     logger.info("Modifying data: Setting all boolean 'false' values to 'true'.")
     for key, value in data_object.items():
         if value is False:
@@ -119,9 +102,7 @@ def modify(data_object: Dict[str, Union[str, bool]]) -> Dict[str, Union[str, boo
 
 
 def encrypt(data_object: Dict[str, Union[str, bool]], obfuscated_key: str) -> str:
-    """
-    Re-encrypts the modified data object back into the file format.
-    """
+    """Re-encrypts the modified data object back into the file format."""
     logger.info("Re-encrypting data...")
     output_lines = []
     for key, value in data_object.items():
@@ -139,12 +120,8 @@ def encrypt(data_object: Dict[str, Union[str, bool]], obfuscated_key: str) -> st
 
 
 def main() -> None:
-    """
-    Main function to orchestrate the file processing.
-    """
-    parser = argparse.ArgumentParser(
-        description="Decrypt, modify, and re-encrypt a BitBot asset file."
-    )
+    """Main function to orchestrate the file processing."""
+    parser = argparse.ArgumentParser(description="Decrypt, modify, and re-encrypt a BitBot asset file.")
     parser.add_argument("input_file", help="The path to the input file.")
     parser.add_argument("output_file", help="The path to the output file.")
     args = parser.parse_args()
@@ -162,9 +139,7 @@ def main() -> None:
         with open(args.output_file, "w", encoding="utf-8") as f:
             f.write(re_encrypted_content)
 
-        logger.info(
-            f"Successfully processed and saved patched file to: {args.output_file}"
-        )
+        logger.info(f"Successfully processed and saved patched file to: {args.output_file}")
 
     except FileNotFoundError:
         logger.error(f"Input file not found at {args.input_file}", exc_info=True)
