@@ -21,11 +21,9 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 
       - uses: actions/setup-python@v5
-        with: { python-version: '3.10' }
+        with: { python-version: '3.13' }
 
-      # We install semantic-release directly, as it's a release tool
-      - name: Install Semantic Release
-        run: pip install "python-semantic-release"
+      - uses: ./.github/workflows/includes/install-uv.yml
 
       - name: Configure Git
         run: |
@@ -35,4 +33,4 @@ jobs:
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-        run: semantic-release publish --prerelease-tag=dev
+        run: uv run semantic-release publish --prerelease-tag=dev

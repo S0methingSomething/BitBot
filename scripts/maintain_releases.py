@@ -1,0 +1,63 @@
+"""This script updates old GitHub releases to mark them as outdated."""
+
+import os
+import json
+import requests
+
+
+def main() -> None:
+    """This script updates old GitHub releases to mark them as outdated."""
+    with open("config.json", "r") as f:
+        config = json.load(f)
+
+    bot_repo = config["github"]["botRepo"]
+    token = os.environ["GITHUB_TOKEN"]
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    releases_url = f"https://api.github.com/repos/{bot_repo}/releases"
+    response = requests.get(releases_url, headers=headers, timeout=30)
+    response.raise_for_status()
+    releases = response.json()
+
+    if not releases or len(releases) < 2:
+        print("Not enough releases to mark any as outdated. Exiting.")
+        exit(0)
+
+    latest_release_id = releases[0]["id"]
+    older_releases = releases[1:]
+
+    print(f"Latest release is {releases[0]['tag_name']}. Checking {len(older_releases)} older release(s).")
+
+    updated_count = 0
+    for release in older_releases:
+        release_id = release["id"]
+        current_title = release["name"]
+
+        if current_title.startswith("[OUTDATED] "):
+            continue
+
+        print(f"Updating release '{current_title}'...")
+
+        new_title = f"[OUTDATED] {current_title}"
+        update_url = f"https://api.github.com/repos/{bot_repo}/releases/{release_id}"
+        payload = {"name": new_title}
+
+        update_response = requests.patch(update_url, headers=headers, json=payload, timeout=30)
+
+        if update_response.status_code == 200:
+            print(f"-> Successfully updated to '{new_title}'.")
+            updated_count += 1
+        else:
+            print(
+                f"::warning::Failed to update release {release_id}. Status: {update_response.status_code}, Body: {update_response.text}"
+            )
+
+    print(f"\nMaintenance complete. Updated {updated_count} release title(s).")
+
+
+if __name__ == "__main__":
+    main()

@@ -119,8 +119,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.10' }
-      - run: pip install -r requirements.txt
+        with: { python-version: '3.13' }
+      - uses: ./.github/workflows/includes/install-uv.yml
       - name: Run Reddit Poster Script
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
@@ -147,8 +147,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.10' }
-      - run: pip install -r requirements.txt
+        with: { python-version: '3.13' }
+      - uses: ./.github/workflows/includes/install-uv.yml
       - name: Run Reddit History Sync Script
         id: sync_script
         env:

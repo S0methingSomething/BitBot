@@ -28,6 +28,7 @@ dev = [
   "bandit",
   "vulture",
   "interrogate",
+  "python-semantic-release",
 ]
 
 [project.scripts]
