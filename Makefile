@@ -7,6 +7,7 @@ setup:
 	@uv pip install -e .[dev]
 	@echo "Setup complete. Activate the virtual environment with 'source .venv/bin/activate'"
 
+
 install-hooks:
 	@echo "Installing pre-commit hooks..."
 	@.venv/bin/pre-commit install
