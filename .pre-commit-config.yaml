@@ -38,4 +38,4 @@ repos:
     rev: v2.11
     hooks:
     -   id: vulture
-        args: [src/bitbot]
+        args: [src/bitbot, --min-confidence, '100']

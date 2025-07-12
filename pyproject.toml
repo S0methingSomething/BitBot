@@ -43,6 +43,7 @@ exclude = [
   ".git",
   ".mypy_cache",
   ".ruff_cache",
+  "scripts",
 ]
 
 [tool.ruff.lint]
@@ -54,6 +55,7 @@ select = [
   "B",     # flake8-bugbear
   "A",     # flake8-builtins
   "C90",   # mccabe complexity
+  "C4",    # flake8-comprehensions
   "SIM",   # flake8-simplify
   "T20",   # flake8-print
   "RUF",   # Ruff-specific rules
@@ -69,9 +71,15 @@ ignore = [
 ]
 per-file-ignores = { "src/bitbot/messages.py" = ["S105"] }
 
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+
 [tool.mypy]
+
 strict = true
-ignore_missing_imports = true
+ignore_missing_imports = false
+explicit_package_bases = true
 allow_redefinition = true
 show_error_codes = true
 pretty = true
@@ -123,6 +131,13 @@ exclude = [
   ".mypy_cache",
   ".ruff_cache",
 ]
+
+[tool.vulture]
+paths = ["src"]
+min_confidence = 80
+exclude = []
+ignore_names = ["resolve_template_paths"]
+sort_by_size = true
 
 [build-system]
 requires = ["pdm-backend"]

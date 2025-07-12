@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any, cast
 
 import semver
-from praw.models import Submission
 from requests import HTTPError
 
 from . import crypto
@@ -62,28 +61,6 @@ def _recover_active_post_id(reddit: RedditClient) -> str | None:
 
     logging.error("Recovery failed: Found a post but its ID was empty.")
     return None
-
-
-def _render_template(template_path: Path, context: dict[str, Any], config: Config) -> str:
-    """Loads and renders a template from the templates directory."""
-    try:
-        raw_template = template_path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        logging.error(f"Template file not found: {template_path}")
-        raise
-
-    content = raw_template
-    skip_tags = config.skip_content
-    if skip_tags.start_tag and skip_tags.end_tag and skip_tags.start_tag in content:
-        pattern = re.compile(
-            f"{re.escape(skip_tags.start_tag)}.*?{re.escape(skip_tags.end_tag)}",
-            re.DOTALL,
-        )
-        content = re.sub(pattern, "", content).strip()
-
-    for placeholder, value in context.items():
-        content = content.replace(f"{{{{{placeholder}}}}}", str(value))
-    return content
 
 
 def _parse_version_from_release(release_data: dict[str, Any]) -> str | None:
@@ -188,22 +165,32 @@ def _publish_to_reddit(
     # *** FIX ENDS HERE ***
     post_context = {
         "asset_name": config.github.asset_file_name,
-        "version": source_version,
+        "version": str(source_version),
         "direct_download_url": asset_url,
         "creator_username": config.reddit.creator,
         "bot_repo": config.github.bot_repo,
         "bot_name": config.reddit.bot_name,
         "initial_status": initial_status_line,
     }
-    post_title = config.reddit.post_title.replace("{{version}}", str(source_version))
-    post_body = _render_template(config.reddit.template_file, post_context, config)
+    post_title = config.reddit.post_title.replace("{{version}}", str(source_version)).replace(
+        "{{asset_name}}", config.github.asset_file_name
+    )
+    post_body = reddit._process_template(str(config.reddit.template_file), post_context)
 
     logging.info(f"Submitting new post to r/{config.reddit.subreddit}...")
     old_posts = reddit.get_bot_submissions(limit=20)
     new_submission = reddit.submit_post(title=post_title, selftext=post_body)
     _save_active_post_id(new_submission.id)
 
-    _update_old_reddit_posts(old_posts, new_submission, config)
+    if old_posts:
+        latest_post_details = {
+            "version": str(source_version),
+            "title": new_submission.title,
+            "url": new_submission.shortlink,
+        }
+        for post in old_posts:
+            if post.id != new_submission.id:
+                reddit.update_post(post, latest_post_details)
 
 
 def run_release_and_post(config: Config, gh: GitHubClient, reddit: RedditClient) -> None:
@@ -265,38 +252,6 @@ def _download_and_patch_asset(gh: GitHubClient, source_release: dict[str, Any] |
     modified_data = crypto.modify(decrypted_data)
     patched_content = crypto.encrypt(modified_data, obfuscated_key)
     return patched_content.encode("utf-8")
-
-
-def _update_old_reddit_posts(old_posts: list[Submission], new_submission: Submission, config: Config) -> None:
-    """Find and update old Reddit posts to point to the new one."""
-    if not old_posts:
-        return
-
-    logging.info(f"Updating {len(old_posts)} old Reddit post(s)...")
-    outdated_mode = config.outdated_post_handling.mode
-    if outdated_mode == "inject":
-        template_path = config.outdated_post_handling.inject_template_file
-    else:
-        template_path = config.reddit.outdated_template_file
-
-    latest_post_details = {
-        "latest_post_title": new_submission.title,
-        "latest_post_url": new_submission.shortlink,
-        "asset_name": config.github.asset_file_name,
-    }
-    outdated_content = _render_template(template_path, latest_post_details, config)
-
-    for post in old_posts:
-        is_outdated = "⚠️ Outdated Post" in post.selftext
-        if post.id != new_submission.id and not is_outdated:
-            new_body = (
-                f"{outdated_content}\n\n---\n\n{post.selftext}" if outdated_mode == "inject" else outdated_content
-            )
-            try:
-                post.edit(body=new_body)
-                logging.info(f"-> Updated old post {post.id}")
-            except Exception as e:
-                logging.warning(f"Failed to edit post {post.id}: {e}")
 
 
 def run_comment_check(config: Config, gh: GitHubClient, reddit: RedditClient) -> None:

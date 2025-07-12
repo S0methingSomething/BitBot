@@ -4,7 +4,6 @@ import logging
 import os
 import tomllib
 from pathlib import Path
-from typing import ClassVar
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -13,7 +12,7 @@ from .utils import log_and_exit
 
 # --- Constants ---
 TEMPLATES_DIR = Path(__file__).parent / "templates"
-CREDENTIALS_PATH = Path("credentials.toml")
+CREDENTIALS_PATH = Path(".credentials/credentials.toml")
 
 
 # --- Pydantic Models for credentials.toml ---
@@ -37,6 +36,8 @@ class Credentials(BaseModel):
                 toml_creds = tomllib.load(f)
         else:
             logging.info(f"'{CREDENTIALS_PATH}' not found, loading from environment variables.")
+            # Create the directory if it doesn't exist
+            CREDENTIALS_PATH.parent.mkdir(exist_ok=True)
 
         # Load from environment, falling back to TOML, then to None
         return cls(
@@ -47,6 +48,20 @@ class Credentials(BaseModel):
             reddit_username=os.environ.get("REDDIT_USERNAME") or toml_creds.get("REDDIT_USERNAME"),
             reddit_password=os.environ.get("REDDIT_PASSWORD") or toml_creds.get("REDDIT_PASSWORD"),
         )
+
+    def save(self) -> None:
+        """Saves credentials to the `credentials.toml` file."""
+        # Create the directory if it doesn't exist
+        CREDENTIALS_PATH.parent.mkdir(exist_ok=True)
+        with CREDENTIALS_PATH.open("w") as f:
+            # Simple TOML-like output
+            f.write(f'GITHUB_TOKEN = "{self.github_token or ''}"\n')
+            f.write(f'REDDIT_CLIENT_ID = "{self.reddit_client_id or ''}"\n')
+            f.write(f'REDDIT_CLIENT_SECRET = "{self.reddit_client_secret or ''}"\n')
+            f.write(f'REDDIT_USER_AGENT = "{self.reddit_user_agent or ''}"\n')
+            f.write(f'REDDIT_USERNAME = "{self.reddit_username or ''}"\n')
+            f.write(f'REDDIT_PASSWORD = "{self.reddit_password or ''}"\n')
+        logging.info(f"Credentials saved to '{CREDENTIALS_PATH}'")
 
 
 # --- Pydantic Models for config.toml ---
@@ -95,12 +110,6 @@ class FeedbackConfig(BaseModel):
     min_feedback_count: int = Field(..., alias="minFeedbackCount")
 
 
-class TimingConfig(BaseModel):
-    first_check: int = Field(..., alias="firstCheck")
-    max_wait: int = Field(..., alias="maxWait")
-    increase_by: int = Field(..., alias="increaseBy")
-
-
 class Config(BaseModel):
     github: GitHubConfig
     reddit: RedditConfig
@@ -108,9 +117,6 @@ class Config(BaseModel):
     messages: MessagesConfig
     skip_content: SkipContentConfig = Field(..., alias="skipContent")
     feedback: FeedbackConfig
-    timing: TimingConfig
-
-    _config: ClassVar[Config | None] = None
 
     @model_validator(mode="after")
     def resolve_template_paths(self) -> "Config":
@@ -123,12 +129,6 @@ class Config(BaseModel):
         return self
 
     @classmethod
-    def get_instance(cls) -> Config:
-        if cls._config is None:
-            raise RuntimeError("Config has not been loaded.")
-        return cls._config
-
-    @classmethod
     def load(cls, config_path: str | Path = "config.toml") -> Config:
         config_p = Path(config_path)
         if not config_p.exists():
@@ -139,7 +139,6 @@ class Config(BaseModel):
 
         try:
             config = cls.model_validate(raw_config)
-            cls._config = config
             logging.info("Configuration loaded and validated successfully from TOML.")
             return config
         except Exception as e:

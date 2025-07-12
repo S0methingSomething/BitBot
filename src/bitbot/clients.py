@@ -150,6 +150,7 @@ class RedditClient:
     """A client for all PRAW/Reddit interactions."""
 
     def __init__(self, config: Config, creds: Credentials) -> None:
+        self.config = config
         self.reddit = praw.Reddit(
             client_id=creds.reddit_client_id,
             client_secret=creds.reddit_client_secret,
@@ -160,7 +161,6 @@ class RedditClient:
         self.subreddit_name = config.reddit.subreddit
         self.subreddit = self.reddit.subreddit(self.subreddit_name)
         self.bot_name = config.reddit.bot_name
-        self.post_title_template = config.reddit.post_title
         self.asset_name = config.github.asset_file_name
 
     def test_connection(self) -> bool:
@@ -242,6 +242,58 @@ class RedditClient:
     def submit_post(self, title: str, selftext: str) -> Submission:
         """Submits a new post to the configured subreddit."""
         return self.subreddit.submit(title, selftext=selftext)
+
+    def _process_template(self, template_path: str, placeholders: dict[str, str]) -> str:
+        """Reads a template file, replaces placeholders, and returns the content."""
+        try:
+            with open(template_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except FileNotFoundError:
+            logging.error(f"Template file not found at {template_path}")
+            return ""
+
+        # Remove tutorial block
+        start_tag = self.config.skip_content.start_tag
+        end_tag = self.config.skip_content.end_tag
+        while start_tag in content and end_tag in content:
+            start_index = content.find(start_tag)
+            end_index = content.find(end_tag) + len(end_tag)
+            content = content[:start_index] + content[end_index:]
+
+        for key, value in placeholders.items():
+            content = content.replace(f"{{{{{key}}}}}", value)
+        return content
+
+    def update_post(self, submission: Submission, latest_post_details: dict[str, str]) -> None:
+        """Updates an existing post to mark it as outdated."""
+        mode = self.config.outdated_post_handling.mode
+        if mode == "overwrite":
+            template_path = self.config.reddit.outdated_template_file
+            placeholders = {
+                "asset_name": self.asset_name,
+                "latest_version": latest_post_details["version"],
+                "latest_post_title": latest_post_details["title"],
+                "latest_post_url": latest_post_details["url"],
+                "bot_name": self.bot_name,
+                "bot_repo": self.config.github.bot_repo,
+            }
+            new_body = self._process_template(str(template_path), placeholders)
+            if new_body:
+                submission.edit(body=new_body)
+                logging.info(f"Overwrote post: {submission.id}")
+        elif mode == "inject":
+            template_path = self.config.outdated_post_handling.inject_template_file
+            placeholders = {
+                "asset_name": self.asset_name,
+                "latest_version": latest_post_details["version"],
+                "latest_post_title": latest_post_details["title"],
+                "latest_post_url": latest_post_details["url"],
+            }
+            injection_content = self._process_template(str(template_path), placeholders)
+            if injection_content:
+                new_body = injection_content + "\n\n---\n\n" + submission.selftext
+                submission.edit(body=new_body)
+                logging.info(f"Injected content into post: {submission.id}")
 
 
 def get_clients(config: Config, creds: Credentials) -> tuple[GitHubClient, RedditClient] | None:
