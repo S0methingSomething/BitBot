@@ -26,22 +26,8 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.13' }
 
-      - name: Cache uv
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-
-      - name: Install UV
-        run: pipx install uv
-      - name: Create Virtual Environment
-        run: uv venv
       - name: Install dependencies
-        run: uv pip sync requirements.txt
-      - name: Install BitBot
-        run: uv pip install -e .
+        run: make setup
 
       - name: Execute Main Release & Post Logic
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event.schedule == '5 * * * *')
