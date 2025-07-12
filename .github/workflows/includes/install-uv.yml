@@ -14,4 +14,4 @@ steps:
     run: uv venv
 
   - name: Install dependencies
-    run: uv pip sync --all-extras
+    run: uv pip sync uv.lock
