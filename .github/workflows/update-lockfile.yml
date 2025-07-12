@@ -28,6 +28,8 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install UV
+        run: pipx install uv
       - name: Install dependencies
         run: make setup
 
