@@ -35,4 +35,4 @@ jobs:
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-        run: semantic-release publish
+        run: semantic-release publish --prerelease-tag=dev
