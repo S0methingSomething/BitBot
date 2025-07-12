@@ -1,4 +1,4 @@
-name: '[Review] Automated PR Review'
+name: '[Review] Automated PR Review-test'
 on:
   # Use pull_request_target to give the workflow write permissions
   # on pull requests from forks and dependabot.

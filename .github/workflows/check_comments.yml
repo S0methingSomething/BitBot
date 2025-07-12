@@ -1,4 +1,4 @@
-name: '[Pulse] Check Reddit Comments'
+name: '[Pulse] Check Reddit Comments-test'
 on:
   workflow_dispatch:
   push:

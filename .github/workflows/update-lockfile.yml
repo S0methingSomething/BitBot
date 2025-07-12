@@ -1,4 +1,4 @@
-name: '[Process] Update requirements.txt for Dependabot'
+name: '[Process] Update requirements.txt for Dependabot-test'
 
 on:
   workflow_dispatch:

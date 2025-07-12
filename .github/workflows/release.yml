@@ -1,4 +1,4 @@
-name: '[Process] Semantic Release'
+name: '[Process] Semantic Release-test'
 on:
   push:
     branches: [dev]

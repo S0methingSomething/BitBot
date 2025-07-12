@@ -1,4 +1,4 @@
-name: '[Bot] Run Bot Actions'
+name: '[Bot] Run Bot Actions-test'
 on:
   workflow_dispatch:
   push:

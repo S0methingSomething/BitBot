@@ -1,4 +1,4 @@
-name: '[Release] Check, Patch, and Manage Reddit'
+name: '[Release] Check, Patch, and Manage Reddit-test'
 on:
   workflow_dispatch:
   push:

@@ -1,4 +1,4 @@
-name: '[Maintenance] Update Old Release Titles'
+name: '[Maintenance] Update Old Release Titles-test'
 on:
   workflow_dispatch:
   push:
