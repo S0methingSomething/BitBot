@@ -6,18 +6,20 @@ The bot replaces placeholders (like {{version}}) with data from the config file 
 This entire block, including these lines, will be removed by the script before posting.
 
 Available Placeholders:
-| Placeholder           | Description                                                    |
-| --------------------- | -------------------------------------------------------------- |
-| {{version}}           | The new version number, like `4.2.0`.                          |
-| {{direct_download_url}} | The direct link to download the patched asset file.            |
-| {{bot_name}}          | The name of your bot (from `config.json`).                     |
-| {{bot_repo}}          | Your bot's repository name, like `YourUsername/BitBot`.        |
-| {{asset_name}}        | The name of the file asset, like `MonetizationVars`.           |
-| {{creator_username}}  | The creator's Reddit username (from `config.json`).            |
-| {{initial_status}}    | The full, formatted initial status line for the post.          |
+| Placeholder                 | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
+| {{version}}                 | The new version number, like `4.2.0`.                    |
+| {{direct_download_url_bitlife}} | Direct link for BitLife MonetizationVars.                |
+| {{direct_download_url_bitlife_go}} | Direct link for BitLife Go MonetizationVars.             |
+| {{bot_name}}                | The name of your bot (from `config.json`).               |
+| {{bot_repo}}                | Your bot's repository name, like `YourUsername/BitBot`.  |
+| {{asset_name}}              | The name of the file asset, like `MonetizationVars`.     |
+| {{creator_username}}        | The creator's Reddit username (from `config.json`).      |
+| {{initial_status}}          | The full, formatted initial status line for the post.    |
 <!-- TUTORIAL-END -->
 
-# **[⬇️ Download {{asset_name}}]({{direct_download_url}})**
+# **[⬇️ Download MonetizationVars for BitLife]({{direct_download_url_bitlife}})**  
+# **[⬇️ Download MonetizationVars for BitLife Go]({{direct_download_url_bitlife_go}})**
 
 > ⚠️ **Important:** Ensure the downloaded file is named exactly `{{asset_name}}` before installation.
 
