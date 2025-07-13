@@ -189,6 +189,7 @@ jobs:
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: uv run bitbot run release
       - name: Commit state file
         uses: stefanzweifel/git-auto-commit-action@v6
