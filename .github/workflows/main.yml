@@ -2,103 +2,59 @@ name: '[Multi-App Release] Check, Patch, and Manage Reddit'
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0,15 * * *'
+    - cron: '0 1,16 * * *' # Run at 1 AM and 4 PM UTC
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
-  check_source:
+  manage_releases:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.ver.outputs.version }}
-      tag: ${{ steps.ver.outputs.tag }}
+      new_releases_found: ${{ steps.manager.outputs.new_releases_found }}
+      version: ${{ steps.manager.outputs.version }}
+      urls: ${{ steps.manager.outputs.urls }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Get latest source release
-        id: ver
-        run: |
-          DATA=$(curl -sL -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/S0methingSomething/BitEdit/releases/latest")
-          TAG=$(echo "$DATA" | jq -r .tag_name)
-          VERSION=$(echo "$TAG" | sed 's/^v//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-  build_matrix:
-    runs-on: ubuntu-latest
-    needs: check_source
-    outputs:
-      apps: ${{ steps.set.outputs.apps }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: set
-        run: |
-          APPS=$(jq -c '.apps' config.json)
-          echo "apps=$APPS" >> $GITHUB_OUTPUT
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-  release_app:
-    needs: [check_source, build_matrix]
-    strategy:
-      matrix:
-        app: ${{ fromJson(needs.build_matrix.outputs.apps) }}
-    runs-on: ubuntu-latest
-    outputs:
-      url_bitlife: ${{ steps.url.outputs.bitlife }}
-      url_bitlife_go: ${{ steps.url.outputs.url_bitlife_go }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install Python Dependencies
+        run: pip install -r requirements.txt
 
-      - name: Download original asset
-        run: |
-          ASSET_ID=$(curl -sL -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/S0methingSomething/BitEdit/releases/latest" \
-            | jq '.assets[] | select(.name == "MonetizationVars") | .id')
-          curl -sL -J -H "Accept: application/octet-stream" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -o ./dist/original_MonetizationVars \
-            "https://api.github.com/repos/S0methingSomething/BitEdit/releases/assets/$ASSET_ID"
-
-      - name: Patch MonetizationVars
-        run: node process_vars.js ./dist/original_MonetizationVars ./dist/MonetizationVars
-
-      - name: Create per-app release
-        run: |
-          TAG="${{ matrix.app.id }}-v${{ needs.check_source.outputs.version }}"
-          gh release create "$TAG" \
-            --repo ${{ github.repository }} \
-            --title "${{ matrix.app.displayName }} MonetizationVars v${{ needs.check_source.outputs.version }}" \
-            --notes "Auto-patched MonetizationVars for ${{ matrix.app.displayName }}" \
-            ./dist/MonetizationVars
-          URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/MonetizationVars"
-          echo "${{ matrix.app.id }}=$URL" >> $GITHUB_OUTPUT
-        id: url
+      - name: Run Release Manager
+        id: manager
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python release_manager.py
 
   post_to_reddit:
-    needs: [check_source, release_app]
+    needs: manage_releases
+    # Only run this job if the manager script found new releases
+    if: needs.manage_releases.outputs.new_releases_found == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.10' }
-      - run: pip install -r requirements.txt
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Build URL map
-        id: urls
-        run: |
-          URLS=$(jq -n \
-            --arg bl  "${{ needs.release_app.outputs.url_bitlife }}" \
-            --arg blg "${{ needs.release_app.outputs.url_bitlife_go }}" \
-            '$ARGS.named')
-          echo "urls=$URLS" >> $GITHUB_OUTPUT
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-      - name: Post / update Reddit
+      - name: Install Python Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Post / Update Reddit
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
@@ -107,5 +63,5 @@ jobs:
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: |
           python post_to_reddit.py \
-            --version=${{ needs.check_source.outputs.version }} \
-            --urls='${{ steps.urls.outputs.urls }}'
+            --version "${{ needs.manage_releases.outputs.version }}" \
+            --urls '${{ needs.manage_releases.outputs.urls }}'
