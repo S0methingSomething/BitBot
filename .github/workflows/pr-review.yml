@@ -34,7 +34,7 @@ jobs:
         uses: reviewdog/action-ruff@v2
         with:
           # The default GITHUB_TOKEN has the permissions we granted above
-          github_token: ${{ secrets.github_token }}
+          github_token: ${{ secrets.GH_PAT }}
           reporter: github-pr-review
           fail_on_error: true
           level: warning

@@ -43,7 +43,7 @@ jobs:
         run: |
           RELEASE_DATA=$(curl -sL \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
             "https://api.github.com/repos/${{ env.github_sourceRepo }}/releases/latest")
           TAG_NAME=$(echo "$RELEASE_DATA" | jq -r .tag_name)
           BODY=$(echo "$RELEASE_DATA" | jq -r .body)
@@ -98,7 +98,7 @@ jobs:
           fi
           curl -sL -J \
             -H "Accept: application/octet-stream" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.GH_PAT }}" \
             -o "./dist/original_${{ env.github_assetFileName }}" \
             "https://api.github.com/repos/${{ env.github_sourceRepo }}/releases/assets/$ASSET_ID"
           node process_vars.js \
@@ -142,7 +142,7 @@ jobs:
             "$RELEASE_BODY")
           RELEASE_RESPONSE=$(curl -sL -X POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
             -d "$CREATE_DATA" \
             "https://api.github.com/repos/${{ env.github_botRepo }}/releases")
           UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | jq -r .upload_url)
@@ -153,7 +153,7 @@ jobs:
           UPLOAD_URL_TEMPLATE=$(echo "$UPLOAD_URL" | sed 's/{?name,label}//')
           curl -sL -X POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
             -H "Content-Type: application/octet-stream" \
             --data-binary "@./dist/$ASSET_NAME" \
             "$UPLOAD_URL_TEMPLATE?name=$ASSET_NAME"
@@ -214,7 +214,7 @@ jobs:
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: uv run bitbot run check
       - name: Commit state file if changed
         if: steps.sync_script.outputs.state_changed == 'true'
