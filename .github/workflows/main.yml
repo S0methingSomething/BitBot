@@ -26,6 +26,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Convert TOML to JSON
+        id: toml2json
+        uses: CfirTsabari/actions-toml2json@v1
+        with:
+          toml-file-path: './config.toml'
+          json-file-path: './config.json'
       - id: config
         uses: antifree/json-to-variables@v1
         with:
