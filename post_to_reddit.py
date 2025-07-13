@@ -38,7 +38,6 @@ def _update_older_posts(older_posts, latest_release_details, config):
         "{{latest_post_title}}": latest_release_details['title'],
         "{{latest_post_url}}": latest_release_details['url'],
         "{{latest_version}}": latest_release_details['version'],
-        "{{latest_download_url}}": latest_release_details['direct_download_url'],
         "{{asset_name}}": config['github']['assetFileName'],
         "{{bot_name}}": config['reddit']['botName'],
         "{{bot_repo}}": config['github']['botRepo'],
@@ -106,7 +105,7 @@ def _update_bot_state(post_id, config):
     with open('bot_state.json', 'w') as f:
         json.dump(new_state, f, indent=2)
 
-def _post_new_release(reddit, version, direct_download_url, config):
+def _post_new_release(reddit, version, urls, config):
     with open(config['reddit']['templateFile'], 'r') as f:
         raw_template = f.read()
 
@@ -131,11 +130,15 @@ def _post_new_release(reddit, version, direct_download_url, config):
     # 3. Proceed with posting the truly clean template
     initial_status_line = config['feedback']['statusLineFormat'].replace("{{status}}", config['feedback']['labels']['unknown'])
     placeholders = {
-        "{{version}}": version, "{{direct_download_url}}": direct_download_url,
+        "{{version}}": version,
         "{{bot_name}}": config['reddit']['botName'], "{{bot_repo}}": config['github']['botRepo'],
         "{{asset_name}}": config['github']['assetFileName'], "{{creator_username}}": config['reddit']['creator'],
         "{{initial_status}}": initial_status_line
     }
+    
+    url_map = json.loads(urls)
+    for app in config["apps"]:
+        placeholders[f"direct_download_url_{app['id']}"] = url_map[app["id"]]
 
     title = config['reddit']['postTitle']
     post_body = post_body_template
@@ -151,7 +154,7 @@ def _post_new_release(reddit, version, direct_download_url, config):
 def main():
     parser = argparse.ArgumentParser(description="Post a new release to Reddit.")
     parser.add_argument('--version', required=True)
-    parser.add_argument('--direct-download-url', required=True)
+    parser.add_argument('--urls', required=True)
     args = parser.parse_args()
     config = _load_config()
 
@@ -164,13 +167,13 @@ def main():
 
     print("Fetching existing posts to prepare for update...")
     existing_posts = _get_bot_posts_on_subreddit(reddit, config)
-    new_submission = _post_new_release(reddit, args.version, args.direct_download_url, config)
+    new_submission = _post_new_release(reddit, args.version, args.urls, config)
 
     if existing_posts:
         print(f"Found {len(existing_posts)} older post(s) to update.")
         latest_release_details = {
             "title": new_submission.title, "url": new_submission.shortlink,
-            "version": args.version, "direct_download_url": args.direct_download_url,
+            "version": args.version
         }
         _update_older_posts(existing_posts, latest_release_details, config)
 

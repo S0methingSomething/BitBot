@@ -17,7 +17,7 @@
     "subreddit": "BitLifeRebels",
     "templateFile": "post_template.md",
     "outdatedTemplateFile": "outdated_template.md",
-    "postTitle": "[BitBot] {{asset_name}} for BitLife v{{version}}",
+    "postTitle": "[BitBot] MonetizationVars for BitLife v{{version}}",
     "botName": "BitBot",
     "creator": "C1oudyLol"
   },
@@ -26,7 +26,7 @@
     "injectTemplateFile": "inject_template.md"
   },
   "messages": {
-    "releaseTitle": "{{asset_name}} v{{version}}",
+    "releaseTitle": "{{displayName}} MonetizationVars v{{version}}",
     "releaseDescription": "Automated release of the pre-patched `{{asset_name}}` file. All boolean values have been set to true."
   },
   "skipContent": {
@@ -49,5 +49,16 @@
     "firstCheck": 300,
     "maxWait": 3600,
     "increaseBy": 300
-  }
+  },
+
+  "apps": [
+    {
+      "id": "bitlife",
+      "displayName": "BitLife"
+    },
+    {
+      "id": "bitlife_go",
+      "displayName": "BitLife Go"
+    }
+  ]
 }
