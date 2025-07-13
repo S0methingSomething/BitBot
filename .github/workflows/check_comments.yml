@@ -1,24 +1,32 @@
-name: '[Pulse] Check Reddit Comments'
+name: 'Check Reddit Post Status'
+
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */3 * * *'
+    # This runs every 15 minutes, which is a good default for a responsive check.
+    - cron: '*/15 * * * *'
+
 concurrency:
   group: ${{ github.workflow }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  pulse_check:
-    name: Adaptive Comment Check
+  check_comments:
     runs-on: ubuntu-latest
-    permissions: { contents: write }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.10' }
-      - run: pip install -r requirements.txt
-      - name: Run Adaptive Comment Checker Script
-        id: comment_checker
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install Python Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Comment Checker
+        id: checker
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
@@ -26,9 +34,13 @@ jobs:
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: python check_comments.py
-      - name: Commit and Push State File if Changed
-        if: steps.comment_checker.outputs.state_changed == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v6
-        with:
-          commit_message: "chore(bot): update comment checker state [skip ci]"
-          file_pattern: "bot_state.json"
+
+      # This step is for manually triggering a re-run if the state changed.
+      # It helps ensure the adaptive timer works well with GitHub's scheduler.
+      - name: Re-run if state changed
+        if: steps.checker.outputs.state_changed == 'true'
+        run: |
+          echo "State changed, re-triggering workflow to honor adaptive timer."
+          gh workflow run check_comments.yml --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
