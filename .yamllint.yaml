@@ -1,0 +1,16 @@
+---
+extends: default
+
+rules:
+  line-length:
+    max: 120
+  truthy:
+    level: warning
+    allowed-values: ['true', 'false', 'on', 'off']
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+ignore: |
+  .venv/
