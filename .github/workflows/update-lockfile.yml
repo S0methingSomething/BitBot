@@ -1,14 +1,20 @@
+---
 name: '[Process] Update requirements.txt for Dependabot-test'
 
 on:
   workflow_dispatch:
   pull_request_target:
-    types: [opened, synchronize, reopened]
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 jobs:
   update-requirements:
     # This job only runs for PRs from dependabot targeting pip.
-    if: github.actor == 'dependabot[bot]' && contains(github.head_ref, 'dependabot/pip')
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      contains(github.head_ref, 'dependabot/pip')
     name: Update requirements.txt
     runs-on: ubuntu-latest
 
@@ -34,10 +40,13 @@ jobs:
         run: make setup
 
       - name: Re-compile requirements.txt
-        run: |
-          uv pip compile pyproject.toml --extra dev --upgrade -o requirements.txt
+        run: >-
+          uv pip compile pyproject.toml --extra dev --upgrade -o
+          requirements.txt
 
       - name: Commit and push changes
+        env:
+          PR_HEAD_REF: ${{ github.head_ref }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -46,7 +55,7 @@ jobs:
           if ! git diff --quiet requirements.txt; then
             git add requirements.txt
             git commit -m "chore(deps): re-compile requirements.txt"
-            git push origin HEAD:${{ github.head_ref }}
+            git push origin "HEAD:$PR_HEAD_REF"
             echo "requirements.txt was updated and pushed."
           else
             echo "requirements.txt is already up to date."

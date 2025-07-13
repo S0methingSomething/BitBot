@@ -1,7 +1,9 @@
+---
 name: '[Process] Semantic Release-test'
 on:
   push:
-    branches: [dev]
+    branches:
+      - dev
   workflow_dispatch:
 
 permissions:
@@ -21,7 +23,8 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 
       - uses: actions/setup-python@v5
-        with: { python-version: '3.13' }
+        with:
+          python-version: '3.13'
 
       - name: Install dependencies
         run: make setup

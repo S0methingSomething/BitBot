@@ -1,7 +1,11 @@
+---
 name: '[Process] Lint PR Title-test'
 on:
   pull_request:
-    types: [opened, edited, synchronize]
+    types:
+      - opened
+      - edited
+      - synchronize
   workflow_dispatch:
 
 jobs:

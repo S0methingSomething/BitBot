@@ -1,9 +1,13 @@
+---
 name: '[Review] Automated PR Review-test'
 on:
   # Use pull_request_target to give the workflow write permissions
   # on pull requests from forks and dependabot.
   pull_request_target:
-    types: [opened, edited, synchronize]
+    types:
+      - opened
+      - edited
+      - synchronize
   workflow_dispatch:
 
 # Explicitly grant the required permissions
@@ -22,7 +26,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
+        with:
+          python-version: '3.12'
 
       # The action-ruff action handles its own dependency installation
       - name: Run Ruff with Reviewdog

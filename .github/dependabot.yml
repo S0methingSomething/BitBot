@@ -1,3 +1,4 @@
+---
 version: 2
 updates:
   # === Configuration for GitHub Actions ===
@@ -12,7 +13,8 @@ updates:
       - "CI/CD"
     # --- BETTER COMMIT MESSAGE BLOCK ---
     commit-message:
-      # Use a clear, conventional prefix. 'build' is common for dependency updates.
+      # Use a clear, conventional prefix. 'build' is common for dependency
+      # updates.
       prefix: "build(deps)"
       # This ensures the prefix includes the scope (e.g., "build(deps):")
       include: "scope"

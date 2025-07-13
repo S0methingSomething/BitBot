@@ -1,10 +1,13 @@
+---
 name: '[Maintenance] Update Old Release Titles-test'
 on:
   workflow_dispatch:
   push:
-    branches: [dev]
+    branches:
+      - dev
   workflow_run:
-    workflows: ["[Release] Check, Patch, and Manage Reddit"]
+    workflows:
+      - "[Release] Check, Patch, and Manage Reddit"
     types:
       - completed
 

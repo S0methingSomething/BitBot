@@ -79,7 +79,6 @@ class GitHubClient:
                 e,
             )
             raise
-        return None
 
     def get_release_by_tag(self, tag_name: str) -> dict[str, Any] | None:
         """Fetches a specific release by its tag name."""

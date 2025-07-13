@@ -1,8 +1,10 @@
+---
 name: '[Bot] Run Bot Actions-test'
 on:
   workflow_dispatch:
   push:
-    branches: [dev]
+    branches:
+      - dev
   schedule:
     # Run the release check every hour at 5 past
     - cron: '5 * * * *'
@@ -24,7 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.13' }
+        with:
+          python-version: '3.13'
 
       - name: Install UV
         run: pipx install uv
@@ -32,7 +35,10 @@ jobs:
         run: make setup
 
       - name: Execute Main Release & Post Logic
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event.schedule == '5 * * * *')
+        if: >-
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch' ||
+          (github.event.schedule == '5 * * * *')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
@@ -40,10 +46,13 @@ jobs:
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        run: uv run bitbot release
+        run: uv run bitbot run release
 
       - name: Commit and Push state file
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event.schedule == '5 * * * *')
+        if: >-
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch' ||
+          (github.event.schedule == '5 * * * *')
         run: |
           # Only proceed if the state file exists
           if [ -f "latest_postid.txt" ]; then
@@ -62,7 +71,10 @@ jobs:
           fi
 
       - name: Execute Comment Check Logic
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event.schedule == '*/15 * * * *')
+        if: >-
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch' ||
+          (github.event.schedule == '*/15 * * * *')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
@@ -70,4 +82,4 @@ jobs:
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        run: uv run bitbot check-comments
+        run: uv run bitbot run check
