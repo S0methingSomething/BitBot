@@ -99,10 +99,13 @@ def test_post_new_release_with_older_posts(
             "injectTemplateFile": "inject.md",
         },
     }
-    with patch(
-        "builtins.open",
-        mock_open(read_data=json.dumps(read_data)),
-    ), patch("bitbot.reddit._update_older_posts") as mock_update_older_posts:
+    with (
+        patch(
+            "builtins.open",
+            mock_open(read_data=json.dumps(read_data)),
+        ),
+        patch("bitbot.reddit._update_older_posts") as mock_update_older_posts,
+    ):
         reddit.post_new_release(
             "1.0.0", '{"bitlife": "test_url", "bitlife_go": "test_url"}'
         )

@@ -10,9 +10,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="BitBot: A bot for managing Reddit posts about software releases."
     )
-    parser.add_argument(
-        "--debug", action="store_true", help="Enable debug logging."
-    )
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # --- Release Command ---

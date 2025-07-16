@@ -4,7 +4,7 @@ This document outlines the contribution guidelines for the BitBot project. By pa
 
 ## Development Environment
 
-This project uses `uv` for virtual environment and package management, and a `Makefile` to simplify the development process. All dependencies are managed in `pyproject.toml`.
+This project uses `uv` for virtual environment and package management, and a `Makefile` to simplify the development process. All dependencies are managed in `pyproject.toml`. Python 3.13 is the required version.
 
 To set up your development environment, simply run:
 
