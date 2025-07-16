@@ -10,7 +10,7 @@ authors = [
 ]
 description = "A bot for managing Reddit posts about software releases."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.13"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -106,7 +106,7 @@ fail_under = 90
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py313']
 include = '\.pyi?$'
 exclude = '''
 /(

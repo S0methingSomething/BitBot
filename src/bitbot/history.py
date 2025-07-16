@@ -1,6 +1,5 @@
 """This module handles the synchronization of Reddit post history."""
 
-import json
 import os
 import re
 import sys

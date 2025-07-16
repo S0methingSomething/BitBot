@@ -1,17 +1,16 @@
 """This module checks for comments on the active Reddit post."""
 
-import json
 import os
 import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, cast
 
 import praw  # type: ignore
 
 from . import utils
 from .logging import get_logger
+from .utils import save_state
 
 logger = get_logger(__name__)
 

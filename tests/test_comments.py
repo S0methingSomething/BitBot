@@ -17,7 +17,7 @@ from bitbot import comments
     },
 )
 @patch("praw.Reddit")
-@patch("bitbot.comments.load_state")
+@patch("bitbot.utils.load_state")
 def test_check_comments_no_update(
     mock_load_state: MagicMock, mock_reddit: MagicMock
 ) -> None:
@@ -29,13 +29,13 @@ def test_check_comments_no_update(
         "lastCommentCount": 0,
     }
     mock_submission = MagicMock()
-    mock_submission.selftext = "Status: working"
+    mock_submission.selftext = "Status: unknown"
     mock_submission.comments.list.return_value = []
     mock_reddit.return_value.submission.return_value = mock_submission
 
     read_data = {
         "feedback": {
-            "statusLineRegex": "^Status:.*",
+            "statusLineRegex": r"^Status:.*",
             "workingKeywords": ["working"],
             "notWorkingKeywords": [],
             "labels": {
@@ -51,7 +51,7 @@ def test_check_comments_no_update(
     with patch(
         "builtins.open",
         mock_open(read_data=json.dumps(read_data)),
-    ):
+    ), patch("bitbot.utils.save_state"):
         comments.check_comments()
 
     mock_submission.edit.assert_not_called()
@@ -68,7 +68,7 @@ def test_check_comments_no_update(
     },
 )
 @patch("praw.Reddit")
-@patch("bitbot.comments.load_state")
+@patch("bitbot.utils.load_state")
 def test_check_comments_positive_feedback(
     mock_load_state: MagicMock, mock_reddit: MagicMock
 ) -> None:
@@ -80,7 +80,7 @@ def test_check_comments_positive_feedback(
         "lastCommentCount": 0,
     }
     mock_submission = MagicMock()
-    mock_submission.selftext = "Status: working"
+    mock_submission.selftext = "Status: unknown"
     mock_comment = MagicMock()
     mock_comment.body = "working"
     mock_submission.comments.list.return_value = [mock_comment]
@@ -88,7 +88,7 @@ def test_check_comments_positive_feedback(
 
     read_data = {
         "feedback": {
-            "statusLineRegex": "^Status:.*",
+            "statusLineRegex": r"^Status:.*",
             "workingKeywords": ["working"],
             "notWorkingKeywords": [],
             "labels": {
@@ -104,7 +104,7 @@ def test_check_comments_positive_feedback(
     with patch(
         "builtins.open",
         mock_open(read_data=json.dumps(read_data)),
-    ):
+    ), patch("bitbot.utils.save_state"):
         comments.check_comments()
 
     mock_submission.edit.assert_called_once_with(body="Status: working")
@@ -121,7 +121,7 @@ def test_check_comments_positive_feedback(
     },
 )
 @patch("praw.Reddit")
-@patch("bitbot.comments.load_state")
+@patch("bitbot.utils.load_state")
 def test_check_comments_negative_feedback(
     mock_load_state: MagicMock, mock_reddit: MagicMock
 ) -> None:
@@ -133,7 +133,7 @@ def test_check_comments_negative_feedback(
         "lastCommentCount": 0,
     }
     mock_submission = MagicMock()
-    mock_submission.selftext = "Status: working"
+    mock_submission.selftext = "Status: unknown"
     mock_comment = MagicMock()
     mock_comment.body = "broken"
     mock_submission.comments.list.return_value = [mock_comment]
@@ -141,7 +141,7 @@ def test_check_comments_negative_feedback(
 
     read_data = {
         "feedback": {
-            "statusLineRegex": "^Status:.*",
+            "statusLineRegex": r"^Status:.*",
             "workingKeywords": [],
             "notWorkingKeywords": ["broken"],
             "labels": {
@@ -157,7 +157,7 @@ def test_check_comments_negative_feedback(
     with patch(
         "builtins.open",
         mock_open(read_data=json.dumps(read_data)),
-    ):
+    ), patch("bitbot.utils.save_state"):
         comments.check_comments()
 
     mock_submission.edit.assert_called_once_with(body="Status: broken")
@@ -174,7 +174,7 @@ def test_check_comments_negative_feedback(
     },
 )
 @patch("praw.Reddit")
-@patch("bitbot.comments.load_state")
+@patch("bitbot.utils.load_state")
 def test_check_comments_no_active_post(
     mock_load_state: MagicMock, mock_reddit: MagicMock
 ) -> None:
@@ -183,7 +183,11 @@ def test_check_comments_no_active_post(
         "activePostId": None,
         "lastCheckTimestamp": "2020-01-01T00:00:00Z",
         "currentIntervalSeconds": 0,
+        "lastCommentCount": 0,
     }
+    mock_submission = MagicMock()
+    mock_submission.selftext = ""
+    mock_reddit.return_value.submission.return_value = mock_submission
     with patch("sys.exit") as mock_exit:
         comments.check_comments()
         mock_exit.assert_called_once_with(0)
