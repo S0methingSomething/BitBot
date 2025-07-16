@@ -1,0 +1,2 @@
+[2025-07-15 12:06] Step 5: Plan and Implement Changes.
+- Created a new GitHub Actions workflow in `.github/workflows/ci.yml` to run linting and testing on every push and pull request to the `main` branch. This will enforce the project's quality standards automatically.
