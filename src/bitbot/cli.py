@@ -1,55 +1,53 @@
-"""This module provides a command-line interface for the BitBot library."""
+"""The command-line interface for the bot."""
 
 import argparse
+import asyncio
+import sys
 
-from . import comments, debug, history, reddit, release
+from .comments import check_comments
+from .data.models import Settings
+from .errors import BitBotError
+from .history import sync_history
+from .logging import get_logger
+from .services.factory import create_services
+
+logger = get_logger(__name__)
 
 
 def main() -> None:
-    """The main entry point for the BitBot CLI."""
-    parser = argparse.ArgumentParser(
-        description="BitBot: A bot for managing Reddit posts about software releases."
-    )
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    """The main entry point for the bot."""
+    parser = argparse.ArgumentParser(description="A bot for managing Reddit posts.")
+    subparsers = parser.add_subparsers(dest="command")
 
-    # --- Release Command ---
-    parser_release = subparsers.add_parser("release", help="Manage GitHub releases.")
-    parser_release.set_defaults(func=release.main)
-
-    # --- Reddit Command ---
-    parser_reddit = subparsers.add_parser("reddit", help="Manage Reddit posts.")
-    reddit_subparsers = parser_reddit.add_subparsers(
-        dest="reddit_command", required=True
-    )
-
-    # reddit post command
-    parser_reddit_post = reddit_subparsers.add_parser(
-        "post", help="Post a new release to Reddit."
-    )
-    parser_reddit_post.add_argument("--version", required=True)
-    parser_reddit_post.add_argument("--urls", required=True)
-    parser_reddit_post.set_defaults(
-        func=lambda args: reddit.post_new_release(args.version, args.urls)
-    )
-
-    # --- Comments Command ---
-    parser_comments = subparsers.add_parser(
-        "comments", help="Check comments on Reddit posts."
-    )
-    parser_comments.set_defaults(func=lambda args: comments.check_comments())
-
-    # --- History Command ---
-    parser_history = subparsers.add_parser("history", help="Sync Reddit post history.")
-    parser_history.set_defaults(func=lambda args: history.sync_history())
+    subparsers.add_parser("sync", help="Sync the Reddit post history.")
+    subparsers.add_parser("pulse", help="Check for new comments.")
 
     args = parser.parse_args()
 
-    if args.debug:
-        debug.enable_debug_mode()
+    try:
+        settings = Settings()
+        services = create_services(settings)
 
-    args.func(args)
-
-
-if __name__ == "__main__":
-    main()
+        if args.command == "sync":
+            asyncio.run(
+                sync_history(
+                    config_manager=services["config_manager"],
+                    state_manager=services["state_manager"],
+                    github_manager=services["github_manager"],
+                    reddit_manager=services["reddit_manager"],
+                    template_manager=services["template_manager"],
+                )
+            )
+        elif args.command == "pulse":
+            asyncio.run(
+                check_comments(
+                    config_manager=services["config_manager"],
+                    state_manager=services["state_manager"],
+                    reddit_manager=services["reddit_manager"],
+                )
+            )
+        else:
+            parser.print_help()
+    except BitBotError as e:
+        logger.error(e)
+        sys.exit(1)

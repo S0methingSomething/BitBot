@@ -1,0 +1,24 @@
+{
+    "exit_code_by_key": {
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1__init____mutmut_1": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1load_state__mutmut_1": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1load_state__mutmut_2": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1load_state__mutmut_3": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1load_state__mutmut_4": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1load_state__mutmut_5": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1load_state__mutmut_6": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1load_state__mutmut_7": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_1": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_2": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_3": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_4": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_5": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_6": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_7": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_8": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_9": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_10": null,
+        "bitbot.services.file_state_manager.x\u01c1FileStateManager\u01c1save_state__mutmut_11": null
+    },
+    "hash_by_function_name": {}
+}

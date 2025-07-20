@@ -9,3 +9,7 @@ npm-debug.log*
 
 # OS-specific
 .DS_Store
+
+# Data files
+data/
+.env

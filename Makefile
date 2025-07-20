@@ -19,11 +19,14 @@ lint:
 	@echo "Linting the code..."
 	@.venv/bin/ruff check .
 	@.venv/bin/mypy .
+	@PYTHONPATH=src python scripts/lint_architecture.py
 	@echo "Linting complete."
 
 test:
 	@echo "Running tests..."
 	@.venv/bin/pytest
+	@.venv/bin/mutmut run
+	@.venv/bin/xenon --max-absolute B --max-modules A --max-average A .
 	@echo "Tests complete."
 
 test-debug:

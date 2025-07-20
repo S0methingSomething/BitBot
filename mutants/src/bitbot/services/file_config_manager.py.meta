@@ -1,0 +1,12 @@
+{
+    "exit_code_by_key": {
+        "bitbot.services.file_config_manager.x\u01c1FileConfigManager\u01c1__init____mutmut_1": null,
+        "bitbot.services.file_config_manager.x\u01c1FileConfigManager\u01c1load_config__mutmut_1": null,
+        "bitbot.services.file_config_manager.x\u01c1FileConfigManager\u01c1load_config__mutmut_2": null,
+        "bitbot.services.file_config_manager.x\u01c1FileConfigManager\u01c1load_config__mutmut_3": null,
+        "bitbot.services.file_config_manager.x\u01c1FileConfigManager\u01c1load_config__mutmut_4": null,
+        "bitbot.services.file_config_manager.x\u01c1FileConfigManager\u01c1load_config__mutmut_5": null,
+        "bitbot.services.file_config_manager.x\u01c1FileConfigManager\u01c1load_config__mutmut_6": null
+    },
+    "hash_by_function_name": {}
+}

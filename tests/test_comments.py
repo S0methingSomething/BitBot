@@ -1,193 +1,96 @@
 """Tests for the comments module."""
 
-import json
-from unittest.mock import MagicMock, mock_open, patch
+import asyncio
+from unittest.mock import MagicMock
 
 from bitbot import comments
 
-
-@patch(
-    "os.environ",
-    {
-        "REDDIT_CLIENT_ID": "test",
-        "REDDIT_CLIENT_SECRET": "test",
-        "REDDIT_USER_AGENT": "test",
-        "REDDIT_USERNAME": "test",
-        "REDDIT_PASSWORD": "test",
-    },
-)
-@patch("praw.Reddit")
-@patch("bitbot.utils.load_state")
-def test_check_comments_no_update(
-    mock_load_state: MagicMock, mock_reddit: MagicMock
-) -> None:
-    """Test the check_comments function when no update is needed."""
-    mock_load_state.return_value = {
-        "activePostId": "test_post",
-        "lastCheckTimestamp": "2020-01-01T00:00:00Z",
-        "currentIntervalSeconds": 0,
-        "lastCommentCount": 0,
-    }
-    mock_submission = MagicMock()
-    mock_submission.selftext = "Status: unknown"
-    mock_submission.comments.list.return_value = []
-    mock_reddit.return_value.submission.return_value = mock_submission
-
-    read_data = {
-        "feedback": {
-            "statusLineRegex": r"^Status:.*",
-            "workingKeywords": ["working"],
-            "notWorkingKeywords": [],
-            "labels": {
-                "broken": "broken",
-                "working": "working",
-                "unknown": "unknown",
-            },
-            "statusLineFormat": "Status: {{status}}",
-            "minFeedbackCount": 1,
-        },
-        "timing": {"firstCheck": 0, "maxWait": 0, "increaseBy": 0},
-    }
-    with patch(
-        "builtins.open",
-        mock_open(read_data=json.dumps(read_data)),
-    ), patch("bitbot.utils.save_state"):
-        comments.check_comments()
-
-    mock_submission.edit.assert_not_called()
+from .base import BaseTestCase
 
 
-@patch(
-    "os.environ",
-    {
-        "REDDIT_CLIENT_ID": "test",
-        "REDDIT_CLIENT_SECRET": "test",
-        "REDDIT_USER_AGENT": "test",
-        "REDDIT_USERNAME": "test",
-        "REDDIT_PASSWORD": "test",
-    },
-)
-@patch("praw.Reddit")
-@patch("bitbot.utils.load_state")
-def test_check_comments_positive_feedback(
-    mock_load_state: MagicMock, mock_reddit: MagicMock
-) -> None:
-    """Test the check_comments function with positive feedback."""
-    mock_load_state.return_value = {
-        "activePostId": "test_post",
-        "lastCheckTimestamp": "2020-01-01T00:00:00Z",
-        "currentIntervalSeconds": 0,
-        "lastCommentCount": 0,
-    }
-    mock_submission = MagicMock()
-    mock_submission.selftext = "Status: unknown"
-    mock_comment = MagicMock()
-    mock_comment.body = "working"
-    mock_submission.comments.list.return_value = [mock_comment]
-    mock_reddit.return_value.submission.return_value = mock_submission
+class TestComments(BaseTestCase):
+    """Tests for the comments module."""
 
-    read_data = {
-        "feedback": {
-            "statusLineRegex": r"^Status:.*",
-            "workingKeywords": ["working"],
-            "notWorkingKeywords": [],
-            "labels": {
-                "broken": "broken",
-                "working": "working",
-                "unknown": "unknown",
-            },
-            "statusLineFormat": "Status: {{status}}",
-            "minFeedbackCount": 1,
-        },
-        "timing": {"firstCheck": 0, "maxWait": 0, "increaseBy": 0},
-    }
-    with patch(
-        "builtins.open",
-        mock_open(read_data=json.dumps(read_data)),
-    ), patch("bitbot.utils.save_state"):
-        comments.check_comments()
+    def test_check_comments_no_update(self) -> None:
+        """Test the check_comments function when no update is needed."""
+        self.mock_state_manager.load_state.return_value.lastCommentCount = 0
+        mock_post = MagicMock()
+        mock_post.id = "initial_post"
+        mock_post.body = "Status: unknown"
+        self.mock_reddit_manager.get_post_by_id.return_value = mock_post
+        self.mock_reddit_manager.get_comments.return_value = []
 
-    mock_submission.edit.assert_called_once_with(body="Status: working")
+        asyncio.run(
+            comments.check_comments(
+                config_manager=self.mock_config_manager,
+                state_manager=self.mock_state_manager,
+                reddit_manager=self.mock_reddit_manager,
+            )
+        )
 
+        self.mock_reddit_manager.update_post_body.assert_not_called()
 
-@patch(
-    "os.environ",
-    {
-        "REDDIT_CLIENT_ID": "test",
-        "REDDIT_CLIENT_SECRET": "test",
-        "REDDIT_USER_AGENT": "test",
-        "REDDIT_USERNAME": "test",
-        "REDDIT_PASSWORD": "test",
-    },
-)
-@patch("praw.Reddit")
-@patch("bitbot.utils.load_state")
-def test_check_comments_negative_feedback(
-    mock_load_state: MagicMock, mock_reddit: MagicMock
-) -> None:
-    """Test the check_comments function with negative feedback."""
-    mock_load_state.return_value = {
-        "activePostId": "test_post",
-        "lastCheckTimestamp": "2020-01-01T00:00:00Z",
-        "currentIntervalSeconds": 0,
-        "lastCommentCount": 0,
-    }
-    mock_submission = MagicMock()
-    mock_submission.selftext = "Status: unknown"
-    mock_comment = MagicMock()
-    mock_comment.body = "broken"
-    mock_submission.comments.list.return_value = [mock_comment]
-    mock_reddit.return_value.submission.return_value = mock_submission
+    def test_check_comments_positive_feedback(self) -> None:
+        """Test the check_comments function with positive feedback."""
+        self.mock_state_manager.load_state.return_value.lastCommentCount = 0
+        mock_post = MagicMock()
+        mock_post.id = "initial_post"
+        mock_post.body = "Status: initial"
+        self.mock_reddit_manager.get_post_by_id.return_value = mock_post
+        mock_comment = MagicMock()
+        mock_comment.body = "working"
+        self.mock_reddit_manager.get_comments.return_value = [
+            mock_comment,
+            mock_comment,
+        ]
 
-    read_data = {
-        "feedback": {
-            "statusLineRegex": r"^Status:.*",
-            "workingKeywords": [],
-            "notWorkingKeywords": ["broken"],
-            "labels": {
-                "broken": "broken",
-                "working": "working",
-                "unknown": "unknown",
-            },
-            "statusLineFormat": "Status: {{status}}",
-            "minFeedbackCount": 1,
-        },
-        "timing": {"firstCheck": 0, "maxWait": 0, "increaseBy": 0},
-    }
-    with patch(
-        "builtins.open",
-        mock_open(read_data=json.dumps(read_data)),
-    ), patch("bitbot.utils.save_state"):
-        comments.check_comments()
+        asyncio.run(
+            comments.check_comments(
+                config_manager=self.mock_config_manager,
+                state_manager=self.mock_state_manager,
+                reddit_manager=self.mock_reddit_manager,
+            )
+        )
 
-    mock_submission.edit.assert_called_once_with(body="Status: broken")
+        self.mock_reddit_manager.update_post_body.assert_called_once_with(
+            "initial_post", "Status: working"
+        )
 
+    def test_check_comments_negative_feedback(self) -> None:
+        """Test the check_comments function with negative feedback."""
+        self.mock_state_manager.load_state.return_value.lastCommentCount = 0
+        mock_post = MagicMock()
+        mock_post.id = "initial_post"
+        mock_post.body = "Status: initial"
+        self.mock_reddit_manager.get_post_by_id.return_value = mock_post
+        mock_comment = MagicMock()
+        mock_comment.body = "broken"
+        self.mock_reddit_manager.get_comments.return_value = [
+            mock_comment,
+            mock_comment,
+        ]
 
-@patch(
-    "os.environ",
-    {
-        "REDDIT_CLIENT_ID": "test",
-        "REDDIT_CLIENT_SECRET": "test",
-        "REDDIT_USER_AGENT": "test",
-        "REDDIT_USERNAME": "test",
-        "REDDIT_PASSWORD": "test",
-    },
-)
-@patch("praw.Reddit")
-@patch("bitbot.utils.load_state")
-def test_check_comments_no_active_post(
-    mock_load_state: MagicMock, mock_reddit: MagicMock
-) -> None:
-    """Test the check_comments function when there is no active post."""
-    mock_load_state.return_value = {
-        "activePostId": None,
-        "lastCheckTimestamp": "2020-01-01T00:00:00Z",
-        "currentIntervalSeconds": 0,
-        "lastCommentCount": 0,
-    }
-    mock_submission = MagicMock()
-    mock_submission.selftext = ""
-    mock_reddit.return_value.submission.return_value = mock_submission
-    with patch("sys.exit") as mock_exit:
-        comments.check_comments()
-        mock_exit.assert_called_once_with(0)
+        asyncio.run(
+            comments.check_comments(
+                config_manager=self.mock_config_manager,
+                state_manager=self.mock_state_manager,
+                reddit_manager=self.mock_reddit_manager,
+            )
+        )
+
+        self.mock_reddit_manager.update_post_body.assert_called_once_with(
+            "initial_post", "Status: broken"
+        )
+
+    def test_check_comments_no_active_post(self) -> None:
+        """Test the check_comments function when there is no active post."""
+        self.mock_state_manager.load_state.return_value.activePostId = None
+
+        result = asyncio.run(
+            comments.check_comments(
+                config_manager=self.mock_config_manager,
+                state_manager=self.mock_state_manager,
+                reddit_manager=self.mock_reddit_manager,
+            )
+        )
+        self.assertFalse(result)

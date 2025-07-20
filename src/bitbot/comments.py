@@ -2,74 +2,70 @@
 
 import os
 import re
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import praw  # type: ignore
-
-from . import utils
+from .interfaces.config_protocol import ConfigManagerProtocol
+from .interfaces.reddit_protocol import RedditManagerProtocol
+from .interfaces.state_protocol import StateManagerProtocol
 from .logging import get_logger
-from .utils import save_state
 
 logger = get_logger(__name__)
 
 
-def check_comments() -> None:
+async def check_comments(
+    config_manager: ConfigManagerProtocol,
+    state_manager: StateManagerProtocol,
+    reddit_manager: RedditManagerProtocol,
+) -> bool:
     """Check for comments on the active Reddit post.
 
     This function analyzes feedback, and updates the post status with an
     adaptive timer.
+
+    Returns:
+        True if a check was performed, False otherwise.
     """
-    config = utils.load_config()
-    state = utils.load_state()
+    config = await config_manager.load_config()
+    state = await state_manager.load_state()
     state_was_meaningfully_updated = False
 
-    if not state.get("activePostId"):
+    if not state.activePostId:
         logger.info("No active post ID in state file. Exiting pulse.")
-        sys.exit(0)
+        return False
 
-    if not state.get("lastCheckTimestamp"):
+    if not state.lastCheckTimestamp:
         logger.info("No lastCheckTimestamp in state file. Exiting pulse.")
-        sys.exit(0)
+        return False
 
     now = datetime.now(timezone.utc)
-    last_check = datetime.fromisoformat(
-        state["lastCheckTimestamp"].replace("Z", "+00:00")
-    )
+    last_check = datetime.fromisoformat(state.lastCheckTimestamp.replace("Z", "+00:00"))
 
-    if now < (last_check + timedelta(seconds=state["currentIntervalSeconds"])):
+    if now < (last_check + timedelta(seconds=state.currentIntervalSeconds)):
         logger.info(
             "Not time yet. Next check in %s.",
             int(
                 (
-                    (last_check + timedelta(seconds=state["currentIntervalSeconds"]))
-                    - now
+                    (last_check + timedelta(seconds=state.currentIntervalSeconds)) - now
                 ).total_seconds()
             ),
         )
         github_output = os.environ.get("GITHUB_OUTPUT", "/dev/null")
         with Path(github_output).open("a") as f:
             f.write("state_changed=false")
-        sys.exit(0)
+        return False
 
-    logger.info("Time for a real check on post: %s", state["activePostId"])
+    logger.info("Time for a real check on post: %s", state.activePostId)
     try:
-        reddit = praw.Reddit(
-            client_id=os.environ["REDDIT_CLIENT_ID"],
-            client_secret=os.environ["REDDIT_CLIENT_SECRET"],
-            user_agent=os.environ["REDDIT_USER_AGENT"],
-            username=os.environ["REDDIT_USERNAME"],
-            password=os.environ["REDDIT_PASSWORD"],
-        )
-        submission = reddit.submission(id=state["activePostId"])
-        submission.comments.replace_more(limit=0)
-        comments = submission.comments.list()
+        submission = await reddit_manager.get_post_by_id(state.activePostId)
+        if not submission:
+            logger.warning("Could not find submission with ID: %s", state.activePostId)
+            return False
 
-        working_kw = re.compile("|".join(config["feedback"]["workingKeywords"]), re.I)
-        not_working_kw = re.compile(
-            "|".join(config["feedback"]["notWorkingKeywords"]), re.I
-        )
+        comments = await reddit_manager.get_comments(submission)
+
+        working_kw = re.compile("|".join(config.feedback.workingKeywords), re.I)
+        not_working_kw = re.compile("|".join(config.feedback.notWorkingKeywords), re.I)
         positive_score = sum(1 for c in comments if working_kw.search(c.body))
         negative_score = sum(1 for c in comments if not_working_kw.search(c.body))
         net_score = positive_score - negative_score
@@ -80,61 +76,55 @@ def check_comments() -> None:
             net_score,
         )
 
-        threshold = config["feedback"]["minFeedbackCount"]
+        threshold = config.feedback.minFeedbackCount
         if net_score <= -threshold:
-            new_status_text = config["feedback"]["labels"]["broken"]
+            new_status_text = config.feedback.labels.broken
         elif net_score >= threshold:
-            new_status_text = config["feedback"]["labels"]["working"]
+            new_status_text = config.feedback.labels.working
         else:
-            new_status_text = config["feedback"]["labels"]["unknown"]
+            new_status_text = config.feedback.labels.unknown
 
-        new_status_line = config["feedback"]["statusLineFormat"].replace(
+        new_status_line = config.feedback.statusLineFormat.replace(
             "{{status}}", new_status_text
         )
 
         status_regex = re.compile(
-            config["feedback"]["statusLineRegex"], re.MULTILINE | re.DOTALL
+            config.feedback.statusLineRegex, re.MULTILINE | re.DOTALL
         )
-        logger.info("Searching for status line with regex: %s", status_regex.pattern)
-        logger.info("New status line: %s", new_status_line)
-        logger.info("New status line: %s", new_status_line)
-        logger.info("Post selftext: %s", submission.selftext)
-        logger.info("New status line: %s", new_status_line)
-        logger.info("Post selftext: %s", submission.selftext)
-        if not submission or not status_regex.search(submission.selftext):
+        if not status_regex.search(submission.body):
             logger.warning(
                 "Could not find status line in post. "
                 "It may have been edited or is an outdated post."
             )
-        elif new_status_line != submission.selftext:
-            updated_body = status_regex.sub(new_status_line, submission.selftext)
-            submission.edit(body=updated_body)
+        elif new_status_line != submission.body:
+            updated_body = status_regex.sub(new_status_line, submission.body)
+            await reddit_manager.update_post_body(submission.id, updated_body)
             logger.info("Status updated to: %s", new_status_text)
         else:
             logger.info("Status is already correct.")
 
-        if len(comments) > state["lastCommentCount"]:
-            state["currentIntervalSeconds"] = config["timing"]["firstCheck"]
+        if len(comments) > state.lastCommentCount:
+            state.currentIntervalSeconds = config.timing.firstCheck
             state_was_meaningfully_updated = True
         else:
-            if state["currentIntervalSeconds"] < config["timing"]["maxWait"]:
-                state["currentIntervalSeconds"] = min(
-                    config["timing"]["maxWait"],
-                    state["currentIntervalSeconds"] + config["timing"]["increaseBy"],
+            if state.currentIntervalSeconds < config.timing.maxWait:
+                state.currentIntervalSeconds = min(
+                    config.timing.maxWait,
+                    state.currentIntervalSeconds + config.timing.increaseBy,
                 )
                 state_was_meaningfully_updated = True
 
-        if state["lastCommentCount"] != len(comments):
-            state["lastCommentCount"] = len(comments)
+        if state.lastCommentCount != len(comments):
+            state.lastCommentCount = len(comments)
             state_was_meaningfully_updated = True
 
-    except praw.exceptions.PRAWException as e:
+    except Exception as e:
         logger.error("An exception occurred during check: %s", e, exc_info=True)
     finally:
-        state["lastCheckTimestamp"] = now.isoformat().replace("+00:00", "Z")
+        state.lastCheckTimestamp = now.isoformat().replace("+00:00", "Z")
         if state_was_meaningfully_updated:
             logger.info("Meaningful state change detected. Saving state file.")
-            save_state(state)
+            await state_manager.save_state(state)
         else:
             logger.info("No meaningful state change detected. Skipping file write.")
 
@@ -143,5 +133,6 @@ def check_comments() -> None:
             f.write(f"state_changed={str(state_was_meaningfully_updated).lower()}")
         logger.info(
             "Pulse check complete. Next interval: %ss",
-            state["currentIntervalSeconds"],
+            state.currentIntervalSeconds,
         )
+    return True

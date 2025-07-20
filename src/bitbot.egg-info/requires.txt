@@ -1,5 +1,5 @@
-praw
-requests
+asyncpraw
+aiohttp
 
 [dev]
 ruff
@@ -15,4 +15,6 @@ rich
 xenon
 pip-audit
 pre-commit
-types-requests
+pytest-asyncio
+python-dotenv
+types-toml

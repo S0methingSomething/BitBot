@@ -6,10 +6,10 @@ Author-email: S0methingSomething <author@example.com>
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
-Requires-Python: >=3.8
+Requires-Python: >=3.12
 Description-Content-Type: text/markdown
-Requires-Dist: praw
-Requires-Dist: requests
+Requires-Dist: asyncpraw
+Requires-Dist: aiohttp
 Provides-Extra: dev
 Requires-Dist: ruff; extra == "dev"
 Requires-Dist: black; extra == "dev"
@@ -24,7 +24,9 @@ Requires-Dist: rich; extra == "dev"
 Requires-Dist: xenon; extra == "dev"
 Requires-Dist: pip-audit; extra == "dev"
 Requires-Dist: pre-commit; extra == "dev"
-Requires-Dist: types-requests; extra == "dev"
+Requires-Dist: pytest-asyncio; extra == "dev"
+Requires-Dist: python-dotenv; extra == "dev"
+Requires-Dist: types-toml; extra == "dev"
 
 # BitBot
 

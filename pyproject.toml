@@ -10,15 +10,15 @@ authors = [
 ]
 description = "A bot for managing Reddit posts about software releases."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "praw",
-    "requests",
+    "asyncpraw",
+    "aiohttp",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +36,9 @@ dev = [
     "xenon",
     "pip-audit",
     "pre-commit",
-    "types-requests"
+    "pytest-asyncio",
+    "python-dotenv",
+    "types-toml"
 ]
 
 [project.scripts]
@@ -47,6 +49,8 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 88
+src = ["src", "tests", "stubs"]
+exclude = ["mutants"]
 
 [tool.ruff.lint]
 select = [
@@ -87,6 +91,8 @@ disallow_untyped_defs = true
 disallow_any_unimported = true
 no_implicit_optional = true
 check_untyped_defs = true
+files = ["src", "tests", "stubs"]
+exclude = ["mutants"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -108,7 +114,8 @@ fail_under = 90
 line-length = 88
 target-version = ['py313']
 include = '\.pyi?$'
-exclude = '''
+
+force-exclude = '''
 /(
     \.eggs
   | \.git
@@ -120,5 +127,7 @@ exclude = '''
   | buck-out
   | build
   | dist
+  | mutants
 )/
 '''
+src = ["src", "tests", "stubs"]

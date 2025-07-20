@@ -1,0 +1,16 @@
+{
+    "exit_code_by_key": {
+        "bitbot.logging.x_get_logger__mutmut_1": null,
+        "bitbot.logging.x_get_logger__mutmut_2": null,
+        "bitbot.logging.x_get_logger__mutmut_3": null,
+        "bitbot.logging.x_get_logger__mutmut_4": null,
+        "bitbot.logging.x_get_logger__mutmut_5": null,
+        "bitbot.logging.x_get_logger__mutmut_6": null,
+        "bitbot.logging.x_get_logger__mutmut_7": null,
+        "bitbot.logging.x_get_logger__mutmut_8": null,
+        "bitbot.logging.x_get_logger__mutmut_9": null,
+        "bitbot.logging.x_get_logger__mutmut_10": null,
+        "bitbot.logging.x_get_logger__mutmut_11": null
+    },
+    "hash_by_function_name": {}
+}

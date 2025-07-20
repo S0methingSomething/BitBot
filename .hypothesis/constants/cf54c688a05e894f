@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/release.py
+# hypothesis_version: 6.135.32
+
+['--notes', '--repo', '--title', '-H', '-J', '-o', '-sL', './dist', '/dev/null', 'Executing: %s', 'GITHUB_OUTPUT', '__main__', 'a', 'api', 'apps', 'assetFileName', 'bitlife', 'body', 'botRepo', 'config.json', 'create', 'curl', 'displayName', 'gh', 'github', 'id', 'name', 'r', 'release', 'sourceRepo', 'tag_name', 'view']
