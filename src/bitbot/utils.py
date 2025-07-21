@@ -33,6 +33,20 @@ def save_state(data: Dict[str, Any]) -> None:
     Args:
         data: The state dictionary to save.
     """
-    state_path = Path("bot_state.json")
+    state_.path = Path("bot_state.json")
     with state_path.open("w") as f:
         json.dump(data, f, indent=2)
+
+
+def get_template(template_name: str) -> str:
+    """Load a template file from the templates directory.
+
+    Args:
+        template_name: The name of the template file.
+
+    Returns:
+        The content of the template file.
+    """
+    template_path = Path("templates") / template_name
+    with template_path.open("r") as f:
+        return f.read()

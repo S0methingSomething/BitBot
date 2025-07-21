@@ -1,35 +1,25 @@
-"""Custom exceptions for the bot."""
+"""Custom exceptions for BitBot."""
 
 
-class BitBotError(Exception):
-    """Base exception for the bot."""
+class InvalidCredentialsError(Exception):
+    """Raised when API credentials are invalid."""
 
+    def __init__(self, service: str, details: str):
+        """
+        Initializes the InvalidCredentialsError.
 
-class GitHubError(BitBotError):
-    """An error occurred while interacting with the GitHub API."""
+        Args:
+            service: The name of the service that failed (e.g., "GitHub", "Reddit").
+            details: The details of the error from the API.
+        """
+        self.service = service
+        self.details = details
+        super().__init__(self.message())
 
+    def message(self) -> str:
+        """Generates a user-friendly error message."""
+        return (
+            f"{self.service} credentials are invalid. Please check your .env file.\n"
+            f"  Details: {self.details}"
+        )
 
-class RedditError(BitBotError):
-    """An error occurred while interacting with the Reddit API."""
-
-
-class ConfigurationError(BitBotError):
-    """An error occurred with the bot's configuration."""
-
-    def __init__(self, missing_keys: list[str]) -> None:
-        """Initializes the ConfigurationError."""
-        self.missing_keys = missing_keys
-        super().__init__(self._format_message())
-
-    def _format_message(self) -> str:
-        if len(self.missing_keys) == 1:
-            return (
-                f"Configuration Error: The required environment variable "
-                f"'{self.missing_keys[0]}' is not set."
-            )
-        else:
-            keys_str = "', '".join(self.missing_keys)
-            return (
-                f"Configuration Error: The following required environment variables "
-                f"are not set: '{keys_str}'"
-            )

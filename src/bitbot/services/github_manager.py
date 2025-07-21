@@ -1,33 +1,68 @@
-"""A service for managing GitHub interactions."""
+"""Service for interacting with the GitHub API using aiohttp."""
 
 from typing import Optional
 
 import aiohttp
+from tenacity import retry, stop_after_attempt, wait_fixed
 
-from ..data.models import GitHubRelease
-from ..interfaces.github_protocol import GitHubManagerProtocol
+from bitbot.data.models import GitHubRelease
+from bitbot.errors import InvalidCredentialsError
+from bitbot.interfaces.github_manager import GitHubManagerProtocol
 
 
-class GitHubManager(GitHubManagerProtocol):
-    """Manages GitHub interactions."""
+class AiohttpGitHubManager(GitHubManagerProtocol):
+    """Manages GitHub API interactions using aiohttp."""
 
-    def __init__(self, session: aiohttp.ClientSession, token: str) -> None:
-        """Initializes the GitHubManager."""
-        self.session = session
-        self.token = token
-        self.headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Accept": "application/vnd.github+json",
+    def __init__(self, token: str) -> None:
+        """
+        Initializes the AiohttpGitHubManager.
+
+        Args:
+            token: The GitHub API token.
+        """
+        self._headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3+json",
         }
 
-    async def get_latest_release(self, repo_slug: str) -> Optional[GitHubRelease]:
-        """Gets the latest release from a GitHub repository."""
-        api_url = f"https://api.github.com/repos/{repo_slug}/releases/latest"
-        async with self.session.get(api_url, headers=self.headers) as response:
-            response.raise_for_status()
-            release_data = await response.json()
-            return GitHubRelease(**release_data)
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+    async def get_latest_release(self, repo: str) -> Optional[GitHubRelease]:
+        """
+        Gets the latest release for a given repository.
 
-    async def close(self) -> None:
-        """Closes the GitHub session."""
-        await self.session.close()
+        Args:
+            repo: The name of the repository (e.g., "user/repo").
+
+        Returns:
+            Optional[GitHubRelease]: The latest release, or None if not found.
+        """
+        url = f"https://api.github.com/repos/{repo}/releases/latest"
+        async with (
+            aiohttp.ClientSession(headers=self._headers) as session,
+            session.get(url) as response,
+        ):
+            if response.status == 404:
+                return None
+            response.raise_for_status()
+            data = await response.json()
+            return GitHubRelease(
+                version=data["tag_name"],
+                url=data["html_url"],
+                body=data.get("body"),
+            )
+
+    async def validate_credentials(self) -> None:
+        """
+        Validates the GitHub credentials.
+
+        Raises:
+            InvalidCredentialsError: If the credentials are invalid.
+        """
+        url = "https://api.github.com/user"
+        async with (
+            aiohttp.ClientSession(headers=self._headers) as session,
+            session.get(url) as response,
+        ):
+            if response.status == 401:
+                raise InvalidCredentialsError("GitHub", "Token is invalid.")
+            response.raise_for_status()
