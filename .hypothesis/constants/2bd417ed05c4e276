@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/core.py
+# hypothesis_version: 6.136.2
+
+['Unknown', 'WorkspaceService', '__self__', 'args', 'bot_state.json', 'client', 'config.toml', 'content_len', 'file:read', 'file:write', 'method', 'network:call', 'path', 'templates/']

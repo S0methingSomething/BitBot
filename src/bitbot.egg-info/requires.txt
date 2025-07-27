@@ -1,0 +1,17 @@
+
+[dev]
+ruff
+black
+mypy
+xenon
+pytest
+pytest-asyncio
+pytest-mock
+hypothesis
+uv
+pre-commit
+tomlkit
+pydantic-settings
+httpx[http2]
+asyncpraw
+typer

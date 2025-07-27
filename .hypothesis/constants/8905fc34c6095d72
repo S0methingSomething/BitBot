@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/services/api_clients.py
+# hypothesis_version: 6.136.2
+
+['GET', 'POST', 'body', 'tag_name']

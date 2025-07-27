@@ -119,6 +119,8 @@ function encrypt(dataObject, obfuscatedKey) {
 /**
  * Main function to orchestrate the file processing.
  */
+module.exports = { getObfuscatedKey };
+
 function main() {
     const inputFile = process.argv[2];
     const outputFile = process.argv[3];
@@ -139,4 +141,6 @@ function main() {
     console.log(`Successfully processed and saved patched file to: ${outputFile}`);
 }
 
-main();
+if (require.main === module) {
+    main();
+}

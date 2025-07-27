@@ -1,0 +1,15 @@
+# features.toml
+# This file declares the architectural features that are built into the bot.
+# It provides a master on/off switch for major functionalities.
+
+[feature.release_management]
+enabled = true
+description = "The core feature for checking and processing new GitHub releases."
+
+[feature.reddit_poster]
+enabled = true
+description = "The feature responsible for posting new releases to Reddit."
+
+[feature.community_feedback]
+enabled = true
+description = "The feature for checking comments on Reddit posts for feedback."

@@ -18,7 +18,7 @@ Available Placeholders:
 | {{initial_status}}          | The full, formatted initial status line for the post.    |
 <!-- TUTORIAL-END -->
 
-# **[⬇️ Download MonetizationVars for BitLife]({{direct_download_url_bitlife}})**  
+# **[⬇️ Download MonetizationVars for BitLife]({{direct_download_url_bitlife}})**
 # **[⬇️ Download MonetizationVars for BitLife Go]({{direct_download_url_bitlife_go}})**
 
 > ⚠️ **Important:** Ensure the downloaded file is named exactly `{{asset_name}}` before installation.
@@ -29,8 +29,8 @@ Available Placeholders:
 ---
 
 ## 🔧 Project Information
-**Creator:** u/{{creator_username}}  
-**Repository:** [{{bot_repo}}](https://github.com/{{bot_repo}})  
+**Creator:** u/{{creator_username}}
+**Repository:** [{{bot_repo}}](https://github.com/{{bot_repo}})
 **Bot:** [{{bot_name}}](https://github.com/{{bot_repo}})
 
 ## 🛠️ Related Projects

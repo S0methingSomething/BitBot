@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/settings.py
+# hypothesis_version: 6.136.2
+
+['config.toml']

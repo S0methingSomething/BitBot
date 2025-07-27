@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/core.py
+# hypothesis_version: 6.136.2
+
+['GET', 'GitHubClient', 'WorkspaceService', 'bot_state.json', 'config.toml', 'content_len', 'enabled', 'feature', 'features.toml', 'file:read', 'file:write', 'kwargs', 'method', 'network:call', 'path', 'templates/', 'url']

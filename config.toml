@@ -1,0 +1,22 @@
+# BitBot Configuration File
+# This file is the central control panel for the bot.
+
+[github]
+source_repo = "S0methingSomething/BitEdit"
+bot_repo = "S0methingSomething/BitBot"
+asset_file_name = "MonetizationVars"
+
+[reddit]
+subreddit = "BitTest1"
+post_style = "landing_page" # "direct_links" or "landing_page"
+max_outbound_links_warning = 5
+post_title_template = "[BitBot] MonetizationVars for {{app_name}} v{{version}}"
+creator_username = "C1oudyLol"
+
+[[apps]]
+id = "bitlife"
+display_name = "BitLife"
+
+[[apps]]
+id = "bitlife_go"
+display_name = "BitLife Go"

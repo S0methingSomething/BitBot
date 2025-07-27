@@ -1,0 +1,25 @@
+Metadata-Version: 2.4
+Name: bitbot
+Version: 1.0.0
+Summary: A Reddit bot for managing and posting GitHub releases.
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: mypy; extra == "dev"
+Requires-Dist: xenon; extra == "dev"
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-asyncio; extra == "dev"
+Requires-Dist: pytest-mock; extra == "dev"
+Requires-Dist: hypothesis; extra == "dev"
+Requires-Dist: uv; extra == "dev"
+Requires-Dist: pre-commit; extra == "dev"
+Requires-Dist: tomlkit; extra == "dev"
+Requires-Dist: pydantic-settings; extra == "dev"
+Requires-Dist: httpx[http2]; extra == "dev"
+Requires-Dist: asyncpraw; extra == "dev"
+Requires-Dist: typer; extra == "dev"

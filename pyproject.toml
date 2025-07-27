@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bitbot"
+version = "1.0.0"
+description = "A Reddit bot for managing and posting GitHub releases."
+readme = "README.md"
+requires-python = ">=3.13"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+# Define dependencies here later as we need them.
+# [project.dependencies]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "black",
+    "mypy",
+    "xenon",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-mock",
+    "hypothesis",
+    "uv",
+    "pre-commit",
+    "tomlkit",
+    "pydantic-settings",
+    "httpx[http2]",
+    "asyncpraw",
+    "typer",
+]
+
+[project.scripts]
+bitbot = "bitbot.main:app"
+
+[tool.black]
+line-length = 88
+target-version = ['py313']
+
+[tool.ruff]
+line-length = 88
+select = ["E", "W", "F", "I", "C", "B"]
+ignore = ["B008"] # Allow function calls in default arguments (for Typer/Pydantic)
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true # We will tighten this later
+
+[tool.xenon]
+max-absolute = "B"  # A=OK, B=Warning, C=Error
+max-modules = "A"
+max-average = "A"
+exclude = ["src/bitbot/main.py"] # CLIs can sometimes be complex
