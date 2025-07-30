@@ -1,0 +1,34 @@
+name: '[Manual] Migrate Legacy Release Titles'
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Set to "true" to run the migration. This will rename old releases.'
+        required: true
+        default: 'false'
+
+jobs:
+  migrate_legacy_releases:
+    name: Mark Legacy Releases as Outdated
+    if: ${{ github.event.inputs.confirm == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies with uv
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt --system
+
+      - name: Run Legacy Release Migrator
+        working-directory: ./src
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python legacy_release_migrator.py
