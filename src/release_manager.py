@@ -7,8 +7,7 @@ from typing import List, Dict, Optional, Tuple
 
 # --- Configuration ---
 CONFIG_FILE = 'config.toml'
-PROCESS_VARS_SCRIPT = 'process_vars.js'
-DOWNLOAD_DIR = './dist'
+DOWNLOAD_DIR = 'dist'
 
 # --- Helper Functions ---
 
@@ -114,10 +113,10 @@ def download_asset(source_repo: str, release_id: int, asset_name: str) -> str:
     return output_path
 
 def patch_file(original_path: str, asset_name: str) -> str:
-    """Patches the downloaded file using the Node.js script."""
+    """Patches the downloaded file using the new Python script."""
     patched_path = os.path.join(DOWNLOAD_DIR, asset_name)
-    print(f"Patching '{original_path}' to '{patched_path}'")
-    run_command(['node', PROCESS_VARS_SCRIPT, original_path, patched_path])
+    print(f"Patching '{original_path}' to '{patched_path}' with Python script.")
+    run_command(['python', 'src/patch_file.py', original_path, patched_path])
     return patched_path
 
 def create_bot_release(bot_repo: str, tag: str, title: str, notes: str, file_path: str):
