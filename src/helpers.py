@@ -11,7 +11,7 @@ from typing import List, Dict
 def load_config() -> Dict:
     """Loads the main configuration file (config.toml)."""
     try:
-        with open('config.toml', 'r') as f:
+        with open('../config.toml', 'r') as f:
             return toml.load(f)
     except FileNotFoundError:
         print("::error::`config.toml` not found. Please ensure the file exists.", file=sys.stderr)
@@ -23,7 +23,7 @@ def load_config() -> Dict:
 def load_bot_state() -> Dict:
     """Loads the bot's current monitoring state (bot_state.json)."""
     try:
-        with open("bot_state.json", "r") as f:
+        with open("../bot_state.json", "r") as f:
             return json.load(f)
     except FileNotFoundError:
         print("::warning::`bot_state.json` not found. Returning empty state.")
@@ -34,7 +34,7 @@ def load_bot_state() -> Dict:
 
 def save_bot_state(data: Dict):
     """Saves the bot's monitoring state."""
-    with open("bot_state.json", "w") as f:
+    with open("../bot_state.json", "w") as f:
         json.dump(data, f, indent=2)
 
 # --- Reddit Client and Post Management ---

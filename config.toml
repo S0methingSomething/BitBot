@@ -7,17 +7,19 @@ assetFileName = "MonetizationVars"
 # Settings for posting and managing Reddit content.
 [reddit]
 subreddit = "BitTest1"
-templateFile = "post_template.md"
-outdatedTemplateFile = "outdated_template.md"
-postTitle = "[BitBot] MonetizationVars for BitLife v{{version}}"
+templateFile = "templates/post_template.md"
+outdatedTemplateFile = "templates/outdated_template.md"
+postTitle = "[BitBot] New MonetizationVars Release"
+changelog_line_format = "* Updated {{display_name}} {{asset_name}} to version {{version}}"
 botName = "BitBot"
 creator = "C1oudyLol"
 postMode = "direct_link" # Can be "direct_link" or "landing_page"
+# custom_landing_template = "templates/landing_page.html" # Optional: Uncomment to use a custom HTML template.
 
 # Controls how old posts are marked. mode can be 'overwrite' or 'inject'.
 [outdatedPostHandling]
 mode = "inject"
-injectTemplateFile = "inject_template.md"
+injectTemplateFile = "templates/inject_template.md"
 
 # Text formats for GitHub releases.
 [messages]

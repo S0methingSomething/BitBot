@@ -18,8 +18,8 @@ Available Placeholders:
 | {{initial_status}}          | The full, formatted initial status line for the post.    |
 <!-- TUTORIAL-END -->
 
-# **[⬇️ Download MonetizationVars for BitLife]({{direct_download_url_bitlife}})**  
-# **[⬇️ Download MonetizationVars for BitLife Go]({{direct_download_url_bitlife_go}})**
+## Changelog
+{{changelog}}
 
 > ⚠️ **Important:** Ensure the downloaded file is named exactly `{{asset_name}}` before installation.
 

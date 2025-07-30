@@ -18,24 +18,21 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       
-      - name: Install Dependencies
-        run: pip install -r requirements.txt
+      - name: Install Dependencies with uv
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt
       
       - name: Run Release Manager
         id: manager
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python release_manager.py
+        run: python src/release_manager.py
 
       - name: Upload release data artifact
         if: steps.manager.outputs.new_releases_found == 'true'
@@ -67,7 +64,7 @@ jobs:
         run: pip install toml
 
       - name: Generate Static Page
-        run: python page_generator.py
+        run: python src/page_generator.py
 
       - name: Upload Pages Artifact
         uses: actions/upload-artifact@v4
@@ -88,8 +85,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
-        run: pip install -r requirements.txt
+      - name: Install Dependencies with uv
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt
 
       - name: Post / Update Reddit
         env:
@@ -101,7 +100,4 @@ jobs:
         run: |
           # The page URL is now deterministic based on the repository name
           PAGE_URL="https://s0methingsomething.github.io/BitBot/"
-          python post_to_reddit.py \
-            --version "${{ needs.manage_releases.outputs.version }}" \
-            --urls '${{ needs.manage_releases.outputs.urls }}' \
-            --page-url "$PAGE_URL"
+          python src/post_to_reddit.py --page-url "$PAGE_URL"

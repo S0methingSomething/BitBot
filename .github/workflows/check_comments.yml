@@ -23,7 +23,9 @@ jobs:
           python-version: '3.10'
       
       - name: Install Python Dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt
 
       - name: Run Comment Checker
         id: checker
@@ -33,7 +35,7 @@ jobs:
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        run: python check_comments.py
+        run: python src/check_comments.py
 
       # This step is for manually triggering a re-run if the state changed.
       # It helps ensure the adaptive timer works well with GitHub's scheduler.
