@@ -1,22 +1,18 @@
 import json
 import os
 
+from helpers import load_config
+
 def main():
     """
     Generates a static HTML page from release data and a template.
     """
-    config_path = 'config.toml'
+    config = load_config()
     releases_path = 'dist/releases.json'
     template_path = 'page_template.html'
     output_path = 'dist/index.html'
 
-    # Simple config parsing to get bot repo
-    bot_repo = ''
-    with open(config_path, 'r') as f:
-        for line in f:
-            if line.strip().startswith('botRepo'):
-                bot_repo = line.split('=')[1].strip().strip('"')
-                break
+    bot_repo = config.get('github', {}).get('botRepo', '')
 
     with open(releases_path, 'r') as f:
         releases_data = json.load(f)

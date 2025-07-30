@@ -1,25 +1,8 @@
 import os
 import sys
-import json
 import re
-import praw
-import toml
 from datetime import datetime, timezone, timedelta
-
-def load_config():
-    """Loads the main configuration file."""
-    with open("config.toml", "r") as f:
-        return toml.load(f)
-
-def load_state():
-    """Loads the bot's current monitoring state."""
-    with open("bot_state.json", "r") as f:
-        return json.load(f)
-
-def save_state(data):
-    """Saves the bot's monitoring state."""
-    with open("bot_state.json", "w") as f:
-        json.dump(data, f, indent=2)
+from helpers import load_config, load_bot_state, save_bot_state, init_reddit
 
 def main():
     """
@@ -27,33 +10,29 @@ def main():
     updates the post status with an adaptive timer.
     """
     config = load_config()
-    state = load_state()
+    state = load_bot_state()
     state_was_meaningfully_updated = False
 
-    if not state.get("activePostId"):
+    active_post_id = state.get("activePostId")
+    if not active_post_id:
         print("No active post ID in state file. Exiting pulse.")
         sys.exit(0)
 
     now = datetime.now(timezone.utc)
-    last_check = datetime.fromisoformat(state["lastCheckTimestamp"].replace("Z", "+00:00"))
+    last_check_str = state.get("lastCheckTimestamp", "2000-01-01T00:00:00Z")
+    last_check = datetime.fromisoformat(last_check_str.replace("Z", "+00:00"))
     
-    if now < (last_check + timedelta(seconds=state["currentIntervalSeconds"])):
-        # Corrected line with fixed parenthesis placement.
-        print(f"Not time yet. Next check in {int(((last_check + timedelta(seconds=state['currentIntervalSeconds'])) - now).total_seconds())}s.")
+    current_interval = state.get("currentIntervalSeconds", config["timing"]["firstCheck"])
+    if now < (last_check + timedelta(seconds=current_interval)):
+        print(f"Not time yet. Next check in {int(((last_check + timedelta(seconds=current_interval)) - now).total_seconds())}s.")
         with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
             print("state_changed=false", file=f)
         sys.exit(0)
 
-    print(f"Time for a real check on post: {state['activePostId']}")
+    print(f"Time for a real check on post: {active_post_id}")
     try:
-        reddit = praw.Reddit(
-            client_id=os.environ["REDDIT_CLIENT_ID"],
-            client_secret=os.environ["REDDIT_CLIENT_SECRET"],
-            user_agent=os.environ["REDDIT_USER_AGENT"],
-            username=os.environ["REDDIT_USERNAME"],
-            password=os.environ["REDDIT_PASSWORD"],
-        )
-        submission = reddit.submission(id=state["activePostId"])
+        reddit = init_reddit(config)
+        submission = reddit.submission(id=active_post_id)
         submission.comments.replace_more(limit=0)
         comments = submission.comments.list()
         
@@ -84,15 +63,16 @@ def main():
         else:
             print("Status is already correct.")
 
-        if len(comments) > state["lastCommentCount"]:
+        last_comment_count = state.get("lastCommentCount", 0)
+        if len(comments) > last_comment_count:
             state["currentIntervalSeconds"] = config["timing"]["firstCheck"]
             state_was_meaningfully_updated = True
         else:
-            if state["currentIntervalSeconds"] < config["timing"]["maxWait"]:
-                state["currentIntervalSeconds"] = min(config["timing"]["maxWait"], state["currentIntervalSeconds"] + config["timing"]["increaseBy"])
+            if current_interval < config["timing"]["maxWait"]:
+                state["currentIntervalSeconds"] = min(config["timing"]["maxWait"], current_interval + config["timing"]["increaseBy"])
                 state_was_meaningfully_updated = True
 
-        if state["lastCommentCount"] != len(comments):
+        if last_comment_count != len(comments):
             state["lastCommentCount"] = len(comments)
             state_was_meaningfully_updated = True
 
@@ -102,13 +82,13 @@ def main():
         state["lastCheckTimestamp"] = now.isoformat().replace("+00:00", "Z")
         if state_was_meaningfully_updated:
             print("Meaningful state change detected. Saving state file.")
-            save_state(state)
+            save_bot_state(state)
         else:
             print("No meaningful state change detected. Skipping file write.")
 
         with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
             print(f"state_changed={str(state_was_meaningfully_updated).lower()}", file=f)
-        print(f"Pulse check complete. Next interval: {state['currentIntervalSeconds']}s")
+        print(f"Pulse check complete. Next interval: {state.get('currentIntervalSeconds', config['timing']['firstCheck'])}s")
 
 if __name__ == "__main__":
     main()

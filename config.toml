@@ -49,6 +49,12 @@ firstCheck = 300
 maxWait = 3600
 increaseBy = 300
 
+# Defines the keys to look for when parsing release descriptions.
+[parsing]
+app_key = "app"
+version_key = "version"
+asset_name_key = "asset_name"
+
 # Configuration for each app the bot manages.
 [[apps]]
 id = "bitlife"
