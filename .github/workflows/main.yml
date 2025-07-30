@@ -35,16 +35,41 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python release_manager.py
 
+      gather_releases:
+    needs: manage_releases
+    runs-on: ubuntu-latest
+    outputs:
+      new_releases_found: ${{ steps.gatherer.outputs.new_releases_found }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install Dependencies with uv
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt --system
+
+      - name: Gather All Bot Releases for Posting
+        id: gatherer
+        working-directory: ./src
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python gather_post_data.py
+
       - name: Upload release data artifact
-        if: steps.manager.outputs.new_releases_found == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: release-data
           path: dist/
 
   generate_page:
-    needs: manage_releases
-    if: needs.manage_releases.outputs.new_releases_found == 'true'
+    needs: gather_releases
+    if: needs.gather_releases.outputs.new_releases_found == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -77,8 +102,8 @@ jobs:
           path: dist/index.html
   
   post_to_reddit:
-    needs: [manage_releases, generate_page]
-    if: needs.manage_releases.outputs.new_releases_found == 'true'
+    needs: [gather_releases, generate_page]
+    if: needs.gather_releases.outputs.new_releases_found == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
