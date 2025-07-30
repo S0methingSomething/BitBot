@@ -26,7 +26,7 @@ jobs:
       - name: Install Dependencies with uv
         run: |
           pip install uv
-          uv pip install -r requirements.txt
+          uv pip install -r requirements.txt --system
       
       - name: Run Release Manager
         id: manager
@@ -88,7 +88,7 @@ jobs:
       - name: Install Dependencies with uv
         run: |
           pip install uv
-          uv pip install -r requirements.txt
+          uv pip install -r requirements.txt --system
 
       - name: Post / Update Reddit
         env:
