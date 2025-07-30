@@ -4,10 +4,11 @@ import json
 import re
 import requests
 import praw
+import toml
 
 def _load_config():
-    with open('config.json', 'r') as f:
-        return json.load(f)
+    with open('config.toml', 'r') as f:
+        return toml.load(f)
 
 def _get_latest_bot_release(config, token):
     bot_repo = config['github']['botRepo']

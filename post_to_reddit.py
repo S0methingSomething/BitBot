@@ -4,11 +4,12 @@ import json
 import re
 import argparse
 import praw
+import toml
 
 def _load_config():
     """Loads the main configuration file."""
-    with open('config.json', 'r') as f:
-        return json.load(f)
+    with open('config.toml', 'r') as f:
+        return toml.load(f)
 
 def _get_bot_posts_on_subreddit(reddit, config):
     """Fetches all of the bot's release posts from the configured subreddit."""
@@ -29,7 +30,7 @@ def _get_bot_posts_on_subreddit(reddit, config):
 def _update_older_posts(older_posts, latest_release_details, config):
     """
     Updates older posts by either overwriting them or injecting/updating a banner,
-    based on the configuration in config.json.
+    based on the configuration.
     """
     handling_config = config.get('outdatedPostHandling', {})
     mode = handling_config.get('mode', 'overwrite')
@@ -76,25 +77,19 @@ def _update_older_posts(older_posts, latest_release_details, config):
             
             try:
                 if existence_check_string in original_body:
-                    print(f"-> Replacing outdated banner in post {old_post.id}.")
                     pattern = re.compile(f"^{re.escape(existence_check_string)}.*?---", re.DOTALL | re.MULTILINE)
                     new_body = pattern.sub(f"{injection_banner}\n\n---", original_body, 1)
                 else:
-                    print(f"-> Injecting new outdated banner into post {old_post.id}.")
                     new_body = f"{injection_banner}\n\n---\n\n{original_body}"
                 
                 if new_body.strip() and new_body != original_body:
                     old_post.edit(body=new_body)
                     updated_count += 1
-                else:
-                    print(f"-> Post {old_post.id} did not need updating.")
-
             except Exception as e:
                 print(f"::warning::Failed to update banner in post {old_post.id}: {e}")
     
         if updated_count > 0: print(f"Successfully updated banner in {updated_count} older posts.")
-    else: # Overwrite mode
-        # ... (This logic is fine)
+    else: # Overwrite mode is not implemented in this version
         pass
 
 def _update_bot_state(post_id, config):
@@ -105,11 +100,10 @@ def _update_bot_state(post_id, config):
     with open('bot_state.json', 'w') as f:
         json.dump(new_state, f, indent=2)
 
-def _post_new_release(reddit, version, urls, config):
+def _post_new_release(reddit, version, urls, page_url, config):
     with open(config['reddit']['templateFile'], 'r') as f:
         raw_template = f.read()
 
-    # 1. Strip the tutorial/comment block as usual
     ignore_block = config.get('skipContent', {})
     start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
     if start_marker and end_marker and start_marker in raw_template:
@@ -118,33 +112,34 @@ def _post_new_release(reddit, version, urls, config):
     else:
         clean_template = raw_template
 
-    # 2. **HARDENED FIX**: Forcefully remove any "Outdated" banner from the new post template
-    existence_check_string = "## ⚠️ Outdated Post"
-    if existence_check_string in clean_template:
-        print("::warning:: The main post template contained an 'Outdated Post' banner. It has been automatically removed.")
-        banner_pattern = re.compile(f"^{re.escape(existence_check_string)}.*?---", re.DOTALL | re.MULTILINE)
-        post_body_template = banner_pattern.sub("", clean_template).strip()
-    else:
-        post_body_template = clean_template.strip()
-
-    # 3. Proceed with posting the truly clean template
+    post_body_template = clean_template.strip()
     initial_status_line = config['feedback']['statusLineFormat'].replace("{{status}}", config['feedback']['labels']['unknown'])
+    
     placeholders = {
         "{{version}}": version,
-        "{{bot_name}}": config['reddit']['botName'], "{{bot_repo}}": config['github']['botRepo'],
-        "{{asset_name}}": config['github']['assetFileName'], "{{creator_username}}": config['reddit']['creator'],
-        "{{initial_status}}": initial_status_line
+        "{{bot_name}}": config['reddit']['botName'],
+        "{{bot_repo}}": config['github']['botRepo'],
+        "{{asset_name}}": config['github']['assetFileName'],
+        "{{creator_username}}": config['reddit']['creator'],
+        "{{initial_status}}": initial_status_line,
     }
-    
-    url_map = json.loads(urls)
-    for app in config["apps"]:
-        placeholders[f"direct_download_url_{app['id']}"] = url_map[app["id"]]
+
+    post_mode = config['reddit'].get('postMode', 'direct_link')
+    if post_mode == 'landing_page':
+        print("Post mode is 'landing_page'. Using portal URL.")
+        placeholders["{{download_portal_url}}"] = page_url
+    else:
+        print("Post mode is 'direct_link'. Using direct URLs.")
+        url_map = json.loads(urls)
+        for app in config["apps"]:
+            app_id = app['id']
+            placeholders[f"direct_download_url_{app_id}"] = url_map.get(app_id, '')
 
     title = config['reddit']['postTitle']
     post_body = post_body_template
     for placeholder, value in placeholders.items():
-        post_body = post_body.replace(placeholder, value)
-        title = title.replace(placeholder, value)
+        post_body = post_body.replace(placeholder, str(value))
+        title = title.replace(placeholder, str(value))
 
     print(f"Submitting new post for v{version} to r/{config['reddit']['subreddit']}...")
     submission = reddit.subreddit(config['reddit']['subreddit']).submit(title, selftext=post_body)
@@ -155,25 +150,29 @@ def main():
     parser = argparse.ArgumentParser(description="Post a new release to Reddit.")
     parser.add_argument('--version', required=True)
     parser.add_argument('--urls', required=True)
+    parser.add_argument('--page-url', required=False, default='', help="URL to the GitHub Pages landing page.")
     args = parser.parse_args()
     config = _load_config()
 
     print("Authenticating with Reddit...")
     reddit = praw.Reddit(
-        client_id=os.environ["REDDIT_CLIENT_ID"], client_secret=os.environ["REDDIT_CLIENT_SECRET"],
-        user_agent=os.environ["REDDIT_USER_AGENT"], username=os.environ["REDDIT_USERNAME"],
+        client_id=os.environ["REDDIT_CLIENT_ID"],
+        client_secret=os.environ["REDDIT_CLIENT_SECRET"],
+        user_agent=os.environ["REDDIT_USER_AGENT"],
+        username=os.environ["REDDIT_USERNAME"],
         password=os.environ["REDDIT_PASSWORD"],
         validate_on_submit=True,
     )
 
     print("Fetching existing posts to prepare for update...")
     existing_posts = _get_bot_posts_on_subreddit(reddit, config)
-    new_submission = _post_new_release(reddit, args.version, args.urls, config)
+    new_submission = _post_new_release(reddit, args.version, args.urls, args.page_url, config)
 
     if existing_posts:
         print(f"Found {len(existing_posts)} older post(s) to update.")
         latest_release_details = {
-            "title": new_submission.title, "url": new_submission.shortlink,
+            "title": new_submission.title,
+            "url": new_submission.shortlink,
             "version": args.version
         }
         _update_older_posts(existing_posts, latest_release_details, config)

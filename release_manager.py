@@ -2,10 +2,11 @@ import os
 import re
 import json
 import subprocess
+import toml
 from typing import List, Dict, Optional, Tuple
 
 # --- Configuration ---
-CONFIG_FILE = 'config.json'
+CONFIG_FILE = 'config.toml'
 PROCESS_VARS_SCRIPT = 'process_vars.js'
 DOWNLOAD_DIR = './dist'
 
@@ -19,7 +20,7 @@ def run_command(command: List[str], check: bool = True) -> subprocess.CompletedP
 def load_config() -> Dict:
     """Loads the configuration file."""
     with open(CONFIG_FILE, 'r') as f:
-        return json.load(f)
+        return toml.load(f)
 
 def get_github_data(url: str) -> Dict | List:
     """Fetches data from the GitHub API using the gh cli."""
@@ -34,20 +35,52 @@ def get_source_releases(repo: str) -> List[Dict]:
     print(f"Fetching latest releases from source repo: {repo}")
     return get_github_data(f"/repos/{repo}/releases?per_page=30")
 
-def parse_release_description(description: str, apps_config: List[Dict]) -> Optional[Tuple[str, str]]:
+def parse_release_description(description: str, apps_config: List[Dict]) -> List[Dict]:
     """
-    Parses a release description to find the app name and version.
-    Example: "MonetizationVars for BitLife v3.19.4"
+    Parses a release description with a structured key-value format.
+    Example:
+    app: bitlife
+    version: 3.20
+    asset_name: MonetizationVars
+
+    app: catlife
+    version: 1.5
+    asset_name: MonetizationVars
     """
-    for app in apps_config:
-        display_name = app['displayName']
-        # Regex to find "for <AppName> v<version>"
-        match = re.search(f"for {re.escape(display_name)} v([\\d\\.]+)", description, re.IGNORECASE)
-        if match:
-            version = match.group(1)
-            print(f"Found app '{display_name}' with version '{version}' in description.")
-            return (app['id'], version)
-    return None
+    found_releases = []
+    current_release = {}
+    app_id_map = {app['displayName'].lower(): app['id'] for app in apps_config}
+
+    for line in description.splitlines():
+        line = line.strip()
+        if not line:
+            if current_release:
+                found_releases.append(current_release)
+                current_release = {}
+            continue
+
+        try:
+            key, value = line.split(':', 1)
+            key = key.strip().lower()
+            value = value.strip()
+
+            if key == 'app':
+                if current_release: # Start of a new app block
+                    found_releases.append(current_release)
+                current_release = {'app_id': app_id_map.get(value.lower()), 'display_name': value}
+            elif key == 'version':
+                current_release['version'] = value
+            elif key == 'asset_name':
+                current_release['asset_name'] = value
+        except ValueError:
+            # Ignore lines that don't match the key-value format
+            continue
+    
+    if current_release:
+        found_releases.append(current_release)
+
+    print(f"Found {len(found_releases)} app update(s) in description.")
+    return found_releases
 
 def check_if_bot_release_exists(bot_repo: str, tag: str) -> bool:
     """Checks if a release with the given tag exists in the bot repo."""
@@ -106,67 +139,74 @@ def main():
     config = load_config()
     source_repo = config['github']['sourceRepo']
     bot_repo = config['github']['botRepo']
-    asset_name = config['github']['assetFileName']
     apps_config = config['apps']
 
     source_releases = get_source_releases(source_repo)
-    new_releases_for_reddit = {}
+    processed_releases = {}
     primary_version_for_title = None
+    version_for_fallback = None
 
     for release in source_releases:
         description = release.get('body', '')
         if not description:
             continue
 
-        parsed_info = parse_release_description(description, apps_config)
-        if not parsed_info:
+        parsed_releases = parse_release_description(description, apps_config)
+        if not parsed_releases:
             continue
 
-        app_id, version = parsed_info
-        app_config = next((app for app in apps_config if app['id'] == app_id), None)
-        if not app_config:
-            continue
+        for parsed_info in parsed_releases:
+            app_id = parsed_info.get('app_id')
+            version = parsed_info.get('version')
+            asset_name = parsed_info.get('asset_name')
+            display_name = parsed_info.get('display_name')
+            version_for_fallback = version # Keep track of the last seen version
 
-        # Construct the tag for the BitBot release
-        bot_release_tag = f"{app_id}-v{version}"
+            if not all([app_id, version, asset_name, display_name]):
+                print(f"::warning::Skipping incomplete release info: {parsed_info}")
+                continue
 
-        if not check_if_bot_release_exists(bot_repo, bot_release_tag):
-            try:
-                # 1. Download
-                original_file = download_asset(source_repo, release['id'], asset_name)
-                
-                # 2. Patch
-                patched_file = patch_file(original_file, asset_name)
+            bot_release_tag = f"{app_id}-v{version}"
 
-                # 3. Create Release
-                release_title = f"{app_config['displayName']} {asset_name} v{version}"
-                release_notes = f"Auto-patched {asset_name} for {app_config['displayName']} from source release {release['tag_name']}."
-                create_bot_release(bot_repo, bot_release_tag, release_title, release_notes, patched_file)
-                
-                # 4. Store info for Reddit post
-                download_url = f"https://github.com/{bot_repo}/releases/download/{bot_release_tag}/{asset_name}"
-                new_releases_for_reddit[app_id] = download_url
+            if not check_if_bot_release_exists(bot_repo, bot_release_tag):
+                try:
+                    original_file = download_asset(source_repo, release['id'], asset_name)
+                    patched_file = patch_file(original_file, asset_name)
+                    
+                    release_title = f"{display_name} {asset_name} v{version}"
+                    release_notes = f"Auto-patched {asset_name} for {display_name} from source release {release['tag_name']}."
+                    create_bot_release(bot_repo, bot_release_tag, release_title, release_notes, patched_file)
+                    
+                    download_url = f"https://github.com/{bot_repo}/releases/download/{bot_release_tag}/{asset_name}"
+                    processed_releases[app_id] = {
+                        "display_name": display_name,
+                        "version": version,
+                        "url": download_url
+                    }
 
-                # Set the primary version for the Reddit post title (Option A)
-                if app_id == 'bitlife':
-                    primary_version_for_title = version
+                    if app_id == 'bitlife':
+                        primary_version_for_title = version
 
-            except Exception as e:
-                print(f"::error::Failed to process release {release['tag_name']} for app {app_id}. Reason: {e}")
+                except Exception as e:
+                    print(f"::error::Failed to process release {release['tag_name']} for app {app_id}. Reason: {e}")
 
-    # If no primary version was found but other apps were updated, use the latest version found.
-    if not primary_version_for_title and new_releases_for_reddit:
-        # Fallback logic: find the version from the last processed app
-        # This part is tricky and depends on desired behavior. A simple fallback:
-        last_processed_tag = f"{app_id}-v{version}" # from the last loop
-        primary_version_for_title = version
-        print(f"::warning::BitLife version not found. Using fallback version '{version}' for Reddit title.")
+    if not primary_version_for_title and processed_releases:
+        primary_version_for_title = version_for_fallback
+        print(f"::warning::BitLife version not found. Using fallback version '{version_for_fallback}' for Reddit title.")
 
+    if processed_releases:
+        print("New releases were created. Saving data and setting outputs.")
+        
+        # Save the detailed data to a JSON file for other jobs
+        output_dir = './dist'
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, 'releases.json'), 'w') as f:
+            json.dump(processed_releases, f, indent=2)
 
-    # Output for the next GitHub Actions step
-    if new_releases_for_reddit:
-        print("New releases were created. Setting outputs for Reddit job.")
-        urls_json = json.dumps(new_releases_for_reddit)
+        # Keep the simple URL map for the direct_link mode for now
+        urls_for_output = {app_id: data['url'] for app_id, data in processed_releases.items()}
+        urls_json = json.dumps(urls_for_output)
+
         with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
             print(f"new_releases_found=true", file=f)
             print(f"version={primary_version_for_title}", file=f)
