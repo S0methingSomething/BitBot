@@ -61,8 +61,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
-        run: pip install toml
+      - name: Install Dependencies with uv
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt --system
 
       - name: Generate Static Page
         working-directory: ./src
