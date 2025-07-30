@@ -116,7 +116,7 @@ def patch_file(original_path: str, asset_name: str) -> str:
     """Patches the downloaded file using the new Python script."""
     patched_path = os.path.join(DOWNLOAD_DIR, asset_name)
     print(f"Patching '{original_path}' to '{patched_path}' with Python script.")
-    run_command(['python', 'src/patch_file.py', original_path, patched_path])
+    run_command(['python', 'patch_file.py', original_path, patched_path])
     return patched_path
 
 def create_bot_release(bot_repo: str, tag: str, title: str, notes: str, file_path: str):

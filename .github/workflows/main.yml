@@ -30,9 +30,10 @@ jobs:
       
       - name: Run Release Manager
         id: manager
+        working-directory: ./src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python src/release_manager.py
+        run: python release_manager.py
 
       - name: Upload release data artifact
         if: steps.manager.outputs.new_releases_found == 'true'
@@ -64,7 +65,8 @@ jobs:
         run: pip install toml
 
       - name: Generate Static Page
-        run: python src/page_generator.py
+        working-directory: ./src
+        run: python page_generator.py
 
       - name: Upload Pages Artifact
         uses: actions/upload-artifact@v4
@@ -91,6 +93,7 @@ jobs:
           uv pip install -r requirements.txt --system
 
       - name: Post / Update Reddit
+        working-directory: ./src
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
@@ -100,4 +103,4 @@ jobs:
         run: |
           # The page URL is now deterministic based on the repository name
           PAGE_URL="https://s0methingsomething.github.io/BitBot/"
-          python src/post_to_reddit.py --page-url "$PAGE_URL"
+          python post_to_reddit.py --page-url "$PAGE_URL"

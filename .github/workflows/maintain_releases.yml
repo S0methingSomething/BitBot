@@ -19,6 +19,7 @@ jobs:
           pip install uv
           uv pip install -r requirements.txt --system
       - name: Run Release Title Updater Script
+        working-directory: ./src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python src/maintain_releases.py
+        run: python maintain_releases.py
