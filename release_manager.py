@@ -17,10 +17,7 @@ def run_command(command: List[str], check: bool = True) -> subprocess.CompletedP
     print(f"Executing: {' '.join(command)}")
     return subprocess.run(command, capture_output=True, text=True, check=check)
 
-def load_config() -> Dict:
-    """Loads the configuration file."""
-    with open(CONFIG_FILE, 'r') as f:
-        return toml.load(f)
+from helpers import load_config
 
 def get_github_data(url: str) -> Dict | List:
     """Fetches data from the GitHub API using the gh cli."""
@@ -39,12 +36,8 @@ def parse_release_description(description: str, apps_config: List[Dict]) -> List
     """
     Parses a release description with a structured key-value format.
     Example:
-    app: bitlife
+    app: BitLife
     version: 3.20
-    asset_name: MonetizationVars
-
-    app: catlife
-    version: 1.5
     asset_name: MonetizationVars
     """
     found_releases = []
@@ -67,19 +60,24 @@ def parse_release_description(description: str, apps_config: List[Dict]) -> List
             if key == 'app':
                 if current_release: # Start of a new app block
                     found_releases.append(current_release)
-                current_release = {'app_id': app_id_map.get(value.lower()), 'display_name': value}
-            elif key == 'version':
-                current_release['version'] = value
-            elif key == 'asset_name':
-                current_release['asset_name'] = value
+                # Check if the app is one we manage
+                app_id = app_id_map.get(value.lower())
+                if app_id:
+                    current_release = {'app_id': app_id, 'display_name': value}
+                else:
+                    current_release = {} # Not a recognized app, reset
+            elif current_release: # Only process version/asset if we are in a valid app block
+                if key == 'version':
+                    current_release['version'] = value
+                elif key == 'asset_name':
+                    current_release['asset_name'] = value
         except ValueError:
-            # Ignore lines that don't match the key-value format
             continue
     
     if current_release:
         found_releases.append(current_release)
 
-    print(f"Found {len(found_releases)} app update(s) in description.")
+    print(f"Found {len(found_releases)} recognized app update(s) in description.")
     return found_releases
 
 def check_if_bot_release_exists(bot_repo: str, tag: str) -> bool:
