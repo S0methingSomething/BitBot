@@ -26,14 +26,18 @@ def main():
         print(f"::error::Could not fetch releases: {e}", file=sys.stderr)
         sys.exit(1)
     
-    if not releases or len(releases) < 2:
-        print("Not enough releases to mark any as outdated. Exiting.")
+    # A legacy release is defined by having a version in the tag like '-v1.2.3'
+    # The new generic releases do not have this pattern.
+    non_legacy_releases = [r for r in releases if "-v" not in r.get('tag_name', '')]
+    
+    if not non_legacy_releases or len(non_legacy_releases) < 2:
+        print("Not enough non-legacy releases to mark any as outdated. Exiting.")
         sys.exit(0)
     
-    latest_release_id = releases[0]['id']
-    older_releases = releases[1:]
+    latest_release = non_legacy_releases[0]
+    older_releases = non_legacy_releases[1:]
     
-    print(f"Latest release is {releases[0]['tag_name']}. Checking {len(older_releases)} older release(s).")
+    print(f"Latest non-legacy release is {latest_release['tag_name']}. Checking {len(older_releases)} older non-legacy release(s).")
     
     updated_count = 0
     for release in older_releases:
@@ -43,7 +47,7 @@ def main():
         if current_title.startswith('[OUTDATED] '):
             continue
         
-        print(f"Updating release '{current_title}'...")
+        print(f"Updating non-legacy release '{current_title}'...")
         
         new_title = f"[OUTDATED] {current_title}"
         update_url = f"https://api.github.com/repos/{bot_repo}/releases/{release_id}"

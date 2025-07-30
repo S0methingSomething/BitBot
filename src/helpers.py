@@ -37,6 +37,20 @@ def save_bot_state(data: Dict):
     with open("../bot_state.json", "w") as f:
         json.dump(data, f, indent=2)
 
+def load_release_state() -> List[int]:
+    """Loads the list of processed source release IDs."""
+    try:
+        with open("../release_state.json", "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+def save_release_state(data: List[int]):
+    """Saves the list of processed source release IDs."""
+    with open("../release_state.json", "w") as f:
+        json.dump(data, f, indent=2)
+
+
 # --- Reddit Client and Post Management ---
 
 def init_reddit(config: Dict) -> praw.Reddit:
@@ -55,15 +69,18 @@ def get_bot_posts(reddit: praw.Reddit, config: Dict) -> List[praw.models.Submiss
     bot_user = reddit.user.me()
     target_subreddit = config['reddit']['subreddit'].lower()
     
-    title_template = config['reddit']['postTitle']
-    asset_name = config['github']['assetFileName']
-    post_identifier = title_template.split('v{{version}}')[0].strip().replace('{{asset_name}}', asset_name)
+    # Legacy format was "[BitBot] MonetizationVars for BitLife v{{version}}"
+    # New format is "[BitBot] New MonetizationVars Release"
+    # A common, unique prefix is "[BitBot] MonetizationVars"
+    post_identifier = "[BitBot] MonetizationVars"
     
     bot_posts = []
     for submission in bot_user.submissions.new(limit=100):
         if (submission.subreddit.display_name.lower() == target_subreddit and 
             submission.title.startswith(post_identifier)):
             bot_posts.append(submission)
+    
+    print(f"Found {len(bot_posts)} posts matching the identifier '{post_identifier}'.")
     return bot_posts
 
 def update_older_posts(older_posts: List[praw.models.Submission], latest_release_details: Dict, config: Dict):
