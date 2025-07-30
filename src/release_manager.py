@@ -193,17 +193,14 @@ def main():
             print(f"Successfully processed {apps_processed_in_this_release} app(s) from source release {release['tag_name']}. State updated.")
 
     if processed_data_for_reddit:
-        print("New releases were created. Saving data for downstream jobs.")
-        os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-        with open(os.path.join(DOWNLOAD_DIR, 'releases.json'), 'w') as f:
-            json.dump(processed_data_for_reddit, f, indent=2)
-
-        with open(os.environ.get('GITHUB_OUTPUT', ''), 'a') as f:
-            print(f"new_releases_found=true", file=f)
+        print(f"Successfully created {len(processed_data_for_reddit)} new bot release(s).")
     else:
         print("No new bot releases were created in this run.")
-        with open(os.environ.get('GITHUB_OUTPUT', ''), 'a') as f:
-            print(f"new_releases_found=false", file=f)
+
+    # This script no longer determines if a post is needed.
+    # It just ensures GitHub releases are up to date.
+    with open(os.environ.get('GITHUB_OUTPUT', ''), 'a') as f:
+        print(f"new_releases_found=true", file=f) # Always true so next step runs
 
 if __name__ == "__main__":
     main()
