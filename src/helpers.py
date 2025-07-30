@@ -50,6 +50,47 @@ def save_release_state(data: List[int]):
     with open("../release_state.json", "w") as f:
         json.dump(data, f, indent=2)
 
+def parse_versions_from_post(post: praw.models.Submission, config: Dict) -> Dict[str, str]:
+    """
+    Parses the versions of all apps from a Reddit post, supporting both legacy
+    and new post formats.
+    """
+    versions = {}
+    apps_config = config.get('apps', [])
+    app_map_by_display_name = {app['displayName'].lower(): app['id'] for app in apps_config}
+
+    # --- New Format: Parse Changelog from Body ---
+    changelog_match = re.search(r"## Changelog\n(.+)", post.selftext, re.DOTALL)
+    if changelog_match:
+        changelog_text = changelog_match.group(1)
+        # Example line: "* Updated BitLife MonetizationVars to version 3.20.1"
+        for line in changelog_text.splitlines():
+            for display_name, app_id in app_map_by_display_name.items():
+                # A flexible regex to find the app name and version on a line
+                version_match = re.search(f"{re.escape(display_name)}.*?to version ([\\d\\.]+)", line, re.IGNORECASE)
+                if version_match:
+                    versions[app_id] = version_match.group(1)
+                    break # Move to the next line once an app is found
+    
+    # --- Legacy Format: Parse from Title ---
+    # If the changelog didn't exist or was empty, try parsing the title.
+    if not versions:
+        # Example title: "[BitBot] MonetizationVars for BitLife v3.19.5"
+        for display_name, app_id in app_map_by_display_name.items():
+            version_match = re.search(f"for {re.escape(display_name)} v([\\d\\.]+)", post.title, re.IGNORECASE)
+            if version_match:
+                versions[app_id] = version_match.group(1)
+                # Legacy posts only ever had one app, so we can stop.
+                break
+    
+    if versions:
+        print(f"Parsed the following versions from post '{post.id}': {versions}")
+    else:
+        print(f"Could not parse any known versions from post '{post.id}'.")
+        
+    return versions
+
+
 
 # --- Reddit Client and Post Management ---
 
