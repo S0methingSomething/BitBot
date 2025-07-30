@@ -3,12 +3,13 @@ import sys
 import json
 import re
 import praw
+import toml
 from datetime import datetime, timezone, timedelta
 
 def load_config():
     """Loads the main configuration file."""
-    with open("config.json", "r") as f:
-        return json.load(f)
+    with open("config.toml", "r") as f:
+        return toml.load(f)
 
 def load_state():
     """Loads the bot's current monitoring state."""

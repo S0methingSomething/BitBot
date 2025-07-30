@@ -1,0 +1,59 @@
+# Configure which repositories the bot monitors and updates
+[github]
+sourceRepo = "S0methingSomething/BitEdit"
+botRepo = "S0methingSomething/BitBot"
+assetFileName = "MonetizationVars"
+
+# Settings for posting and managing Reddit content.
+[reddit]
+subreddit = "BitTest1"
+templateFile = "post_template.md"
+outdatedTemplateFile = "outdated_template.md"
+postTitle = "[BitBot] MonetizationVars for BitLife v{{version}}"
+botName = "BitBot"
+creator = "C1oudyLol"
+postMode = "direct_link" # Can be "direct_link" or "landing_page"
+
+# Controls how old posts are marked. mode can be 'overwrite' or 'inject'.
+[outdatedPostHandling]
+mode = "inject"
+injectTemplateFile = "inject_template.md"
+
+# Text formats for GitHub releases.
+[messages]
+releaseTitle = "{{displayName}} MonetizationVars v{{version}}"
+releaseDescription = "Automated release of the pre-patched `{{asset_name}}` file. All boolean values have been set to true."
+
+# Defines tags for tutorial/comment blocks to be removed before posting.
+[skipContent]
+startTag = "<!-- TUTORIAL-START -->"
+endTag = "<!-- TUTORIAL-END -->"
+
+# Rules for analyzing Reddit comments and updating the post status.
+[feedback]
+statusLineFormat = "**Status:** {{status}} (based on comments)."
+statusLineRegex = "^\\*\\*Status:\\*\\*.*$"
+
+[feedback.labels]
+working = "Working"
+broken = "Potentially Not Working"
+unknown = "Not enough feedback..."
+
+workingKeywords = ["working", "works for me", "no issues", "perfect", "thanks"]
+notWorkingKeywords = ["not working", "broken", "doesnt work"]
+minFeedbackCount = 2
+
+# Controls the adaptive polling interval for the comment checker (in seconds).
+[timing]
+firstCheck = 300
+maxWait = 3600
+increaseBy = 300
+
+# Configuration for each app the bot manages.
+[[apps]]
+id = "bitlife"
+displayName = "BitLife"
+
+[[apps]]
+id = "bitlife_go"
+displayName = "BitLife Go"
