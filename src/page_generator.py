@@ -3,30 +3,28 @@ import sys
 import re
 import json
 from helpers import load_config
+import paths
 
 def main():
     """
     Generates a static HTML page from release data and a template.
-    It uses a custom template if specified in the config, otherwise falls back
-    to a default template. It processes a loop block within the template.
     """
     config = load_config()
-    releases_path = '../dist/releases.json'
-    output_path = '../dist/index.html'
 
     # Determine which template to use
-    template_path = config['reddit'].get('custom_landing_template')
-    if template_path and os.path.exists(template_path):
+    custom_template_name = config['reddit'].get('custom_landing_template')
+    if custom_template_name and os.path.exists(paths.get_template_path(custom_template_name)):
+        template_path = paths.get_template_path(custom_template_name)
         print(f"Using custom landing page template: {template_path}")
     else:
-        template_path = 'templates/default_landing_page.html'
+        template_path = paths.DEFAULT_LANDING_PAGE
         print(f"Custom template not found or specified. Using default: {template_path}")
         if not os.path.exists(template_path):
             print(f"::error::Default template not found at {template_path}. Exiting.", file=sys.stderr)
             sys.exit(1)
 
     # Load data and template
-    with open(releases_path, 'r') as f:
+    with open(paths.RELEASES_JSON_FILE, 'r') as f:
         releases_data = json.load(f)
     
     with open(template_path, 'r') as f:
@@ -58,11 +56,11 @@ def main():
     final_html = final_html.replace('{{bot_repo}}', bot_repo)
 
     # Save the final HTML
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, 'w') as f:
+    os.makedirs(os.path.dirname(paths.LANDING_PAGE_OUTPUT), exist_ok=True)
+    with open(paths.LANDING_PAGE_OUTPUT, 'w') as f:
         f.write(final_html)
 
-    print(f"Successfully generated landing page at: {output_path}")
+    print(f"Successfully generated landing page at: {paths.LANDING_PAGE_OUTPUT}")
 
 if __name__ == "__main__":
     main()

@@ -6,9 +6,10 @@ import toml
 from typing import List, Dict
 
 from helpers import load_config, load_release_state, save_release_state
+import paths
 
 # --- Configuration ---
-DOWNLOAD_DIR = '../dist' # Adjusted for src directory
+DOWNLOAD_DIR = paths.DIST_DIR
 
 # --- Helper Functions ---
 def run_command(command: List[str], check: bool = True) -> subprocess.CompletedProcess:
@@ -193,9 +194,10 @@ def main():
             print(f"Successfully processed {apps_processed_in_this_release} app(s) from source release {release['tag_name']}. State updated.")
 
     if processed_data_for_reddit:
-        print(f"Successfully created {len(processed_data_for_reddit)} new bot release(s).")
-    else:
-        print("No new bot releases were created in this run.")
+        print("New releases were created. Saving data for downstream jobs.")
+        os.makedirs(paths.DIST_DIR, exist_ok=True)
+        with open(paths.RELEASES_JSON_FILE, 'w') as f:
+            json.dump(processed_data_for_reddit, f, indent=2)
 
     # This script no longer determines if a post is needed.
     # It just ensures GitHub releases are up to date.

@@ -87,7 +87,7 @@ jobs:
           path: dist/index.html
   
   post_to_reddit:
-    needs: [gather_releases, generate_page]
+    needs: gather_releases
     if: needs.gather_releases.outputs.new_releases_found == 'true'
     runs-on: ubuntu-latest
     steps:

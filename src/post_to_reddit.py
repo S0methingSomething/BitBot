@@ -4,6 +4,7 @@ import json
 import re
 import argparse
 from packaging.version import parse as parse_version
+import paths
 from helpers import (
     load_config,
     init_reddit,
@@ -80,7 +81,9 @@ def _generate_available_list(config: dict, all_releases_data: dict) -> str:
     return "\n".join(table_lines)
 
 def _post_new_release(reddit, page_url, config, changelog_data, all_releases_data):
-    with open(config['reddit']['templateFile'], 'r') as f:
+    template_name = os.path.basename(config['reddit']['templateFile'])
+    template_path = paths.get_template_path(template_name)
+    with open(template_path, 'r') as f:
         raw_template = f.read()
 
     # Clean template
@@ -115,7 +118,7 @@ def _post_new_release(reddit, page_url, config, changelog_data, all_releases_dat
     for placeholder, value in placeholders.items():
         post_body = post_body.replace(placeholder, str(value))
 
-    print("Submitting new post to r/{}".format(config['reddit']['subreddit']))
+    print("Submitting new post to r/{}...".format(config['reddit']['subreddit']))
     submission = reddit.subreddit(config['reddit']['subreddit']).submit(title, selftext=post_body)
     print(f"Post successful: {submission.shortlink}")
     return submission
@@ -126,11 +129,10 @@ def main():
     args = parser.parse_args()
     config = load_config()
 
-    releases_path = '../dist/releases.json'
-    if not os.path.exists(releases_path):
-        print("`releases.json` not found. Nothing to post.")
+    if not os.path.exists(paths.RELEASES_JSON_FILE):
+        print(f"`{paths.RELEASES_JSON_FILE}` not found. Nothing to post.")
         sys.exit(0)
-    with open(releases_path, 'r') as f:
+    with open(paths.RELEASES_JSON_FILE, 'r') as f:
         all_available_versions = json.load(f)
 
     reddit = init_reddit(config)

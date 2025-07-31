@@ -5,49 +5,50 @@ import re
 import praw
 import toml
 from typing import List, Dict
+import paths
 
 # --- Configuration and State Management ---
 
 def load_config() -> Dict:
     """Loads the main configuration file (config.toml)."""
     try:
-        with open('../config.toml', 'r') as f:
+        with open(paths.CONFIG_FILE, 'r') as f:
             return toml.load(f)
     except FileNotFoundError:
-        print("::error::`config.toml` not found. Please ensure the file exists.", file=sys.stderr)
+        print(f"::error::`{paths.CONFIG_FILE}` not found. Please ensure the file exists.", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"::error::Failed to parse `config.toml`: {e}", file=sys.stderr)
+        print(f"::error::Failed to parse `{paths.CONFIG_FILE}`: {e}", file=sys.stderr)
         sys.exit(1)
 
 def load_bot_state() -> Dict:
     """Loads the bot's current monitoring state (bot_state.json)."""
     try:
-        with open("../bot_state.json", "r") as f:
+        with open(paths.BOT_STATE_FILE, "r") as f:
             return json.load(f)
     except FileNotFoundError:
-        print("::warning::`bot_state.json` not found. Returning empty state.")
+        print(f"::warning::`{paths.BOT_STATE_FILE}` not found. Returning empty state.")
         return {}
     except json.JSONDecodeError:
-        print("::error::Could not decode `bot_state.json`. The file may be corrupt.", file=sys.stderr)
+        print(f"::error::Could not decode `{paths.BOT_STATE_FILE}`. The file may be corrupt.", file=sys.stderr)
         sys.exit(1)
 
 def save_bot_state(data: Dict):
     """Saves the bot's monitoring state."""
-    with open("../bot_state.json", "w") as f:
+    with open(paths.BOT_STATE_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
 def load_release_state() -> List[int]:
     """Loads the list of processed source release IDs."""
     try:
-        with open("../release_state.json", "r") as f:
+        with open(paths.RELEASE_STATE_FILE, "r") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return []
 
 def save_release_state(data: List[int]):
     """Saves the list of processed source release IDs."""
-    with open("../release_state.json", "w") as f:
+    with open(paths.RELEASE_STATE_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
 def parse_versions_from_post(post: praw.models.Submission, config: Dict) -> Dict[str, str]:
