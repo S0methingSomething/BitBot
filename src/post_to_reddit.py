@@ -25,40 +25,49 @@ def _generate_changelog(config: dict, added: dict, updated: dict, removed: dict)
     if added:
         key = f"changelog_format_added_{post_mode}"
         line_format = config['reddit'].get(key)
-        lines = ["### Added"]
-        for app_id, info in added.items():
-            line = line_format.replace('{{display_name}}', info['display_name'])
-            line = line.replace('{{asset_name}}', asset_name)
-            line = line.replace('{{version}}', info['version'])
-            line = line.replace('{{download_url}}', info['url'])
-            lines.append(line)
-        sections.append("\n".join(lines))
+        if line_format:
+            lines = ["### Added"]
+            for app_id, info in added.items():
+                line = line_format.replace('{{display_name}}', info['display_name'])
+                line = line.replace('{{asset_name}}', asset_name)
+                line = line.replace('{{version}}', info['version'])
+                line = line.replace('{{download_url}}', info['url'])
+                lines.append(line)
+            sections.append("\n".join(lines))
+        else:
+            print(f"::warning::Changelog format key '{key}' not found in config. Skipping 'Added' section.")
 
     # --- Updated Section ---
     if updated:
         key = f"changelog_format_updated_{post_mode}"
         line_format = config['reddit'].get(key)
-        lines = ["### Updated"]
-        for app_id, info in updated.items():
-            line = line_format.replace('{{display_name}}', info['new']['display_name'])
-            line = line.replace('{{asset_name}}', asset_name)
-            line = line.replace('{{new_version}}', info['new']['version'])
-            line = line.replace('{{old_version}}', info['old'])
-            line = line.replace('{{download_url}}', info['new']['url'])
-            lines.append(line)
-        sections.append("\n".join(lines))
+        if line_format:
+            lines = ["### Updated"]
+            for app_id, info in updated.items():
+                line = line_format.replace('{{display_name}}', info['new']['display_name'])
+                line = line.replace('{{asset_name}}', asset_name)
+                line = line.replace('{{new_version}}', info['new']['version'])
+                line = line.replace('{{old_version}}', info['old'])
+                line = line.replace('{{download_url}}', info['new']['url'])
+                lines.append(line)
+            sections.append("\n".join(lines))
+        else:
+            print(f"::warning::Changelog format key '{key}' not found in config. Skipping 'Updated' section.")
 
     # --- Removed Section ---
     if removed:
         key = f"changelog_format_removed_{post_mode}"
         line_format = config['reddit'].get(key)
-        lines = ["### Removed"]
-        for app_id, info in removed.items():
-            line = line_format.replace('{{display_name}}', info['display_name'])
-            line = line.replace('{{asset_name}}', asset_name)
-            line = line.replace('{{old_version}}', info['version'])
-            lines.append(line)
-        sections.append("\n".join(lines))
+        if line_format:
+            lines = ["### Removed"]
+            for app_id, info in removed.items():
+                line = line_format.replace('{{display_name}}', info['display_name'])
+                line = line.replace('{{asset_name}}', asset_name)
+                line = line.replace('{{old_version}}', info['version'])
+                lines.append(line)
+            sections.append("\n".join(lines))
+        else:
+            print(f"::warning::Changelog format key '{key}' not found in config. Skipping 'Removed' section.")
 
     return "\n\n".join(sections) if sections else "No new updates in this version."
 
