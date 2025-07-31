@@ -4,7 +4,7 @@ import json
 import re
 import argparse
 from packaging.version import parse as parse_version
-from helpers (
+from helpers import (
     load_config,
     init_reddit,
     get_bot_posts,
@@ -13,25 +13,77 @@ from helpers (
     parse_versions_from_post,
 )
 
-def _generate_changelog(config: dict, releases_data: dict) -> str:
-    """Generates a changelog string from the releases data."""
-    changelog_lines = []
-    line_format = config['reddit'].get('changelog_line_format', "* {{display_name}} updated to v{{version}}")
+def _generate_changelog(config: dict, added: dict, updated: dict, removed: dict) -> str:
+    """Generates a semantic changelog with Added, Updated, and Removed sections."""
+    post_mode = config['reddit'].get('postMode', 'landing_page')
     asset_name = config['github'].get('assetFileName', 'asset')
+    
+    sections = []
 
-    for app_id, release_info in releases_data.items():
+    # --- Added Section ---
+    if added:
+        key = f"changelog_format_added_{post_mode}"
+        line_format = config['reddit'].get(key)
+        lines = ["### Added"]
+        for app_id, info in added.items():
+            line = line_format.replace('{{display_name}}', info['display_name'])
+            line = line.replace('{{asset_name}}', asset_name)
+            line = line.replace('{{version}}', info['version'])
+            line = line.replace('{{download_url}}', info['url'])
+            lines.append(line)
+        sections.append("\n".join(lines))
+
+    # --- Updated Section ---
+    if updated:
+        key = f"changelog_format_updated_{post_mode}"
+        line_format = config['reddit'].get(key)
+        lines = ["### Updated"]
+        for app_id, info in updated.items():
+            line = line_format.replace('{{display_name}}', info['new']['display_name'])
+            line = line.replace('{{asset_name}}', asset_name)
+            line = line.replace('{{new_version}}', info['new']['version'])
+            line = line.replace('{{old_version}}', info['old'])
+            line = line.replace('{{download_url}}', info['new']['url'])
+            lines.append(line)
+        sections.append("\n".join(lines))
+
+    # --- Removed Section ---
+    if removed:
+        key = f"changelog_format_removed_{post_mode}"
+        line_format = config['reddit'].get(key)
+        lines = ["### Removed"]
+        for app_id, info in removed.items():
+            line = line_format.replace('{{display_name}}', info['display_name'])
+            line = line.replace('{{asset_name}}', asset_name)
+            line = line.replace('{{old_version}}', info['version'])
+            lines.append(line)
+        sections.append("\n".join(lines))
+
+    return "\n\n".join(sections) if sections else "No new updates in this version."
+
+def _generate_available_list(config: dict, all_releases_data: dict) -> str:
+    """Generates a Markdown table of all available releases."""
+    header = config['reddit'].get('available_table_header', '| App | Asset | Version |')
+    divider = config['reddit'].get('available_table_divider', '|---|---|---:|')
+    line_format = config['reddit'].get('available_line_format', '| {{display_name}} | {{asset_name}} | v{{version}} |')
+
+    table_lines = [header, divider]
+    asset_name = config['github'].get('assetFileName', 'asset')
+    sorted_apps = sorted(all_releases_data.items(), key=lambda item: item[1]['display_name'])
+
+    for app_id, release_info in sorted_apps:
         line = line_format.replace('{{display_name}}', release_info['display_name'])
         line = line.replace('{{asset_name}}', asset_name)
         line = line.replace('{{version}}', release_info['version'])
-        line = line.replace('{{download_url}}', release_info['url'])
-        changelog_lines.append(line)
-    
-    return "\n".join(changelog_lines)
+        table_lines.append(line)
+        
+    return "\n".join(table_lines)
 
-def _post_new_release(reddit, page_url, config, releases_data):
+def _post_new_release(reddit, page_url, config, changelog_data, all_releases_data):
     with open(config['reddit']['templateFile'], 'r') as f:
         raw_template = f.read()
 
+    # Clean template
     ignore_block = config.get('skipContent', {})
     start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
     if start_marker and end_marker and start_marker in raw_template:
@@ -39,14 +91,17 @@ def _post_new_release(reddit, page_url, config, releases_data):
         clean_template = re.sub(pattern, '', raw_template)
     else:
         clean_template = raw_template
-
     post_body_template = clean_template.strip()
     
-    changelog = _generate_changelog(config, releases_data)
+    # Generate content
+    changelog = _generate_changelog(config, **changelog_data)
+    available_list = _generate_available_list(config, all_releases_data)
     initial_status_line = config['feedback']['statusLineFormat'].replace("{{status}}", config['feedback']['labels']['unknown'])
     
+    # Populate placeholders
     placeholders = {
         "{{changelog}}": changelog,
+        "{{available_list}}": available_list,
         "{{bot_name}}": config['reddit']['botName'],
         "{{bot_repo}}": config['github']['botRepo'],
         "{{asset_name}}": config['github']['assetFileName'],
@@ -59,9 +114,8 @@ def _post_new_release(reddit, page_url, config, releases_data):
     post_body = post_body_template
     for placeholder, value in placeholders.items():
         post_body = post_body.replace(placeholder, str(value))
-        title = title.replace(placeholder, str(value))
 
-    print("Submitting new post to r/{}...".format(config['reddit']['subreddit']))
+    print("Submitting new post to r/{}".format(config['reddit']['subreddit']))
     submission = reddit.subreddit(config['reddit']['subreddit']).submit(title, selftext=post_body)
     print(f"Post successful: {submission.shortlink}")
     return submission
@@ -72,65 +126,62 @@ def main():
     args = parser.parse_args()
     config = load_config()
 
-    # Load the latest versions that SHOULD be on Reddit
     releases_path = '../dist/releases.json'
     if not os.path.exists(releases_path):
         print("`releases.json` not found. Nothing to post.")
         sys.exit(0)
     with open(releases_path, 'r') as f:
-        latest_versions = json.load(f)
+        all_available_versions = json.load(f)
 
-    print("Authenticating with Reddit...")
     reddit = init_reddit(config)
-
-    print("Fetching latest bot post from Reddit...")
     existing_posts = get_bot_posts(reddit, config)
     
     versions_on_reddit = {}
     if existing_posts:
-        latest_post = existing_posts[0]
-        print(f"Found latest post: {latest_post.id} - '{latest_post.title}'")
-        versions_on_reddit = parse_versions_from_post(latest_post, config)
-    else:
-        print("No previous posts found on Reddit.")
+        versions_on_reddit = parse_versions_from_post(existing_posts[0], config)
 
-    # Compare versions to see if an update is needed
-    is_update_needed = False
-    for app_id, release_info in latest_versions.items():
-        latest_version = parse_version(release_info['version'])
-        reddit_version_str = versions_on_reddit.get(app_id, "0.0.0")
-        reddit_version = parse_version(reddit_version_str)
-        
-        if latest_version > reddit_version:
-            print(f"Update needed for '{app_id}': Reddit has v{reddit_version}, latest is v{latest_version}.")
-            is_update_needed = True
-            break # One change is enough to trigger a new post
+    # Categorize changes
+    added_apps = {}
+    updated_apps = {}
+    
+    available_app_ids = set(all_available_versions.keys())
+    reddit_app_ids = set(versions_on_reddit.keys())
 
-    if not is_update_needed:
-        print("Reddit is already up-to-date with the latest versions. No new post needed.")
+    for app_id, release_info in all_available_versions.items():
+        if app_id not in versions_on_reddit:
+            added_apps[app_id] = release_info
+        else:
+            latest_version = parse_version(release_info['version'])
+            reddit_version = parse_version(versions_on_reddit.get(app_id, "0.0.0"))
+            if latest_version > reddit_version:
+                updated_apps[app_id] = {"new": release_info, "old": str(reddit_version)}
+
+    removed_apps = {}
+    app_map_by_id = {app['id']: app for app in config.get('apps', [])}
+    for app_id in reddit_app_ids - available_app_ids:
+        removed_apps[app_id] = {
+            "display_name": app_map_by_id.get(app_id, {}).get('displayName', app_id),
+            "version": versions_on_reddit[app_id]
+        }
+
+    changelog_data = {"added": added_apps, "updated": updated_apps, "removed": removed_apps}
+    if not any(changelog_data.values()):
+        print("Reddit is already up-to-date. No new post needed.")
         sys.exit(0)
 
-    print("Update required. Proceeding to post a new release announcement.")
-    new_submission = _post_new_release(reddit, args.page_url, config, latest_versions)
+    print(f"Found changes: {len(added_apps)} added, {len(updated_apps)} updated, {len(removed_apps)} removed. Proceeding to post.")
+    new_submission = _post_new_release(reddit, args.page_url, config, changelog_data, all_available_versions)
 
-    # Update older posts (which now includes the post we just superseded)
     if existing_posts:
-        print(f"Found {len(existing_posts)} older post(s) to update.")
-        latest_release_details = {
-            "title": new_submission.title,
-            "url": new_submission.shortlink,
-            "version": "latest"
-        }
-        update_older_posts(existing_posts, latest_release_details, config)
+        update_older_posts(existing_posts, {"title": new_submission.title, "url": new_submission.shortlink, "version": "latest"})
 
     print("Updating state file to monitor latest post.")
-    new_state = {
+    save_bot_state({
         "activePostId": new_submission.id,
         "lastCheckTimestamp": "2024-01-01T00:00:00Z",
         "currentIntervalSeconds": config['timing']['firstCheck'],
         "lastCommentCount": 0
-    }
-    save_bot_state(new_state)
+    })
     print("Post and update process complete.")
 
 if __name__ == "__main__":
