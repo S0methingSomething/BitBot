@@ -10,24 +10,17 @@ concurrency:
 jobs:
   manage_releases:
     runs-on: ubuntu-latest
-    outputs:
-      new_releases_found: ${{ steps.manager.outputs.new_releases_found }}
-      version: ${{ steps.manager.outputs.version }}
-      urls: ${{ steps.manager.outputs.urls }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
       - name: Install Dependencies with uv
         run: |
           pip install uv
           uv pip install -r requirements.txt --system
-      
       - name: Run Release Manager
         id: manager
         working-directory: ./src
@@ -35,7 +28,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python release_manager.py
 
-      gather_releases:
+  gather_releases:
     needs: manage_releases
     runs-on: ubuntu-latest
     outputs:
@@ -43,25 +36,22 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
       - name: Install Dependencies with uv
         run: |
           pip install uv
           uv pip install -r requirements.txt --system
-
       - name: Gather All Bot Releases for Posting
         id: gatherer
         working-directory: ./src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python gather_post_data.py
-
       - name: Upload release data artifact
+        if: steps.gatherer.outputs.new_releases_found == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: release-data
@@ -74,27 +64,22 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Download release data artifact
         uses: actions/download-artifact@v4
         with:
           name: release-data
           path: dist/
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
       - name: Install Dependencies with uv
         run: |
           pip install uv
           uv pip install -r requirements.txt --system
-
       - name: Generate Static Page
         working-directory: ./src
         run: python page_generator.py
-
       - name: Upload Pages Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -108,17 +93,19 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
+      - name: Download release data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-data
+          path: dist/
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
       - name: Install Dependencies with uv
         run: |
           pip install uv
           uv pip install -r requirements.txt --system
-
       - name: Post / Update Reddit
         working-directory: ./src
         env:
@@ -128,6 +115,5 @@ jobs:
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: |
-          # The page URL is now deterministic based on the repository name
           PAGE_URL="https://s0methingsomething.github.io/BitBot/"
           python post_to_reddit.py --page-url "$PAGE_URL"
