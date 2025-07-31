@@ -21,6 +21,11 @@ Available Placeholders:
 ## Changelog
 {{changelog}}
 
+---
+
+## Currently Available
+{{available_list}}
+
 > ⚠️ **Important:** Ensure the downloaded file is named exactly `{{asset_name}}` before installation.
 
 ## 📖 How to Use
