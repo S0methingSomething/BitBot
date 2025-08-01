@@ -63,7 +63,7 @@ def main():
     source_releases = source_repo.get_releases()
     
     for release in source_releases:
-        parsed_info = parse_release_notes(release.body, config)
+        parsed_info = parse_release_notes(release.body, release.tag_name, release.title, config)
         if not parsed_info:
             continue
             
