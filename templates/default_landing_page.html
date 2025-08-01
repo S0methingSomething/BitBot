@@ -11,25 +11,23 @@
             --primary-hover: #2563eb;
             --bg-color: #f9fafb;
             --text-color: #1f2937;
-            --text-muted-color: #4b5563;
+            --text-muted-color: #6b7280; /* gray-500 */
             --card-bg-color: #ffffff;
             --border-color: #e5e7eb;
             --input-bg-color: #f9fafb;
             --input-focus-bg-color: #ffffff;
-            --gradient-from: #ffffff;
-            --gradient-to: #f9fafb;
+            --details-bg-color: #f9fafb;
         }
 
         .dark {
             --bg-color: #000000;
             --text-color: #f3f4f6;
-            --text-muted-color: #a1a1aa;
-            --card-bg-color: #18181b;
-            --border-color: #27272a;
+            --text-muted-color: #a1a1aa; /* zinc-400 */
+            --card-bg-color: #18181b; /* zinc-900 */
+            --border-color: #27272a; /* zinc-800 */
             --input-bg-color: #27272a;
             --input-focus-bg-color: #18181b;
-            --gradient-from: #27272a;
-            --gradient-to: #18181b;
+            --details-bg-color: #27272a;
         }
 
         body {
@@ -38,26 +36,33 @@
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .release-group {
-            animation: fadeInUp 0.5s ease-out forwards;
-            opacity: 0;
-        }
-
         html { scroll-behavior: smooth; }
         
-        .search-input:focus {
+        .search-input:focus, .sort-select:focus {
             outline: none;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
             border-color: var(--primary-color) !important;
         }
+
+        /* Styling for the details/summary accordion */
+        details > summary {
+            list-style: none; /* Hide the default triangle */
+            cursor: pointer;
+        }
+        details > summary::-webkit-details-marker {
+            display: none; /* Hide the default triangle in Chrome */
+        }
+        details > summary::before {
+            content: '►';
+            margin-right: 0.5rem;
+            font-size: 0.8em;
+            transition: transform 0.2s ease-in-out;
+        }
+        details[open] > summary::before {
+            transform: rotate(90deg);
+        }
     </style>
 
-    <!-- NEW: Inline script to prevent theme flashing. Must be in the <head>. -->
     <script>
         (function() {
             try {
@@ -65,18 +70,15 @@
                 if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                     document.documentElement.classList.add('dark');
                 }
-            } catch (e) {
-                // Silently ignore errors (e.g., localStorage access denied)
-            }
+            } catch (e) { /* Ignore */ }
         })();
     </script>
-
 </head>
 <body class="min-h-screen flex flex-col items-center p-4 md:p-8 relative overflow-x-hidden">
 
     <button id="theme-toggle" class="fixed top-4 right-4 bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 text-gray-800 dark:text-gray-200 p-2 rounded-full shadow-md hover:shadow-lg transition-all duration-300 z-50" aria-label="Toggle Dark Mode"></button>
     
-    <div class="w-full max-w-6xl">
+    <div class="w-full max-w-4xl">
         <div class="bg-[var(--card-bg-color)] rounded-2xl shadow-xl p-6 md:p-8 transition-colors duration-300">
             <h1 class="text-3xl md:text-4xl font-bold mb-2">BitBot Releases</h1>
             <p class="text-base mb-6 text-[var(--text-muted-color)]">Find and download the latest assets managed by BitBot.</p>
@@ -85,20 +87,70 @@
                 Made by <a href="https://www.reddit.com/u/C1oudyLol/" target="_blank" rel="noopener noreferrer" class="text-[var(--primary-color)] hover:underline">/u/C1oudyLol</a>
             </p>
 
-            <div class="mb-8">
-                <input type="text" id="searchInput" placeholder="Search for an app..." class="search-input w-full px-4 py-3 bg-[var(--input-bg-color)] border-2 border-[var(--border-color)] rounded-lg focus:bg-[var(--input-focus-bg-color)] transition-colors duration-300">
+            <div class="flex flex-col md:flex-row gap-4 mb-8">
+                <div class="flex-grow">
+                    <label for="searchInput" class="sr-only">Search for an app</label>
+                    <input type="text" id="searchInput" placeholder="Search for an app..." class="search-input w-full px-4 py-3 bg-[var(--input-bg-color)] border-2 border-[var(--border-color)] rounded-lg focus:bg-[var(--input-focus-bg-color)] transition-colors duration-300">
+                </div>
+                <div class="flex-shrink-0">
+                    <label for="sort-select" class="sr-only">Sort by</label>
+                    <select id="sort-select" class="sort-select w-full md:w-auto h-full px-4 py-3 bg-[var(--input-bg-color)] border-2 border-[var(--border-color)] rounded-lg focus:bg-[var(--input-focus-bg-color)] transition-colors duration-300">
+                        <option value="default">Default Order</option>
+                        <optgroup label="By Name">
+                            <option value="alpha-asc">Name (A-Z)</option>
+                            <option value="alpha-desc">Name (Z-A)</option>
+                        </optgroup>
+                        <optgroup label="By Date">
+                            <option value="date-desc">Newest Release</option>
+                            <option value="date-asc">Oldest Release</option>
+                        </optgroup>
+                    </select>
+                </div>
             </div>
 
-            <div id="releases-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- BEGIN-RELEASE-LOOP -->
-                <div class="release-group flex flex-col justify-between bg-gradient-to-br from-[var(--gradient-from)] to-[var(--gradient-to)] rounded-xl p-5 shadow-md hover:shadow-lg border border-[var(--border-color)] hover:border-[var(--primary-color)] transition-colors duration-300 ease-in-out transition-[box-shadow,border-color]">
-                    <div class="mb-4">
-                        <h2 class="app-name text-xl font-semibold mb-2">{{app_display_name}}</h2>
-                        <p class="app-version text-sm text-[var(--text-muted-color)]">v{{app_version}}</p>
+            <!-- This is where the app sections will be rendered by the bot -->
+            <div id="app-list" class="space-y-6">
+                <!-- BEGIN-APP-LOOP -->
+                <section class="app-section border border-[var(--border-color)] rounded-xl transition-colors duration-300" 
+                         data-app-name="{{app.display_name}}" 
+                         data-latest-release-date="{{app.releases[0].published_at}}">
+                    
+                    <header class="p-4 md:p-5 flex justify-between items-center border-b border-[var(--border-color)]">
+                        <div>
+                            <h2 class="text-2xl font-bold">{{app.display_name}}</h2>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-semibold text-sm py-1 px-2.5 rounded-full bg-[var(--primary-color)] text-white">
+                                Latest: v{{app.releases[0].version}}
+                            </span>
+                        </div>
+                    </header>
+
+                    <div class="p-3 md:p-4 space-y-3">
+                        <!-- BEGIN-RELEASE-LOOP -->
+                        <div class="release-item p-3 border border-[var(--border-color)] rounded-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <div class="font-semibold">
+                                    <h3>v{{release.version}}</h3>
+                                    <p class="text-xs text-[var(--text-muted-color)]" data-date="{{release.published_at}}">
+                                        <!-- Release date will be formatted by JS -->
+                                    </p>
+                                </div>
+                                <a href="{{release.download_url}}" class="download-button flex-shrink-0 text-sm bg-[var(--primary-color)] text-white px-4 py-2 rounded-md font-bold transition-colors duration-200 hover:bg-[var(--primary-hover)]">Download</a>
+                            </div>
+                            
+                            <details>
+                                <summary class="text-sm font-medium text-[var(--text-muted-color)]">Release Notes</summary>
+                                <div class="mt-2 p-3 text-sm bg-[var(--details-bg-color)] rounded-md prose prose-sm max-w-none text-[var(--text-color)]">
+                                    <p>{{release.release_notes}}</p>
+                                    <a href="{{release.release_url}}" target="_blank" rel="noopener noreferrer" class="text-[var(--primary-color)] hover:underline">View on GitHub →</a>
+                                </div>
+                            </details>
+                        </div>
+                        <!-- END-RELEASE-LOOP -->
                     </div>
-                    <a href="{{app_download_url}}" class="download-button w-full text-center bg-gradient-to-r from-[var(--primary-color)] to-blue-700 text-white px-5 py-2.5 rounded-lg font-bold transition-all duration-300 hover:from-blue-700 hover:to-[var(--primary-color)] hover:shadow-md">Download</a>
-                </div>
-                <!-- END-RELEASE-LOOP -->
+                </section>
+                <!-- END-APP-LOOP -->
             </div>
             
             <div id="no-results" class="hidden text-center py-12" role="status">
@@ -107,123 +159,103 @@
             </div>
 
             <footer class="text-center mt-10 text-sm text-[var(--text-muted-color)] border-t border-[var(--border-color)] pt-6 transition-colors duration-300">
-                <p>Generated by BitBot. For more information, visit the <a href="https://github.com/{{bot_repo}}" class="text-[var(--primary-color)] hover:underline transition-colors duration-200">bot repository</a>.</p>
+                <p>Generated by BitBot. For more information, visit the <a href="https://github.com/{{bot_repo}}" class="text-[var(--primary-color)] hover:underline">bot repository</a>.</p>
             </footer>
-        </div>
-    </div>
-
-    <!-- Confirmation Modal -->
-    <div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-[100] p-4">
-        <div class="bg-[var(--card-bg-color)] rounded-xl p-6 w-full max-w-md text-center shadow-2xl transform transition-all" style="animation: fadeInUp 0.3s ease-out;">
-            <h3 class="text-xl font-bold mb-4">Important Note</h3>
-            <p class="mb-6 text-[var(--text-muted-color)]">Make sure the file name is <strong>MonetizationVars</strong> before using.</p>
-            <div class="flex justify-end space-x-4">
-                <button id="modalCancel" class="px-5 py-2 rounded-lg bg-gray-200 dark:bg-zinc-700 text-black dark:text-white hover:bg-gray-300 dark:hover:bg-zinc-600 transition-colors duration-200">Cancel</button>
-                <button id="modalConfirm" class="px-5 py-2 rounded-lg bg-[var(--primary-color)] text-white hover:bg-[var(--primary-hover)] transition-colors duration-200 font-semibold">Download</button>
-            </div>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- Element References ---
             const themeToggleButton = document.getElementById('theme-toggle');
             const searchInput = document.getElementById('searchInput');
-            const releasesGrid = document.getElementById('releases-grid');
-            const allApps = Array.from(releasesGrid.querySelectorAll('.release-group'));
+            const sortSelect = document.getElementById('sort-select');
+            const appListContainer = document.getElementById('app-list');
             const noResultsMessage = document.getElementById('no-results');
-            const modal = document.getElementById('confirmationModal');
-            const modalConfirmBtn = document.getElementById('modalConfirm');
-            const modalCancelBtn = document.getElementById('modalCancel');
-            let activeDownloadUrl = '';
+            
+            // --- Master Data Store ---
+            const appData = Array.from(appListContainer.querySelectorAll('.app-section')).map(element => ({
+                element,
+                name: element.dataset.appName,
+                latestReleaseDate: new Date(element.dataset.latestReleaseDate),
+            }));
 
-            // --- Theme Toggle Logic ---
-            function updateThemeButton(isDark) {
+            // --- Date Formatting Helper ---
+            function formatReleaseDate(isoString) {
+                const date = new Date(isoString);
+                return date.toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            }
+
+            // --- Core Logic: The updateAppList function ---
+            function updateAppList() {
+                const searchQuery = searchInput.value.toLowerCase();
+                const sortValue = sortSelect.value;
+
+                // 1. Filter
+                const filteredApps = appData.filter(app => app.name.toLowerCase().includes(searchQuery));
+
+                // 2. Sort
+                let sortedApps = [...filteredApps];
+                switch (sortValue) {
+                    case 'alpha-asc':
+                        sortedApps.sort((a, b) => a.name.localeCompare(b.name));
+                        break;
+                    case 'alpha-desc':
+                        sortedApps.sort((a, b) => b.name.localeCompare(a.name));
+                        break;
+                    case 'date-desc':
+                        sortedApps.sort((a, b) => b.latestReleaseDate - a.latestReleaseDate);
+                        break;
+                    case 'date-asc':
+                        sortedApps.sort((a, b) => a.latestReleaseDate - b.latestReleaseDate);
+                        break;
+                }
+
+                // 3. Render
+                appListContainer.innerHTML = ''; // Clear the container
+                if (sortedApps.length > 0) {
+                    sortedApps.forEach(app => appListContainer.appendChild(app.element));
+                    noResultsMessage.classList.add('hidden');
+                } else {
+                    noResultsMessage.classList.remove('hidden');
+                }
+            }
+            
+            // --- Initial Setup and Event Listeners ---
+            
+            // Format all dates on page load
+            document.querySelectorAll('[data-date]').forEach(el => {
+                el.textContent = formatReleaseDate(el.dataset.date);
+            });
+
+            // Theme logic
+            const syncThemeButton = () => {
+                const isDark = document.documentElement.classList.contains('dark');
                 themeToggleButton.textContent = isDark ? '☀️' : '🌙';
-            }
-            
+            };
             themeToggleButton.addEventListener('click', () => {
-                const isDark = document.documentElement.classList.toggle('dark');
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                updateThemeButton(isDark);
+                const isCurrentlyDark = document.documentElement.classList.contains('dark');
+                if (isCurrentlyDark) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+                syncThemeButton();
             });
+            syncThemeButton();
 
-            updateThemeButton(document.documentElement.classList.contains('dark'));
+            // Event listeners for controls
+            searchInput.addEventListener('input', updateAppList);
+            sortSelect.addEventListener('change', updateAppList);
             
-
-            // --- Fuzzy Search and Grid Logic ---
-            function fuzzySearch(query, text) {
-                const searchQuery = query.toLowerCase().replace(/\s/g, '');
-                const textToSearch = text.toLowerCase().replace(/\s/g, '');
-                let searchQueryIndex = 0;
-                let textIndex = 0;
-                while (searchQueryIndex < searchQuery.length && textIndex < textToSearch.length) {
-                    if (searchQuery[searchQueryIndex] === textToSearch[textIndex]) {
-                        searchQueryIndex++;
-                    }
-                    textIndex++;
-                }
-                return searchQueryIndex === searchQuery.length;
-            }
-
-            function filterApps() {
-                const query = searchInput.value;
-                let visibleCount = 0;
-                allApps.forEach(app => {
-                    const appName = app.querySelector('.app-name').textContent;
-                    const isVisible = query === '' || fuzzySearch(query, appName);
-                    app.classList.toggle('hidden', !isVisible);
-                    if (isVisible) {
-                        visibleCount++;
-                    }
-                });
-                noResultsMessage.classList.toggle('hidden', visibleCount > 0);
-            }
-            
-            function applyInitialAnimations() {
-                 allApps.forEach((app, index) => {
-                    app.style.animationDelay = `${0.05 * (index + 1)}s`;
-                });
-            }
-
-            // --- Event Listeners ---
-            searchInput.addEventListener('input', filterApps);
-            
-            releasesGrid.addEventListener('click', (event) => {
-                const button = event.target.closest('.download-button');
-                if (button) {
-                    event.preventDefault();
-                    activeDownloadUrl = button.href;
-                    modal.classList.remove('hidden');
-                }
-            });
-
-            function closeModal() {
-                modal.classList.add('hidden');
-                activeDownloadUrl = '';
-            }
-
-            modalCancelBtn.addEventListener('click', closeModal);
-
-            modalConfirmBtn.addEventListener('click', () => {
-                if (activeDownloadUrl) {
-                    const link = document.createElement('a');
-                    link.href = activeDownloadUrl;
-                    link.setAttribute('download', 'MonetizationVars'); 
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                }
-                closeModal();
-            });
-
-            modal.addEventListener('click', (event) => {
-                if (event.target === modal) {
-                    closeModal();
-                }
-            });
-
-            // --- Initial Setup Calls ---
-            applyInitialAnimations();
+            // Initial render
+            updateAppList();
         });
     </script>
 </body>
