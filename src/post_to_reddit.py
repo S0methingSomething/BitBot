@@ -16,15 +16,13 @@ from helpers import (
 )
 
 # --- Constants ---
-# Hardcoded safety limit. The bot will refuse to post if the link count exceeds this.
 MAX_OUTBOUND_LINKS_ERROR = 8
 
 def _count_outbound_links(text: str) -> int:
     """Counts the number of unique outbound links in a given text."""
-    # This regex is a common standard for finding URLs in text.
     url_pattern = re.compile(r'https?://[^\s/$.?#].[^\s]*|www\.[^\s/$.?#].[^\s]*')
     matches = url_pattern.findall(text)
-    return len(set(matches)) # Count unique links
+    return len(set(matches))
 
 def _generate_dynamic_title(config: dict, added: dict, updated: dict) -> str:
     """Generates a dynamic, informative, and unique title for the post."""
@@ -32,32 +30,31 @@ def _generate_dynamic_title(config: dict, added: dict, updated: dict) -> str:
     num_updated = len(updated)
     total_changes = num_added + num_updated
     
-    # Helper to create the app lists
+    formats = config['reddit']['formats']['titles']
+
     def create_app_list(app_dict):
         return ", ".join([f"{info['display_name']} v{info.get('version') or info.get('new', {}).get('version')}" for _, info in app_dict.items()])
 
     added_list = create_app_list(added)
     updated_list = create_app_list(updated)
 
-    title_key = None
-    placeholders = {}
+    title_key, placeholders = None, {}
 
-    if num_added > 0 and num_updated == 0: # Only new apps
-        title_key = "title_added_only"
+    if num_added > 0 and num_updated == 0:
+        title_key = "added_only"
         placeholders = {"{{added_list}}": added_list}
-    elif num_added == 0 and num_updated > 0: # Only updated apps
-        title_key = "title_updated_only_single" if num_updated == 1 else "title_updated_only_multi"
+    elif num_added == 0 and num_updated > 0:
+        title_key = "updated_only_single" if num_updated == 1 else "updated_only_multi"
         placeholders = {"{{updated_list}}": updated_list}
-    elif num_added > 0 and num_updated > 0: # Mixed
-        title_key = "title_mixed_single_update" if num_updated == 1 else "title_mixed_multi_update"
+    elif num_added > 0 and num_updated > 0:
+        title_key = "mixed_single_update" if num_updated == 1 else "mixed_multi_update"
         placeholders = {"{{added_list}}": added_list, "{{updated_list}}": updated_list}
 
-    # Fallback for too many changes or other edge cases
     if total_changes > 3 or title_key is None:
-        title_key = "title_generic"
+        title_key = "generic"
         placeholders = {"{{date}}": datetime.utcnow().strftime('%Y-%m-%d')}
 
-    title_format = config['reddit'].get(title_key, "[BitBot] Default Fallback Title")
+    title_format = formats.get(title_key, "[BitBot] Default Fallback Title")
     
     final_title = title_format
     for ph, value in placeholders.items():
@@ -66,13 +63,14 @@ def _generate_dynamic_title(config: dict, added: dict, updated: dict) -> str:
     return final_title
 
 def _generate_changelog(config: dict, added: dict, updated: dict, removed: dict) -> str:
-    # ... [This function remains the same as before]
     post_mode = config['reddit'].get('postMode', 'landing_page')
     asset_name = config['github'].get('assetFileName', 'asset')
+    formats = config['reddit']['formats']['changelog']
     sections = []
+
     if added:
-        key = f"changelog_format_added_{post_mode}"
-        line_format = config['reddit'].get(key)
+        key = f"added_{post_mode}"
+        line_format = formats.get(key)
         if line_format:
             lines = ["### Added"]
             for app_id, info in added.items():
@@ -81,9 +79,11 @@ def _generate_changelog(config: dict, added: dict, updated: dict, removed: dict)
             sections.append("\n".join(lines))
         else:
             print(f"::warning::Changelog format key '{key}' not found in config. Skipping 'Added' section.")
+    
+    # ... (Similar updates for updated and removed sections)
     if updated:
-        key = f"changelog_format_updated_{post_mode}"
-        line_format = config['reddit'].get(key)
+        key = f"updated_{post_mode}"
+        line_format = formats.get(key)
         if line_format:
             lines = ["### Updated"]
             for app_id, info in updated.items():
@@ -92,9 +92,10 @@ def _generate_changelog(config: dict, added: dict, updated: dict, removed: dict)
             sections.append("\n".join(lines))
         else:
             print(f"::warning::Changelog format key '{key}' not found in config. Skipping 'Updated' section.")
+
     if removed:
-        key = f"changelog_format_removed_{post_mode}"
-        line_format = config['reddit'].get(key)
+        key = f"removed_{post_mode}"
+        line_format = formats.get(key)
         if line_format:
             lines = ["### Removed"]
             for app_id, info in removed.items():
@@ -103,13 +104,15 @@ def _generate_changelog(config: dict, added: dict, updated: dict, removed: dict)
             sections.append("\n".join(lines))
         else:
             print(f"::warning::Changelog format key '{key}' not found in config. Skipping 'Removed' section.")
+
     return "\n\n".join(sections) if sections else "No new updates in this version."
 
 def _generate_available_list(config: dict, all_releases_data: dict) -> str:
-    # ... [This function remains the same as before]
-    header = config['reddit'].get('available_table_header', '| App | Asset | Version |')
-    divider = config['reddit'].get('available_table_divider', '|---|---|---:|')
-    line_format = config['reddit'].get('available_line_format', '| {{display_name}} | {{asset_name}} | v{{version}} |')
+    formats = config['reddit']['formats']['table']
+    header = formats.get('header', '| App | Asset | Version |')
+    divider = formats.get('divider', '|---|---|---:|')
+    line_format = formats.get('line', '| {{display_name}} | {{asset_name}} | v{{version}} |')
+    
     table_lines = [header, divider]
     asset_name = config['github'].get('assetFileName', 'asset')
     sorted_apps = sorted(all_releases_data.items(), key=lambda item: item[1]['display_name'])
@@ -119,7 +122,7 @@ def _generate_available_list(config: dict, all_releases_data: dict) -> str:
     return "\n".join(table_lines)
 
 def _post_new_release(reddit, page_url, config, changelog_data, all_releases_data):
-    template_name = os.path.basename(config['reddit']['templateFile'])
+    template_name = os.path.basename(config['reddit']['templates']['post'])
     template_path = paths.get_template_path(template_name)
     with open(template_path, 'r') as f:
         raw_template = f.read()
@@ -149,16 +152,15 @@ def _post_new_release(reddit, page_url, config, changelog_data, all_releases_dat
     for placeholder, value in placeholders.items():
         post_body = post_body.replace(placeholder, str(value))
 
-    # --- SAFETY CHECK: Outbound Link Counter ---
     link_count = _count_outbound_links(post_body)
     warn_threshold = config.get('safety', {}).get('max_outbound_links_warn', 5)
     
     print(f"Post analysis: Found {link_count} unique outbound link(s).")
     if link_count > MAX_OUTBOUND_LINKS_ERROR:
-        print(f"::error::Post contains {link_count} links, which exceeds the hardcoded safety limit of {MAX_OUTBOUND_LINKS_ERROR}. Aborting to prevent account flagging.")
+        print(f"::error::Post contains {link_count} links, which exceeds the hardcoded safety limit of {MAX_OUTBOUND_LINKS_ERROR}. Aborting.")
         sys.exit(1)
     if link_count > warn_threshold:
-        print(f"::warning::Post contains {link_count} links, which is above the warning threshold of {warn_threshold}. This may increase the risk of being flagged as spam.")
+        print(f"::warning::Post contains {link_count} links, which is above the warning threshold of {warn_threshold}.")
 
     print(f"Submitting new post to r/{config['reddit']['subreddit']}...")
     print(f"Title: {title}")
@@ -217,8 +219,8 @@ def main():
         title = _generate_dynamic_title(config, added_apps, updated_apps)
         print("\n--- DRY RUN ---")
         print("Title:", title)
-        # Re-generate the body for printing
-        template_name = os.path.basename(config['reddit']['templateFile'])
+        
+        template_name = os.path.basename(config['reddit']['templates']['post'])
         template_path = paths.get_template_path(template_name)
         with open(template_path, 'r') as f:
             raw_template = f.read()
@@ -227,7 +229,6 @@ def main():
         available_list = _generate_available_list(config, all_available_versions)
         
         body = raw_template.replace("{{changelog}}", changelog).replace("{{available_list}}", available_list).replace("{{download_portal_url}}", args.page_url)
-        # Add other simple placeholders for an accurate dry run log
         body = body.replace("{{bot_name}}", config['reddit']['botName']).replace("{{bot_repo}}", config['github']['botRepo'])
         
         print("Body:\n", body)

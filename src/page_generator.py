@@ -12,7 +12,7 @@ def main():
     config = load_config()
 
     # Determine which template to use
-    custom_template_name = config['reddit'].get('custom_landing_template')
+    custom_template_name = config['reddit']['templates'].get('custom_landing')
     if custom_template_name and os.path.exists(paths.get_template_path(custom_template_name)):
         template_path = paths.get_template_path(custom_template_name)
         print(f"Using custom landing page template: {template_path}")

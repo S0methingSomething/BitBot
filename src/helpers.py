@@ -130,31 +130,31 @@ def update_older_posts(older_posts: List[praw.models.Submission], latest_release
     Updates older posts by injecting an 'outdated' banner.
     """
     handling_config = config.get('outdatedPostHandling', {})
-    if handling_config.get('mode') != 'inject':
-        print("-> Skipping update of older posts as mode is not 'inject'.")
-        return
-
-    template_path = handling_config.get('injectTemplateFile')
-    if not template_path:
-        print("::error::'inject' mode selected but 'injectTemplateFile' is not defined in config.")
-        return
+    mode = handling_config.get('mode', 'overwrite')
     
-    try:
-        with open(template_path, 'r') as f:
-            raw_template = f.read()
-    except FileNotFoundError:
-        print(f"::error::Inject template file not found at '{template_path}'.")
-        return
-
-    # Prepare the banner content
+    # Placeholders for the banner
     placeholders = {
         "{{latest_post_title}}": latest_release_details['title'],
         "{{latest_post_url}}": latest_release_details['url'],
         "{{latest_version}}": latest_release_details['version'],
         "{{asset_name}}": config['github']['assetFileName'],
         "{{bot_name}}": config['reddit']['botName'],
-        "{{bot_repo}}": config['github']['botRepo'],
     }
+
+    if mode == 'inject':
+        template_name = config['reddit']['templates'].get('inject_banner')
+        if not template_name:
+            print("::error::'inject' mode selected but 'inject_banner' template is not defined in config.")
+            return
+        
+        template_path = paths.get_template_path(os.path.basename(template_name))
+        
+        try:
+            with open(template_path, 'r') as f:
+                raw_template = f.read()
+        except FileNotFoundError:
+            print(f"::error::Inject template file not found at '{template_path}'.")
+            return
     
     ignore_block = config.get('skipContent', {})
     start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
