@@ -4,7 +4,7 @@ import json
 import re
 import praw
 import toml
-from typing import List, Dict
+from typing import List, Dict, Optional
 import paths
 
 # --- Configuration and State Management ---
@@ -50,6 +50,31 @@ def save_release_state(data: List[int]):
     """Saves the list of processed source release IDs."""
     with open(paths.RELEASE_STATE_FILE, "w") as f:
         json.dump(data, f, indent=2)
+
+def parse_release_notes(body: str, config: Dict) -> Optional[Dict]:
+    """
+    Parses the release notes to find the app ID, display name, and version.
+    """
+    app_map_by_id = {app['id']: app['displayName'] for app in config.get('apps', [])}
+    parsing_keys = config.get('parsing', {})
+    app_key = parsing_keys.get('app_key', 'app')
+    version_key = parsing_keys.get('version_key', 'version')
+
+    app_match = re.search(f"^{app_key}:\\s*(\\w+)", body, re.MULTILINE)
+    version_match = re.search(f"^{version_key}:\\s*([\\d\\.]+)", body, re.MULTILINE)
+
+    if app_match and version_match:
+        app_id = app_match.group(1)
+        version = version_match.group(1)
+        display_name = app_map_by_id.get(app_id)
+
+        if display_name:
+            return {
+                "app_id": app_id,
+                "display_name": display_name,
+                "version": version
+            }
+    return None
 
 def parse_versions_from_post(post: praw.models.Submission, config: Dict) -> Dict[str, str]:
     """
