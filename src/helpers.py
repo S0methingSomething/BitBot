@@ -51,13 +51,14 @@ def save_release_state(data: List[int]):
     with open(paths.RELEASE_STATE_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-def parse_release_notes(body: str, config: Dict) -> Optional[Dict]:
+def parse_release_notes(body: str, tag_name: str, config: Dict) -> Optional[Dict]:
     """
-    Parses the release notes to find the app ID, display name, and version from
-    the structured format. Assumes all releases have been migrated.
+    Parses release information from its body or tag name, supporting both new and
+    legacy formats.
     """
     app_map_by_id = {app['id']: app['displayName'] for app in config.get('apps', [])}
     
+    # --- Priority 1: New Format (Parse from release body) ---
     parsing_keys = config.get('parsing', {})
     app_key = parsing_keys.get('app_key', 'app')
     version_key = parsing_keys.get('version_key', 'version')
@@ -72,14 +73,21 @@ def parse_release_notes(body: str, config: Dict) -> Optional[Dict]:
         version = version_match.group(1)
         asset_name = asset_match.group(1)
         display_name = app_map_by_id.get(app_id)
-        
         if display_name:
-            return {
-                "app_id": app_id,
-                "display_name": display_name,
-                "version": version,
-                "asset_name": asset_name
-            }
+            return {"app_id": app_id, "display_name": display_name, "version": version, "asset_name": asset_name}
+
+    # --- Priority 2: Legacy Format (Parse from tag name) ---
+    for app_id, display_name in app_map_by_id.items():
+        if tag_name.lower().startswith(f"{app_id.lower()}-v"):
+            version_part = tag_name.split('-v')
+            if len(version_part) == 2:
+                return {"app_id": app_id, "display_name": display_name, "version": version_part[1], "asset_name": config['github']['assetFileName']}
+
+    # --- Priority 3: Old Legacy Format (Default to BitLife) ---
+    if 'bitlife' in app_map_by_id:
+        match = re.search(r'(\\d+\\.\\d+\\.\\d+)', tag_name) or re.search(r'(\\d+\\.\\d+\\.\\d+)', body)
+        if match:
+            return {"app_id": "bitlife", "display_name": "BitLife", "version": match.group(1), "asset_name": config['github']['assetFileName']}
 
     return None
 
