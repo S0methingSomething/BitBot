@@ -24,7 +24,8 @@ def main():
 
     # 1. Build the base history from the bot's own releases
     for release in bot_releases:
-        parsed_info = parse_release_notes(release.body, release.tag_name, config)
+        # Pass only the body and config, as the tag is no longer needed for parsing
+        parsed_info = parse_release_notes(release.body, config)
         if not parsed_info:
             print(f"::warning::Could not parse release notes for tag {release.tag_name}. Skipping.")
             continue
