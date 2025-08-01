@@ -175,8 +175,16 @@ def main():
                 patched_file = patch_file(original_file, asset_name)
                 
                 release_title = f"{display_name} {asset_name} v{version}"
-                release_notes = f"Auto-patched from source release {release['tag_name']}."
-                create_bot_release(bot_repo, bot_release_tag, release_title, release_notes, patched_file)
+                
+                # Create structured release notes for robust parsing later
+                release_notes = f"""
+app: {app_id}
+version: {version}
+asset_name: {asset_name}
+---
+Auto-patched from source release {release['tag_name']}.
+"""
+                create_bot_release(bot_repo, bot_release_tag, release_title, release_notes.strip(), patched_file)
                 
                 download_url = f"https://github.com/{bot_repo}/releases/download/{bot_release_tag}/{asset_name}"
                 processed_data_for_reddit[app_id] = {
