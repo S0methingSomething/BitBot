@@ -54,23 +54,32 @@ def save_release_state(data: List[int]):
 def parse_release_notes(body: str, config: Dict) -> Optional[Dict]:
     """
     Parses the release notes to find the app ID, display name, and version from
-    the structured format.
+    the structured format. Assumes all releases have been migrated.
     """
     app_map_by_id = {app['id']: app['displayName'] for app in config.get('apps', [])}
     
     parsing_keys = config.get('parsing', {})
     app_key = parsing_keys.get('app_key', 'app')
     version_key = parsing_keys.get('version_key', 'version')
+    asset_name_key = parsing_keys.get('asset_name_key', 'asset_name')
 
     app_match = re.search(f"^{app_key}:\\s*(\\S+)", body, re.MULTILINE)
     version_match = re.search(f"^{version_key}:\\s*([\\d\\.]+)", body, re.MULTILINE)
+    asset_match = re.search(f"^{asset_name_key}:\\s*(\\S+)", body, re.MULTILINE)
 
-    if app_match and version_match:
+    if app_match and version_match and asset_match:
         app_id = app_match.group(1)
         version = version_match.group(1)
+        asset_name = asset_match.group(1)
         display_name = app_map_by_id.get(app_id)
+        
         if display_name:
-            return {"app_id": app_id, "display_name": display_name, "version": version}
+            return {
+                "app_id": app_id,
+                "display_name": display_name,
+                "version": version,
+                "asset_name": asset_name
+            }
 
     return None
 

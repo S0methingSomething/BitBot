@@ -1,81 +1,96 @@
 import os
 import sys
-import requests
+import re
+from github import Github, GithubException
 from helpers import load_config
 
-def get_all_bot_releases(bot_repo: str, token: str) -> list:
-    """Fetches all releases from the bot's repository, handling pagination."""
-    releases = []
-    page = 1
-    while True:
-        print(f"Fetching page {page} of releases...")
-        url = f"https://api.github.com/repos/{bot_repo}/releases?per_page=100&page={page}"
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28"
-        }
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        if not data:
-            break
-        releases.extend(data)
-        page += 1
-    return releases
-
-def main():
+def migrate_releases():
     """
-    Finds legacy bot releases (e.g., 'bitlife-v1.2.3') and prepends '[OUTDATED]'
-    to their titles if they don't already have it.
+    Performs a one-time migration of all legacy releases to a new, structured
+    format in the release body.
     """
     config = load_config()
-    bot_repo = config['github']['botRepo']
-    token = os.environ["GITHUB_TOKEN"]
-
-    print(f"Fetching all releases for {bot_repo}...")
-    all_releases = get_all_bot_releases(bot_repo, token)
-    print(f"Found a total of {len(all_releases)} releases.")
-
-    legacy_releases_to_update = []
-    for release in all_releases:
-        # A legacy release is defined by having a version in the tag like '-v1.2.3'
-        is_legacy = "-v" in release.get('tag_name', '')
-        is_outdated = release.get('name', '').startswith('[OUTDATED]')
-        
-        if is_legacy and not is_outdated:
-            legacy_releases_to_update.append(release)
-
-    if not legacy_releases_to_update:
-        print("No legacy releases need to be updated. Exiting.")
-        sys.exit(0)
-
-    print(f"Found {len(legacy_releases_to_update)} legacy release(s) to mark as outdated.")
+    g = Github(os.getenv("GITHUB_TOKEN"))
+    bot_repo_name = config['github']['botRepo']
     
-    updated_count = 0
-    for release in legacy_releases_to_update:
-        release_id = release['id']
-        current_title = release['name']
-        new_title = f"[OUTDATED] {current_title}"
-        
-        print(f"Updating release '{current_title}' (ID: {release_id})...")
-        
-        update_url = f"https://api.github.com/repos/{bot_repo}/releases/{release_id}"
-        payload = {"name": new_title}
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json"
-        }
-        
-        try:
-            update_response = requests.patch(update_url, headers=headers, json=payload)
-            update_response.raise_for_status()
-            print(f"-> Successfully updated title to '{new_title}'.")
-            updated_count += 1
-        except requests.RequestException as e:
-            print(f"::warning::Failed to update release {release_id}. Status: {update_response.status_code}, Body: {update_response.text}")
+    try:
+        repo = g.get_repo(bot_repo_name)
+        releases = repo.get_releases()
+        print(f"Found {releases.totalCount} releases in {bot_repo_name}. Analyzing for migration...")
+    except GithubException as e:
+        print(f"::error::Failed to get repository or releases: {e}")
+        sys.exit(1)
 
-    print(f"\nMigration complete. Updated {updated_count} legacy release title(s).")
+    app_map_by_id = {app['id']: app for app in config.get('apps', [])}
+    updated_count = 0
+    skipped_count = 0
+
+    for release in releases:
+        # 1. Check if the release is already in the new format
+        if "app:" in release.body and "version:" in release.body:
+            skipped_count += 1
+            continue
+
+        print(f"\n--- Migrating legacy release: {release.tag_name} ---")
+        
+        # 2. Intelligently parse the legacy tag and title
+        app_id = None
+        version = None
+        
+        # Try parsing from tag first (e.g., "bitlife-v3.19.5")
+        for configured_app_id in app_map_by_id.keys():
+            if release.tag_name.lower().startswith(f"{configured_app_id.lower()}-v"):
+                app_id = configured_app_id
+                version_parts = release.tag_name.split('-v')
+                if len(version_parts) > 1:
+                    version = version_parts[1]
+                break
+        
+        # If tag parsing failed, try parsing from the title (e.g., "BitLife MonetizationVars v3.19.5")
+        if not app_id or not version:
+            for configured_app_id, app_details in app_map_by_id.items():
+                display_name = app_details['displayName']
+                match = re.search(f"{re.escape(display_name)}.*?v([\\d\\.]+)", release.title, re.IGNORECASE)
+                if match:
+                    app_id = configured_app_id
+                    version = match.group(1)
+                    break
+
+        # 3. Apply fallback logic if parsing failed
+        if not app_id:
+            app_id = "bitlife" # Fallback app_id
+            print(f"::warning::Could not determine app from tag/title. Falling back to '{app_id}'.")
+
+        if not version:
+            # Fallback to parsing version from title like "MonetizationVars 3.19.4"
+            match = re.search(r'(\d+\.\d+\.\d+)', release.title)
+            if match:
+                version = match.group(1)
+            else:
+                print(f"::error::Could not determine version for tag {release.tag_name}. Cannot migrate.")
+                continue
+
+        asset_name = config['github'].get('assetFileName', 'MonetizationVars') # Fallback asset_name
+
+        print(f"  Parsed Info: App='{app_id}', Version='{version}', Asset='{asset_name}'")
+
+        # 4. Construct the new structured body
+        new_body = f"""app: {app_id}
+version: {version}
+asset_name: {asset_name}
+"""
+        
+        # 5. Update the release on GitHub
+        try:
+            print(f"  Updating release '{release.tag_name}' with new structured body.")
+            release.update_release(name=release.title, message=new_body, prerelease=release.prerelease, draft=release.draft)
+            updated_count += 1
+        except GithubException as e:
+            print(f"::error::Failed to update release {release.tag_name}: {e}")
+
+    print(f"\nMigration complete. Updated: {updated_count}, Skipped (already modern): {skipped_count}.")
 
 if __name__ == "__main__":
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    import paths
     main()
