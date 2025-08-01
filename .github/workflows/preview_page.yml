@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build_and_preview:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -29,14 +29,12 @@ jobs:
           uv pip install -r requirements.txt --system
       
       - name: Run Release Manager
-        id: manager
         working-directory: ./src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python release_manager.py
 
       - name: Gather All Bot Releases
-        id: gatherer
         working-directory: ./src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,13 +45,12 @@ jobs:
         run: python page_generator.py
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: github-pages
           path: ./dist
 
   deploy:
-    needs: build_and_preview
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
