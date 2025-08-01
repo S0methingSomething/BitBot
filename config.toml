@@ -9,7 +9,12 @@ assetFileName = "MonetizationVars"
 subreddit = "BitTest1"
 templateFile = "templates/post_template.md"
 outdatedTemplateFile = "templates/outdated_template.md"
-postTitle = "[BitBot] New MonetizationVars Release"
+title_added_only = "[BitBot-Release] New: {{added_list}}"
+title_updated_only_single = "[BitBot-Update] Update: {{updated_list}}"
+title_updated_only_multi = "[BitBot-Update] Updates: {{updated_list}}"
+title_mixed_single_update = "[BitBot-Release] New: {{added_list}} | Update: {{updated_list}}"
+title_mixed_multi_update = "[BitBot-Release] New: {{added_list}} | Updates: {{updated_list}}"
+title_generic = "[BitBot] Multi-App Update ({{date}})"
 changelog_format_added_landing = "* Added {{display_name}} {{asset_name}} v{{version}}"
 changelog_format_updated_landing = "* Updated {{display_name}} {{asset_name}} to v{{new_version}} (from v{{old_version}})"
 changelog_format_removed_landing = "* Removed {{display_name}} {{asset_name}} (was v{{old_version}})"
@@ -23,6 +28,10 @@ botName = "BitBot"
 creator = "C1oudyLol"
 postMode = "landing_page" # Can be "direct_link" or "landing_page"
 # custom_landing_template = "templates/landing_page.html" # Optional: Uncomment to use a custom HTML template.
+
+# Safety features to prevent account flagging.
+[safety]
+max_outbound_links_warn = 5
 
 # Controls how old posts are marked. mode can be 'overwrite' or 'inject'.
 [outdatedPostHandling]
