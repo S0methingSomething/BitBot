@@ -11,23 +11,21 @@
             --primary-hover: #2563eb;
             --bg-color: #f9fafb;
             --text-color: #1f2937;
-            --text-muted-color: #6b7280; /* gray-500 */
+            --text-muted-color: #6b7280;
             --card-bg-color: #ffffff;
             --border-color: #e5e7eb;
             --input-bg-color: #f9fafb;
             --input-focus-bg-color: #ffffff;
-            --details-bg-color: #f9fafb;
         }
 
         .dark {
             --bg-color: #000000;
             --text-color: #f3f4f6;
-            --text-muted-color: #a1a1aa; /* zinc-400 */
-            --card-bg-color: #18181b; /* zinc-900 */
-            --border-color: #27272a; /* zinc-800 */
+            --text-muted-color: #a1a1aa;
+            --card-bg-color: #18181b;
+            --border-color: #27272a;
             --input-bg-color: #27272a;
             --input-focus-bg-color: #18181b;
-            --details-bg-color: #27272a;
         }
 
         body {
@@ -44,15 +42,21 @@
             border-color: var(--primary-color) !important;
         }
 
-        details > summary { list-style: none; cursor: pointer; }
-        details > summary::-webkit-details-marker { display: none; }
-        details > summary::before {
-            content: '►';
-            margin-right: 0.5rem;
-            font-size: 0.8em;
+        /* Styling for the main history accordion */
+        details.history-details > summary {
+            list-style: none; /* Hide the default triangle */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        details.history-details > summary::-webkit-details-marker {
+            display: none;
+        }
+        details.history-details > summary .history-arrow {
             transition: transform 0.2s ease-in-out;
         }
-        details[open] > summary::before { transform: rotate(90deg); }
+        details.history-details[open] > summary .history-arrow {
+            transform: rotate(90deg);
+        }
     </style>
 
     <script>
@@ -79,26 +83,14 @@
                 Made by <a href="https://www.reddit.com/u/C1oudyLol/" target="_blank" rel="noopener noreferrer" class="text-[var(--primary-color)] hover:underline">/u/C1oudyLol</a>
             </p>
 
-            <div id="controls-container">
-                <div class="flex flex-col md:flex-row gap-4 mb-8">
-                    <div class="flex-grow">
-                        <label for="searchInput" class="sr-only">Search for an app</label>
-                        <input type="text" id="searchInput" placeholder="Search for an app..." class="search-input w-full px-4 py-3 bg-[var(--input-bg-color)] border-2 border-[var(--border-color)] rounded-lg focus:bg-[var(--input-focus-bg-color)] transition-colors duration-300">
-                    </div>
-                    <div class="flex-shrink-0">
-                        <label for="sort-select" class="sr-only">Sort by</label>
-                        <select id="sort-select" class="sort-select w-full md:w-auto h-full px-4 py-3 bg-[var(--input-bg-color)] border-2 border-[var(--border-color)] rounded-lg focus:bg-[var(--input-focus-bg-color)] transition-colors duration-300">
-                            <option value="default">Default Order</option>
-                            <optgroup label="By Name">
-                                <option value="alpha-asc">Name (A-Z)</option>
-                                <option value="alpha-desc">Name (Z-A)</option>
-                            </optgroup>
-                            <optgroup label="By Date">
-                                <option value="date-desc">Newest Release</option>
-                                <option value="date-asc">Oldest Release</option>
-                            </optgroup>
-                        </select>
-                    </div>
+            <div class="flex flex-col md:flex-row gap-4 mb-8">
+                <div class="flex-grow"><input type="text" id="searchInput" placeholder="Search for an app..." class="search-input w-full px-4 py-3 bg-[var(--input-bg-color)] border-2 border-[var(--border-color)] rounded-lg focus:bg-[var(--input-focus-bg-color)] transition-colors duration-300"></div>
+                <div class="flex-shrink-0">
+                    <select id="sort-select" class="sort-select w-full md:w-auto h-full px-4 py-3 bg-[var(--input-bg-color)] border-2 border-[var(--border-color)] rounded-lg focus:bg-[var(--input-focus-bg-color)] transition-colors duration-300">
+                        <option value="default">Default Order</option>
+                        <optgroup label="By Name"><option value="alpha-asc">Name (A-Z)</option><option value="alpha-desc">Name (Z-A)</option></optgroup>
+                        <optgroup label="By Date"><option value="date-desc">Newest Release</option><option value="date-asc">Oldest Release</option></optgroup>
+                    </select>
                 </div>
             </div>
 
@@ -109,56 +101,40 @@
                          data-latest-release-date="{{app.releases[0].published_at}}">
                     
                     <header class="p-4 md:p-5 flex justify-between items-center border-b border-[var(--border-color)]">
-                        <div>
-                            <h2 class="text-2xl font-bold">{{app.display_name}}</h2>
-                        </div>
+                        <div><h2 class="text-2xl font-bold">{{app.display_name}}</h2></div>
                         <div class="version-container text-right">
-                            <span class="font-semibold text-sm py-1 px-2.5 rounded-full bg-[var(--primary-color)] text-white">
-                                Latest: v{{app.releases[0].version}}
-                            </span>
+                            <span class="font-semibold text-sm py-1 px-2.5 rounded-full bg-[var(--primary-color)] text-white">Latest: v{{app.releases[0].version}}</span>
                         </div>
                     </header>
 
-                    <div class="p-3 md:p-4 space-y-3">
-                        <!-- BEGIN-RELEASE-LOOP -->
-                        <div class="release-item p-3 border border-[var(--border-color)] rounded-lg">
-                            <div class="flex justify-between items-center mb-2">
-                                <div class="font-semibold">
-                                    <h3>v{{release.version}}</h3>
-                                    <p class="text-xs text-[var(--text-muted-color)]" data-date="{{release.published_at}}">
-                                        <!-- Release date will be formatted by JS -->
-                                    </p>
-                                </div>
-                                <a href="{{release.download_url}}" class="download-button flex-shrink-0 text-sm bg-[var(--primary-color)] text-white px-4 py-2 rounded-md font-bold transition-colors duration-200 hover:bg-[var(--primary-hover)]">Download</a>
-                            </div>
+                    <!-- This is the container for the collapsable history -->
+                    <div class="history-container p-4">
+                        <details class="history-details">
+                            <summary class="inline-flex items-center gap-2 p-2 -m-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <span class="history-arrow">►</span>
+                                <span class="history-toggle-text text-sm font-semibold text-[var(--text-muted-color)]">View Version History</span>
+                            </summary>
                             
-                            <details>
-                                <summary class="text-sm font-medium text-[var(--text-muted-color)]">Release Notes</summary>
-                                <div class="mt-2 p-3 text-sm bg-[var(--details-bg-color)] rounded-md prose prose-sm max-w-none text-[var(--text-color)]">
-                                    <p>{{release.release_notes}}</p>
-                                    <a href="{{release.release_url}}" target="_blank" rel="noopener noreferrer" class="text-[var(--primary-color)] hover:underline">View on GitHub →</a>
+                            <div class="mt-4 space-y-3">
+                                <!-- BEGIN-RELEASE-LOOP -->
+                                <div class="release-item p-3 border border-[var(--border-color)] rounded-lg flex justify-between items-center">
+                                    <div class="font-semibold">
+                                        <h3>v{{release.version}}</h3>
+                                        <p class="text-xs text-[var(--text-muted-color)]" data-date="{{release.published_at}}"></p>
+                                    </div>
+                                    <a href="{{release.download_url}}" class="download-button flex-shrink-0 text-sm bg-[var(--primary-color)] text-white px-4 py-2 rounded-md font-bold transition-colors duration-200 hover:bg-[var(--primary-hover)]">Download</a>
                                 </div>
-                            </details>
-                        </div>
-                        <!-- END-RELEASE-LOOP -->
+                                <!-- END-RELEASE-LOOP -->
+                            </div>
+                        </details>
                     </div>
+
                 </section>
                 <!-- END-APP-LOOP -->
             </div>
             
-            <div id="no-results" class="hidden text-center py-12" role="status">
-                <h3 class="text-xl font-semibold">No Apps Found</h3>
-                <p class="text-[var(--text-muted-color)] mt-2">Try adjusting your search.</p>
-            </div>
-
-            <div id="no-history" class="hidden text-center py-12" role="status">
-                <h3 class="text-xl font-semibold">No Release History Found</h3>
-                <p class="text-[var(--text-muted-color)] mt-2">As soon as the bot creates its first release, it will appear here.</p>
-            </div>
-
-            <footer class="text-center mt-10 text-sm text-[var(--text-muted-color)] border-t border-[var(--border-color)] pt-6 transition-colors duration-300">
-                <p>Generated by BitBot. For more information, visit the <a href="https://github.com/{{bot_repo}}" class="text-[var(--primary-color)] hover:underline">bot repository</a>.</p>
-            </footer>
+            <div id="no-results" class="hidden text-center py-12" role="status"><h3 class="text-xl font-semibold">No Apps Found</h3><p class="text-[var(--text-muted-color)] mt-2">Try adjusting your search.</p></div>
+            <footer class="text-center mt-10 text-sm text-[var(--text-muted-color)] border-t border-[var(--border-color)] pt-6 transition-colors duration-300"><p>Generated by BitBot. For more information, visit the <a href="https://github.com/{{bot_repo}}" class="text-[var(--primary-color)] hover:underline">bot repository</a>.</p></footer>
         </div>
     </div>
 
@@ -170,29 +146,30 @@
             const sortSelect = document.getElementById('sort-select');
             const appListContainer = document.getElementById('app-list');
             const noResultsMessage = document.getElementById('no-results');
-            const noHistoryMessage = document.getElementById('no-history');
-            const controlsContainer = document.getElementById('controls-container');
             
-            // --- Master Data Store ---
+            // --- Master Data Store and Initial DOM Manipulation ---
             const appData = Array.from(appListContainer.querySelectorAll('.app-section')).map(element => {
-                const hasReleases = element.querySelector('.release-item');
-                let latestReleaseDate = new Date(0);
+                const appName = element.dataset.appName;
+                let latestReleaseDate;
+                const historyContainer = element.querySelector('.history-container');
 
+                const hasReleases = element.querySelector('.release-item');
+                
                 if (hasReleases) {
                     const dateStr = element.dataset.latestReleaseDate;
-                    if (dateStr) {
-                        const parsedDate = new Date(dateStr);
-                        if (!isNaN(parsedDate.getTime())) {
-                            latestReleaseDate = parsedDate;
-                        }
-                    }
+                    latestReleaseDate = dateStr ? new Date(dateStr) : new Date(0);
+                    if (isNaN(latestReleaseDate.getTime())) latestReleaseDate = new Date(0);
                 } else {
                     const versionContainer = element.querySelector('.version-container');
                     if (versionContainer) {
                         versionContainer.innerHTML = `<span class="font-semibold text-xs py-1 px-2.5 rounded-full bg-gray-400 dark:bg-gray-600 text-white">No Releases</span>`;
                     }
+                    // Hide the "View History" button if there are no releases
+                    if (historyContainer) historyContainer.style.display = 'none';
+                    latestReleaseDate = new Date(0); 
                 }
-                return { element, name: element.dataset.appName, latestReleaseDate };
+
+                return { element, name: appName, latestReleaseDate };
             });
 
             // --- Date Formatting Helper ---
@@ -202,13 +179,13 @@
                 return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
             }
 
-            // --- Core Logic ---
+            // --- Core Logic: The updateAppList function ---
             function updateAppList() {
                 const searchQuery = searchInput.value.toLowerCase();
                 const sortValue = sortSelect.value;
                 const filteredApps = appData.filter(app => app.name.toLowerCase().includes(searchQuery));
-                let sortedApps = [...filteredApps];
 
+                let sortedApps = [...filteredApps];
                 switch (sortValue) {
                     case 'alpha-asc': sortedApps.sort((a, b) => a.name.localeCompare(b.name)); break;
                     case 'alpha-desc': sortedApps.sort((a, b) => b.name.localeCompare(a.name)); break;
@@ -225,36 +202,46 @@
                 }
             }
             
-            // --- Initial Setup ---
-            function initialize() {
-                if (appData.length === 0) {
-                    controlsContainer.classList.add('hidden');
-                    appListContainer.classList.add('hidden');
-                    noHistoryMessage.classList.remove('hidden');
-                    return; // Stop further initialization
-                }
+            // --- Event Listeners and Initial Setup ---
+            
+            // Format dates
+            document.querySelectorAll('[data-date]').forEach(el => el.textContent = formatReleaseDate(el.dataset.date));
 
-                document.querySelectorAll('[data-date]').forEach(el => {
-                    el.textContent = formatReleaseDate(el.dataset.date);
-                });
-
-                const syncThemeButton = () => {
-                    const isDark = document.documentElement.classList.contains('dark');
-                    themeToggleButton.textContent = isDark ? '☀️' : '🌙';
-                };
-                themeToggleButton.addEventListener('click', () => {
-                    document.documentElement.classList.toggle('dark');
-                    localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-                    syncThemeButton();
-                });
+            // Theme logic
+            const syncThemeButton = () => {
+                const isDark = document.documentElement.classList.contains('dark');
+                themeToggleButton.textContent = isDark ? '☀️' : '🌙';
+            };
+            themeToggleButton.addEventListener('click', () => {
+                const isCurrentlyDark = document.documentElement.classList.contains('dark');
+                localStorage.setItem('theme', isCurrentlyDark ? 'light' : 'dark');
+                document.documentElement.classList.toggle('dark');
                 syncThemeButton();
+            });
+            syncThemeButton();
 
-                searchInput.addEventListener('input', updateAppList);
-                sortSelect.addEventListener('change', updateAppList);
-                updateAppList();
-            }
+            // History toggle text change
+            appListContainer.addEventListener('click', (event) => {
+                const summary = event.target.closest('summary');
+                if (!summary) return;
+                
+                const details = summary.parentElement;
+                const toggleText = summary.querySelector('.history-toggle-text');
+                
+                // Use a tiny timeout to allow the 'open' attribute to be updated by the browser first
+                setTimeout(() => {
+                    if (details.open) {
+                        toggleText.textContent = 'Hide Version History';
+                    } else {
+                        toggleText.textContent = 'View Version History';
+                    }
+                }, 0);
+            });
 
-            initialize();
+            searchInput.addEventListener('input', updateAppList);
+            sortSelect.addEventListener('change', updateAppList);
+            
+            updateAppList();
         });
     </script>
 </body>
