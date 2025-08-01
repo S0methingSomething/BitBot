@@ -135,6 +135,7 @@ def _post_new_release(reddit, page_url, config, changelog_data, all_releases_dat
 def main():
     parser = argparse.ArgumentParser(description="Post a new release to Reddit if it's out of date.")
     parser.add_argument('--page-url', required=False, default='', help="URL to the GitHub Pages landing page.")
+    parser.add_argument('--dry-run', action='store_true', help="Run the script without actually posting to Reddit.")
     args = parser.parse_args()
     config = load_config()
 
@@ -181,6 +182,29 @@ def main():
         sys.exit(0)
 
     print(f"Found changes: {len(added_apps)} added, {len(updated_apps)} updated, {len(removed_apps)} removed. Proceeding to post.")
+    
+    if args.dry_run:
+        print("\n--- DRY RUN ---")
+        print("Title:", config['reddit']['postTitle'])
+        # Re-generate the body here to print it
+        template_name = os.path.basename(config['reddit']['templateFile'])
+        template_path = paths.get_template_path(template_name)
+        with open(template_path, 'r') as f:
+            raw_template = f.read()
+        
+        # This is a simplified version of the placeholder replacement for logging
+        changelog = _generate_changelog(config, **changelog_data)
+        available_list = _generate_available_list(config, all_available_versions)
+        
+        body = raw_template.replace("{{changelog}}", changelog)
+        body = body.replace("{{available_list}}", available_list)
+        body = body.replace("{{download_portal_url}}", args.page_url)
+        # Add other simple placeholders if needed for an accurate dry run log
+        
+        print("Body:\n", body)
+        print("--- END DRY RUN ---")
+        sys.exit(0)
+
     new_submission = _post_new_release(reddit, args.page_url, config, changelog_data, all_available_versions)
 
     if existing_posts:

@@ -1,6 +1,12 @@
 name: '[Multi-App Release] Check, Patch, and Manage Reddit'
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run without posting to Reddit'
+        required: false
+        type: boolean
+        default: false
   schedule:
     - cron: '0 1,16 * * *' # Run at 1 AM and 4 PM UTC
 concurrency:
@@ -116,4 +122,8 @@ jobs:
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: |
           PAGE_URL="https://s0methingsomething.github.io/BitBot/"
-          python post_to_reddit.py --page-url "$PAGE_URL"
+          DRY_RUN_FLAG=""
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          python post_to_reddit.py --page-url "$PAGE_URL" $DRY_RUN_FLAG
