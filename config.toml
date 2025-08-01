@@ -4,39 +4,53 @@ sourceRepo = "S0methingSomething/BitEdit"
 botRepo = "S0methingSomething/BitBot"
 assetFileName = "MonetizationVars"
 
-# Settings for posting and managing Reddit content.
+# --- Reddit Configuration ---
+
+# Core settings for Reddit interaction
 [reddit]
 subreddit = "BitTest1"
-templateFile = "templates/post_template.md"
-outdatedTemplateFile = "templates/outdated_template.md"
-title_added_only = "[BitBot-Release] New: {{added_list}}"
-title_updated_only_single = "[BitBot-Update] Update: {{updated_list}}"
-title_updated_only_multi = "[BitBot-Update] Updates: {{updated_list}}"
-title_mixed_single_update = "[BitBot-Release] New: {{added_list}} | Update: {{updated_list}}"
-title_mixed_multi_update = "[BitBot-Release] New: {{added_list}} | Updates: {{updated_list}}"
-title_generic = "[BitBot] Multi-App Update ({{date}})"
-changelog_format_added_landing = "* Added {{display_name}} {{asset_name}} v{{version}}"
-changelog_format_updated_landing = "* Updated {{display_name}} {{asset_name}} to v{{new_version}} (from v{{old_version}})"
-changelog_format_removed_landing = "* Removed {{display_name}} {{asset_name}} (was v{{old_version}})"
-changelog_format_added_direct = "* Added {{display_name}} {{asset_name}} v{{version}} [Download]({{download_url}})"
-changelog_format_updated_direct = "* Updated {{display_name}} {{asset_name}} to v{{new_version}} (from v{{old_version}}) [Download]({{download_url}})"
-changelog_format_removed_direct = "* Removed {{display_name}} {{asset_name}} (was v{{old_version}})"
-available_table_header = "| App | Asset | Version |"
-available_table_divider = "|---|---|---:|"
-available_line_format = "| {{display_name}} | {{asset_name}} | v{{version}} |"
 botName = "BitBot"
 creator = "C1oudyLol"
 postMode = "landing_page" # Can be "direct_link" or "landing_page"
-# custom_landing_template = "templates/landing_page.html" # Optional: Uncomment to use a custom HTML template.
+
+# Template file paths used by the bot
+[reddit.templates]
+post = "templates/post_template.md"
+outdated_post = "templates/outdated_template.md"
+inject_banner = "templates/inject_template.md"
+custom_landing = "templates/custom_landing_page.example.html" # Optional
+
+# Dynamic formats for post content
+[reddit.formats]
+
+  [reddit.formats.titles]
+  added_only = "[BitBot-Release] New: {{added_list}}"
+  updated_only_single = "[BitBot-Update] Update: {{updated_list}}"
+  updated_only_multi = "[BitBot-Update] Updates: {{updated_list}}"
+  mixed_single_update = "[BitBot-Release] New: {{added_list}} | Update: {{updated_list}}"
+  mixed_multi_update = "[BitBot-Release] New: {{added_list}} | Updates: {{updated_list}}"
+  generic = "[BitBot] Multi-App Update ({{date}})"
+
+  [reddit.formats.changelog]
+  added_landing = "* Added {{display_name}} {{asset_name}} v{{version}}"
+  updated_landing = "* Updated {{display_name}} {{asset_name}} to v{{new_version}} (from v{{old_version}})"
+  removed_landing = "* Removed {{display_name}} {{asset_name}} (was v{{old_version}})"
+  added_direct = "* Added {{display_name}} {{asset_name}} v{{version}} [Download]({{download_url}})"
+  updated_direct = "* Updated {{display_name}} {{asset_name}} to v{{new_version}} (from v{{old_version}}) [Download]({{download_url}})"
+  removed_direct = "* Removed {{display_name}} {{asset_name}} (was v{{old_version}})"
+
+  [reddit.formats.table]
+  header = "| App | Asset | Version |"
+  divider = "|---|---|---:|"
+  line = "| {{display_name}} | {{asset_name}} | v{{version}} |"
 
 # Safety features to prevent account flagging.
 [safety]
 max_outbound_links_warn = 5
 
-# Controls how old posts are marked. mode can be 'overwrite' or 'inject'.
+# Controls how old posts are marked.
 [outdatedPostHandling]
-mode = "inject"
-injectTemplateFile = "templates/inject_template.md"
+mode = "inject" # Can be 'overwrite' or 'inject'.
 
 # Text formats for GitHub releases.
 [messages]
@@ -53,10 +67,10 @@ endTag = "<!-- TUTORIAL-END -->"
 statusLineFormat = "**Status:** {{status}} (based on comments)."
 statusLineRegex = "^\\*\\*Status:\\*\\*.*$"
 
-[feedback.labels]
-working = "Working"
-broken = "Potentially Not Working"
-unknown = "Not enough feedback..."
+  [feedback.labels]
+  working = "Working"
+  broken = "Potentially Not Working"
+  unknown = "Not enough feedback..."
 
 workingKeywords = ["working", "works for me", "no issues", "perfect", "thanks"]
 notWorkingKeywords = ["not working", "broken", "doesnt work"]
