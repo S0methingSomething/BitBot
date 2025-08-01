@@ -93,4 +93,4 @@ asset_name: {asset_name}
 if __name__ == "__main__":
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     import paths
-    main()
+    migrate_releases()
