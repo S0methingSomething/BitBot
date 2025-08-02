@@ -19,7 +19,11 @@ from helpers import (
 MAX_OUTBOUND_LINKS_ERROR = 8
 
 def _count_outbound_links(text: str) -> int:
-    url_pattern = re.compile(r'https?://[^\s/$.?#].[^\s]*|www\.[^\s/$.?#].[^\s]*')
+    url_pattern = re.compile(r'https?://[^
+	
+ ]+ | www\[^
+	
+ ]+')
     matches = url_pattern.findall(text)
     return len(set(matches))
 
@@ -101,8 +105,7 @@ def _generate_available_list(config: dict, all_releases_data: dict) -> str:
         table_lines.append(line)
     return "\n".join(table_lines)
 
-def _post_new_release(reddit, page_url, config, changelog_data, all_releases_data):
-    # This function remains mostly the same
+def _generate_post_body(config: dict, changelog_data: dict, all_releases_data: dict, page_url: str) -> str:
     template_name = os.path.basename(config['reddit']['templates']['post'])
     template_path = paths.get_template_path(template_name)
     with open(template_path, 'r') as f:
@@ -124,10 +127,12 @@ def _post_new_release(reddit, page_url, config, changelog_data, all_releases_dat
         "{{asset_name}}": config['github']['assetFileName'], "{{creator_username}}": config['reddit']['creator'],
         "{{initial_status}}": initial_status_line, "{{download_portal_url}}": page_url,
     }
-    title = _generate_dynamic_title(config, changelog_data['added'], changelog_data['updated'])
     post_body = post_body_template
     for placeholder, value in placeholders.items():
         post_body = post_body.replace(placeholder, str(value))
+    return post_body
+
+def _post_new_release(reddit, title, post_body, config):
     link_count = _count_outbound_links(post_body)
     warn_threshold = config.get('safety', {}).get('max_outbound_links_warn', 5)
     print(f"Post analysis: Found {link_count} unique outbound link(s).")
@@ -146,6 +151,7 @@ def main():
     parser = argparse.ArgumentParser(description="Post a new release to Reddit if it's out of date.")
     parser.add_argument('--page-url', required=False, default='', help="URL to the GitHub Pages landing page.")
     parser.add_argument('--dry-run', action='store_true', help="Run the script without actually posting to Reddit.")
+    parser.add_argument('--generate-only', action='store_true', help="Generate post content and save to files instead of posting.")
     args = parser.parse_args()
     config = load_config()
 
@@ -155,57 +161,56 @@ def main():
     with open(paths.RELEASES_JSON_FILE, 'r') as f:
         all_available_versions = json.load(f)
 
-    reddit = init_reddit(config)
-    existing_posts = get_bot_posts(reddit, config)
-    
-    versions_on_reddit = {}
-    if existing_posts:
-        versions_on_reddit = parse_versions_from_post(existing_posts[0], config)
-
     added_apps, updated_apps, removed_apps = {}, {}, {}
     
-    for app_id, app_data in all_available_versions.items():
-        if not app_data.get('latest_release'):
-            continue
-        
-        latest_version_str = app_data['latest_release']['version']
-        reddit_version_str = versions_on_reddit.get(app_id, "0.0.0")
-
-        if parse_version(latest_version_str) > parse_version(reddit_version_str):
-            if reddit_version_str == "0.0.0":
-                added_apps[app_id] = {"display_name": app_data['display_name'], "version": latest_version_str, "url": app_data['latest_release']['download_url']}
-            else:
-                updated_apps[app_id] = {"new": {"display_name": app_data['display_name'], "version": latest_version_str, "url": app_data['latest_release']['download_url']}, "old": reddit_version_str}
-
-    # This logic for removed apps needs to be re-evaluated, but is out of scope of the main bug
-    # For now, we focus on the main posting logic.
+    if args.generate_only:
+        # In generate-only mode, assume all apps are "updated" for preview purposes
+        for app_id, app_data in all_available_versions.items():
+            if app_data.get('latest_release'):
+                updated_apps[app_id] = {"new": {"display_name": app_data['display_name'], "version": app_data['latest_release']['version'], "url": app_data['latest_release']['download_url']}, "old": "?.?.?"}
+    else:
+        reddit = init_reddit(config)
+        existing_posts = get_bot_posts(reddit, config) # Assuming get_bot_posts returns a list of posts
+        versions_on_reddit = parse_versions_from_post(existing_posts[0], config) if existing_posts else {}
+        for app_id, app_data in all_available_versions.items():
+            if not app_data.get('latest_release'): continue
+            latest_version_str = app_data['latest_release']['version']
+            reddit_version_str = versions_on_reddit.get(app_id, "0.0.0")
+            if parse_version(latest_version_str) > parse_version(reddit_version_str):
+                if reddit_version_str == "0.0.0":
+                    added_apps[app_id] = {"display_name": app_data['display_name'], "version": latest_version_str, "url": app_data['latest_release']['download_url']}
+                else:
+                    updated_apps[app_id] = {"new": {"display_name": app_data['display_name'], "version": latest_version_str, "url": app_data['latest_release']['download_url']}, "old": reddit_version_str}
 
     changelog_data = {"added": added_apps, "updated": updated_apps, "removed": removed_apps}
     if not any(changelog_data.values()):
-        print("Reddit is already up-to-date. No new post needed.")
+        print("No changes detected. Nothing to generate or post.")
         sys.exit(0)
 
-    print(f"Found changes: {len(added_apps)} added, {len(updated_apps)} updated, {len(removed_apps)} removed. Proceeding to post.")
-    
+    title = _generate_dynamic_title(config, added_apps, updated_apps)
+    body = _generate_post_body(config, changelog_data, all_available_versions, args.page_url or "https://example.com/preview-link")
+
+    if args.generate_only:
+        os.makedirs(paths.DIST_DIR, exist_ok=True)
+        title_path = os.path.join(paths.DIST_DIR, 'post_title.txt')
+        body_path = os.path.join(paths.DIST_DIR, 'post_body.md')
+        with open(title_path, 'w') as f: f.write(title)
+        with open(body_path, 'w') as f: f.write(body)
+        print(f"Successfully generated post preview files in {paths.DIST_DIR}")
+        sys.exit(0)
+
     if args.dry_run:
-        # Dry run logic remains the same
-        title = _generate_dynamic_title(config, added_apps, updated_apps)
         print("\n--- DRY RUN ---")
         print("Title:", title)
-        # ... (rest of dry run logic)
+        print("Body:\n", body)
         sys.exit(0)
 
-    new_submission = _post_new_release(reddit, args.page_url, config, changelog_data, all_available_versions)
-
+    # Actual posting logic
+    reddit = init_reddit(config)
+    new_submission = _post_new_release(reddit, title, body, config)
     if existing_posts:
         update_older_posts(existing_posts, {"title": new_submission.title, "url": new_submission.shortlink, "version": "latest"})
-
-    save_bot_state({
-        "activePostId": new_submission.id,
-        "lastCheckTimestamp": "2024-01-01T00:00:00Z",
-        "currentIntervalSeconds": config['timing']['firstCheck'],
-        "lastCommentCount": 0
-    })
+    save_bot_state({"activePostId": new_submission.id, "lastCheckTimestamp": "2024-01-01T00:00:00Z", "currentIntervalSeconds": config['timing']['firstCheck'], "lastCommentCount": 0})
     print("Post and update process complete.")
 
 if __name__ == "__main__":
