@@ -1,6 +1,12 @@
 name: '[Multi-App Release] Check, Patch, and Manage Reddit'
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run without posting to Reddit'
+        required: false
+        type: boolean
+        default: false
   schedule:
     - cron: '0 1,16 * * *' # Run at 1 AM and 4 PM UTC
 concurrency:
@@ -10,51 +16,109 @@ concurrency:
 jobs:
   manage_releases:
     runs-on: ubuntu-latest
-    outputs:
-      new_releases_found: ${{ steps.manager.outputs.new_releases_found }}
-      version: ${{ steps.manager.outputs.version }}
-      urls: ${{ steps.manager.outputs.urls }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
-      - name: Install Python Dependencies
-        run: pip install -r requirements.txt
-
+      - name: Install Dependencies with uv
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt --system
       - name: Run Release Manager
         id: manager
+        working-directory: ./src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python release_manager.py
 
-  post_to_reddit:
+  gather_releases:
     needs: manage_releases
-    # Only run this job if the manager script found new releases
-    if: needs.manage_releases.outputs.new_releases_found == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+      - name: Install Dependencies with uv
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt --system
+      - name: Gather All Bot Releases
+        id: gatherer
+        working-directory: ./src
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python gather_post_data.py
+      - name: Upload release data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-data
+          path: dist/
 
-      - name: Install Python Dependencies
-        run: pip install -r requirements.txt
-
+  generate_page:
+    needs: gather_releases
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download release data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-data
+          path: dist/
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install Dependencies
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt --system
+      - name: Generate Static Page
+        working-directory: ./src
+        run: python page_generator.py
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+  
+  post_to_reddit:
+    needs: [gather_releases, generate_page]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Download release data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-data
+          path: dist/
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install Dependencies
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt --system
       - name: Post / Update Reddit
+        working-directory: ./src
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
@@ -62,6 +126,8 @@ jobs:
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: |
-          python post_to_reddit.py \
-            --version "${{ needs.manage_releases.outputs.version }}" \
-            --urls '${{ needs.manage_releases.outputs.urls }}'
+          DRY_RUN_FLAG=""
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          python post_to_reddit.py --page-url "${{ needs.generate_page.outputs.page_url }}" $DRY_RUN_FLAG

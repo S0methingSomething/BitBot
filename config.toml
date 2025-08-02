@@ -1,0 +1,110 @@
+# Configure which repositories the bot monitors and updates
+[github]
+sourceRepo = "S0methingSomething/BitEdit"
+botRepo = "S0methingSomething/BitBot"
+assetFileName = "MonetizationVars"
+
+# --- Reddit Configuration ---
+
+# Core settings for Reddit interaction
+[reddit]
+subreddit = "BitTest1"
+botName = "BitBot"
+creator = "C1oudyLol"
+postMode = "landing_page" # Can be "direct_link" or "landing_page"
+
+# Template file paths used by the bot
+[reddit.templates]
+post = "templates/post_template.md"
+outdated_post = "templates/outdated_template.md"
+inject_banner = "templates/inject_template.md"
+custom_landing = "templates/custom_landing_page.example.html" # Optional
+
+# Dynamic formats for post content
+[reddit.formats]
+
+  [reddit.formats.titles]
+  added_only = "[BitBot-Release] New: {{added_list}}"
+  updated_only_single = "[BitBot-Update] Update: {{updated_list}}"
+  updated_only_multi = "[BitBot-Update] Updates: {{updated_list}}"
+  mixed_single_update = "[BitBot-Release] New: {{added_list}} | Update: {{updated_list}}"
+  mixed_multi_update = "[BitBot-Release] New: {{added_list}} | Updates: {{updated_list}}"
+  generic = "[BitBot] Multi-App Update ({{date}})"
+
+  [reddit.formats.changelog]
+  added_landing = "* Added {{display_name}} {{asset_name}} v{{version}}"
+  updated_landing = "* Updated {{display_name}} {{asset_name}} to v{{new_version}} (from v{{old_version}})"
+  removed_landing = "* Removed {{display_name}} {{asset_name}} (was v{{old_version}})"
+  added_direct = "* Added {{display_name}} {{asset_name}} v{{version}} [Download]({{download_url}})"
+  updated_direct = "* Updated {{display_name}} {{asset_name}} to v{{new_version}} (from v{{old_version}}) [Download]({{download_url}})"
+  removed_direct = "* Removed {{display_name}} {{asset_name}} (was v{{old_version}})"
+
+  [reddit.formats.table]
+  header = "| App | Asset | Version |"
+  divider = "|---|---|---:|"
+  line = "| {{display_name}} | {{asset_name}} | v{{version}} |"
+
+# Safety features to prevent account flagging.
+[safety]
+max_outbound_links_warn = 5
+
+# Controls how old posts are marked.
+[outdatedPostHandling]
+mode = "inject" # Can be 'overwrite' or 'inject'.
+
+# Text formats for GitHub releases.
+[messages]
+releaseTitle = "{{displayName}} MonetizationVars v{{version}}"
+releaseDescription = "Automated release of the pre-patched `{{asset_name}}` file. All boolean values have been set to true."
+
+# Defines tags for tutorial/comment blocks to be removed before posting.
+[skipContent]
+startTag = "<!-- TUTORIAL-START -->"
+endTag = "<!-- TUTORIAL-END -->"
+
+# Rules for analyzing Reddit comments and updating the post status.
+[feedback]
+statusLineFormat = "**Status:** {{status}} (based on comments)."
+statusLineRegex = "^\\*\\*Status:\\*\\*.*$"
+
+  [feedback.labels]
+  working = "Working"
+  broken = "Potentially Not Working"
+  unknown = "Not enough feedback..."
+
+workingKeywords = ["working", "works for me", "no issues", "perfect", "thanks"]
+notWorkingKeywords = ["not working", "broken", "doesnt work"]
+minFeedbackCount = 2
+
+# Controls the adaptive polling interval for the comment checker (in seconds).
+[timing]
+firstCheck = 300
+maxWait = 3600
+increaseBy = 300
+
+# Defines the keys to look for when parsing release descriptions.
+[parsing]
+app_key = "app"
+version_key = "version"
+asset_name_key = "asset_name"
+
+# Configuration for each app the bot manages.
+[[apps]]
+id = "bitlife"
+displayName = "BitLife"
+
+[[apps]]
+id = "bitlife_go"
+displayName = "BitLife Go"
+
+[[apps]]
+id = "bitlife_br"
+displayName = "BitLife BR"
+
+[[apps]]
+id = "bitlife_fr"
+displayName = "BitLife Fraçais"
+
+[[apps]]
+id = "bitlife_es"
+displayName = "BitLife Español"
