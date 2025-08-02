@@ -92,9 +92,72 @@ jobs:
           name: github-pages
           path: dist/index.html
   
-  post_to_reddit:
+  gather_releases:
+    needs: manage_releases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install Dependencies with uv
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt --system
+      - name: Gather All Bot Releases
+        id: gatherer
+        working-directory: ./src
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python gather_post_data.py
+      - name: Upload release data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-data
+          path: dist/
+
+  generate_page:
     needs: gather_releases
-    if: needs.gather_releases.outputs.new_releases_found == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download release data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-data
+          path: dist/
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install Dependencies
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt --system
+      - name: Generate Static Page
+        working-directory: ./src
+        run: python page_generator.py
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+  
+  post_to_reddit:
+    needs: [gather_releases, generate_page]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -108,7 +171,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      - name: Install Dependencies with uv
+      - name: Install Dependencies
         run: |
           pip install uv
           uv pip install -r requirements.txt --system
@@ -121,9 +184,8 @@ jobs:
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: |
-          PAGE_URL="https://s0methingsomething.github.io/BitBot/"
           DRY_RUN_FLAG=""
           if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
             DRY_RUN_FLAG="--dry-run"
           fi
-          python post_to_reddit.py --page-url "$PAGE_URL" $DRY_RUN_FLAG
+          python post_to_reddit.py --page-url "${{ needs.generate_page.outputs.page_url }}" $DRY_RUN_FLAG
