@@ -104,3 +104,7 @@ displayName = "BitLife BR"
 [[apps]]
 id = "bitlife_fr"
 displayName = "BitLife Fraçais"
+
+[[apps]]
+id = "bitlife_es"
+displayName = "BitLife Español"
