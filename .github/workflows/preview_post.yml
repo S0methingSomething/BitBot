@@ -1,0 +1,41 @@
+name: '[Preview] Generate Reddit Post Content'
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate_post_content:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt --system
+
+      - name: Gather Release Data
+        id: gatherer
+        working-directory: ./src
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python gather_post_data.py
+
+      - name: Generate Post Content
+        id: generator
+        working-directory: ./src
+        run: python post_to_reddit.py --generate-only
+
+      - name: Upload Post Content Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reddit-post-preview
+          path: |
+            dist/post_title.txt
+            dist/post_body.md
