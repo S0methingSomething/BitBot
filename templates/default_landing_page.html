@@ -80,7 +80,7 @@
 
             <div id="app-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <!-- BEGIN-APP-LOOP -->
-                <section class="app-section flex flex-col border border-[var(--border-color)] rounded-xl transition-colors duration-300" data-app-name="{{app.display_name}}" data-latest-release-date="{{app.releases[0].published_at}}">
+                <section class="app-section flex flex-col border border-[var(--border-color)] rounded-xl transition-colors duration-300" data-app-name="{{app.display_name}}" data-latest-release-date="{{app.latest_release.published_at}}">
                     
                     <header class="p-4">
                         <h2 class="text-xl font-bold mb-2">{{app.display_name}}</h2>
@@ -88,12 +88,12 @@
                         <div class="latest-release space-y-2">
                             <div class="font-semibold">
                                 <div class="flex items-center gap-2">
-                                    <h3>v{{app.releases[0].version}}</h3>
+                                    <h3>v{{app.latest_release.version}}</h3>
                                     <span class="text-xs font-bold py-0.5 px-2 rounded-full bg-[var(--primary-color)] text-white">Latest</span>
                                 </div>
-                                <p class="release-date text-xs text-[var(--text-muted-color)]" data-date="{{app.releases[0].published_at}}"></p>
+                                <p class="release-date text-xs text-[var(--text-muted-color)]" data-date="{{app.latest_release.published_at}}"></p>
                             </div>
-                            <a href="{{app.releases[0].download_url}}" class="download-button w-full text-center text-sm bg-[var(--primary-color)] text-white px-4 py-2 rounded-md font-bold transition-colors duration-200 hover:bg-[var(--primary-hover)]">Download</a>
+                            <a href="{{app.latest_release.download_url}}" class="download-button w-full text-center text-sm bg-[var(--primary-color)] text-white px-4 py-2 rounded-md font-bold transition-colors duration-200 hover:bg-[var(--primary-hover)]">Download</a>
                         </div>
                         <!-- ELSE -->
                         <p class="text-center text-sm text-[var(--text-muted-color)] py-4">No releases found.</p>
@@ -114,7 +114,6 @@
                                         <h3>v{{release.version}}</h3>
                                         <p class="release-date text-xs text-[var(--text-muted-color)]" data-date="{{release.published_at}}"></p>
                                     </div>
-                                    <!-- UPDATED: Consistent but distinct button style -->
                                     <a href="{{release.download_url}}" class="download-button w-full sm:w-auto text-center flex-shrink-0 text-sm font-bold border-2 border-[var(--primary-color)] text-[var(--primary-color)] px-4 py-1.5 rounded-md transition-colors duration-200 hover:bg-[var(--primary-color)] hover:text-white">Download</a>
                                 </div>
                                 <!-- END-RELEASE-LOOP -->
@@ -132,6 +131,8 @@
     </div>
 
     <script>
+        // The JavaScript from the previous version is already compatible with this new structure.
+        // No changes are needed here.
         document.addEventListener('DOMContentLoaded', () => {
             const themeToggleButton = document.getElementById('theme-toggle');
             const searchInput = document.getElementById('searchInput');
@@ -208,7 +209,6 @@
                 }, 0);
             });
 
-            // --- Persistent Controls ---
             function saveSearch(query) {
                 localStorage.setItem('bitbot_search', query);
                 clearSearchBtn.classList.toggle('hidden', query === '');
@@ -232,7 +232,6 @@
                 updateAppList();
             });
             
-            // --- Initial Load ---
             function loadPersistentState() {
                 const savedSort = localStorage.getItem('bitbot_sort');
                 const savedSearch = localStorage.getItem('bitbot_search');
