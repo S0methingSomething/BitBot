@@ -30,7 +30,12 @@ def _generate_dynamic_title(config: dict, added: dict, updated: dict) -> str:
     total_changes = num_added + num_updated
     formats = config['reddit']['formats']['titles']
     def create_app_list(app_dict):
-        return ", ".join([f"{info['display_name']} v{info.get('version') or info.get('new', {}).get('version')}" for _, info in app_dict.items()])
+        parts = []
+        for _, info in app_dict.items():
+            display_name = info.get('display_name') or info.get('new', {}).get('display_name', 'Unknown App')
+            version = info.get('version') or info.get('new', {}).get('version', '?.?.?')
+            parts.append(f"{display_name} v{version}")
+        return ", ".join(parts)
     added_list = create_app_list(added)
     updated_list = create_app_list(updated)
     title_key, placeholders = None, {}
