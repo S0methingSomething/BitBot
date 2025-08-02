@@ -4,67 +4,49 @@ from helpers import (
     load_config,
     init_reddit,
     get_bot_posts,
-    update_older_posts,
-    save_bot_state,
-    load_bot_state,
     parse_versions_from_post,
+    load_bot_state,
+    save_bot_state,
 )
 
 def main():
     """
-    A maintenance script to ensure the bot's state is aligned with the actual
-    state of Reddit. It ensures old posts are marked as outdated and that the
-    bot is monitoring the single latest post.
+    Synchronizes the bot's online state with the latest post on Reddit.
+    This script reads the latest Reddit post, parses the versions from it,
+    and updates the `online.last_posted_versions` in `bot_state.json`.
     """
     config = load_config()
-    print("Authenticating with Reddit...")
+    
+    print("Initializing Reddit client...")
     reddit = init_reddit(config)
-
-    print("Fetching bot posts from subreddit...")
+    
+    print("Fetching latest bot posts...")
     bot_posts = get_bot_posts(reddit, config)
-
+    
     if not bot_posts:
-        print("No posts found. Nothing to sync.")
+        print("::warning::No posts found on Reddit. Cannot sync state.")
         sys.exit(0)
-
+        
     latest_post = bot_posts[0]
-    older_posts = bot_posts[1:]
-    print(f"Latest post identified: {latest_post.id}. Found {len(older_posts)} older post(s).")
-
-    # 1. Ensure all older posts are correctly marked as outdated
-    if older_posts:
-        latest_versions = parse_versions_from_post(latest_post, config)
-        # For the banner, we just need a representative version. We'll grab the first one.
-        latest_version_str = next(iter(latest_versions.values()), "latest")
-
-        latest_release_details = {
-            "title": latest_post.title,
-            "url": latest_post.shortlink,
-            "version": latest_version_str,
-        }
-        update_older_posts(older_posts, latest_release_details, config)
-    else:
-        print("No older posts found to update.")
-
-    # 2. Ensure the state file is pointing to the latest post
-    state = load_bot_state()
-    if state.get('activePostId') != latest_post.id:
-        print(f"State file is out of sync. Pointing to '{state.get('activePostId')}', but should be '{latest_post.id}'. Correcting it now.")
-        new_state = {
-            "activePostId": latest_post.id,
-            "lastCheckTimestamp": "2024-01-01T00:00:00Z",
-            "currentIntervalSeconds": config['timing']['firstCheck'],
-            "lastCommentCount": 0
-        }
-        save_bot_state(new_state)
-        with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-            print("state_changed=true", file=f)
-    else:
-        print("State file is already in sync.")
-        with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-            print("state_changed=false", file=f)
-            
-    print("Sync complete.")
+    print(f"Found latest post: {latest_post.title} ({latest_post.id})")
+    
+    versions_on_reddit = parse_versions_from_post(latest_post, config)
+    
+    if not versions_on_reddit:
+        print(f"::error::Could not parse any versions from the latest post. State will not be updated.")
+        sys.exit(1)
+        
+    print(f"Updating local state with versions from Reddit: {versions_on_reddit}")
+    
+    bot_state = load_bot_state()
+    bot_state['online']['last_posted_versions'] = versions_on_reddit
+    bot_state['online']['activePostId'] = latest_post.id
+    
+    save_bot_state(bot_state)
+    
+    print("Successfully synchronized Reddit state to bot_state.json.")
 
 if __name__ == "__main__":
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    import paths
     main()

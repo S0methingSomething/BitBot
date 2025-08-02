@@ -12,6 +12,7 @@ subreddit = "BitTest1"
 botName = "BitBot"
 creator = "C1oudyLol"
 postMode = "landing_page" # Can be "direct_link" or "landing_page"
+post_manually = false # Set to true to generate post files instead of posting
 
 # Template file paths used by the bot
 [reddit.templates]
