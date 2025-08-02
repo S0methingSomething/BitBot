@@ -79,21 +79,24 @@
             </div>
 
             <div id="app-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                
+                <!-- =================================================================== -->
+                <!-- CORRECT PLACEMENT: The BEGIN marker goes right before the <section> -->
                 <!-- BEGIN-APP-LOOP -->
                 <section class="app-section flex flex-col border border-[var(--border-color)] rounded-xl transition-colors duration-300" data-app-name="{{app.display_name}}" data-latest-release-date="{{app.latest_release.published_at}}">
                     
                     <header class="p-4">
                         <h2 class="text-xl font-bold mb-2">{{app.display_name}}</h2>
                         <!-- IF RELEASES EXIST -->
-                        <div class="latest-release space-y-2">
-                            <div class="font-semibold">
-                                <div class="flex items-center gap-2">
-                                    <h3>v{{app.latest_release.version}}</h3>
-                                    <span class="text-xs font-bold py-0.5 px-2 rounded-full bg-[var(--primary-color)] text-white">Latest</span>
+                        <div class="latest-release space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-semibold">v{{app.latest_release.version}}</h3>
+                                    <p class="release-date text-xs text-[var(--text-muted-color)]" data-date="{{app.latest_release.published_at}}"></p>
                                 </div>
-                                <p class="release-date text-xs text-[var(--text-muted-color)]" data-date="{{app.latest_release.published_at}}"></p>
+                                <span class="text-xs font-bold py-0.5 px-2 rounded-full bg-[var(--primary-color)] text-white flex-shrink-0">Latest</span>
                             </div>
-                            <a href="{{app.latest_release.download_url}}" class="download-button w-full text-center text-sm bg-[var(--primary-color)] text-white px-4 py-2 rounded-md font-bold transition-colors duration-200 hover:bg-[var(--primary-hover)]">Download</a>
+                            <a href="{{app.latest_release.download_url}}" class="download-button block w-full text-center text-sm bg-[var(--primary-color)] text-white px-4 py-2 rounded-md font-bold transition-colors duration-200 hover:bg-[var(--primary-hover)]">Download</a>
                         </div>
                         <!-- ELSE -->
                         <p class="text-center text-sm text-[var(--text-muted-color)] py-4">No releases found.</p>
@@ -104,7 +107,7 @@
                     <div class="history-container p-4 border-t border-[var(--border-color)] mt-auto">
                         <details class="history-details">
                             <summary class="inline-flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800/50">
-                                <span class="history-arrow">►</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="history-arrow h-4 w-4 text-[var(--text-muted-color)]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
                                 <span class="history-toggle-text text-sm font-semibold text-[var(--text-muted-color)]">Version History</span>
                             </summary>
                             <div class="mt-4 space-y-3">
@@ -123,6 +126,9 @@
                     <!-- END IF -->
                 </section>
                 <!-- END-APP-LOOP -->
+                <!-- CORRECT PLACEMENT: The END marker goes right after the </section> -->
+                <!-- =================================================================== -->
+
             </div>
             
             <div id="no-results" class="hidden text-center py-12"><h3 class="text-xl font-semibold">No Apps Found</h3><p class="text-[var(--text-muted-color)] mt-2">Try adjusting your search.</p></div>
@@ -131,8 +137,7 @@
     </div>
 
     <script>
-        // The JavaScript from the previous version is already compatible with this new structure.
-        // No changes are needed here.
+        // No changes are needed to the JavaScript.
         document.addEventListener('DOMContentLoaded', () => {
             const themeToggleButton = document.getElementById('theme-toggle');
             const searchInput = document.getElementById('searchInput');
