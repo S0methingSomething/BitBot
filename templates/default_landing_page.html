@@ -9,7 +9,7 @@
         :root {
             --primary-color: #3b82f6;
             --primary-hover: #2563eb;
-            --bg-color: #f0f4f8; /* Softer light background */
+            --bg-color: #f0f4f8; /* Slightly softer light background */
             --text-color: #1f2937;
             --text-muted-color: #6b7280;
             --card-bg-color: #ffffff;
@@ -22,7 +22,7 @@
             --text-color: #f0f6fc;
             --text-muted-color: #8b949e;
             --card-bg-color: #161b22;
-            --card-gradient-to: #1a2029; /* Subtle gradient for dark cards */
+            --card-gradient-to: #1a2029;
             --border-color: #30363d;
             --input-bg-color: #0d1117;
         }
@@ -35,6 +35,224 @@
         .search-input:focus, .sort-select:focus {
             outline: none;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
+            border-color: var(--primary-color) !important;
+        }
+        details.history-details > summary {
+            list-style: none; cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        details.history-details > summary::-webkit-details-marker { display: none; }
+        details.history-details > summary .history-arrow { transition: transform 0.2s ease-in-out; }
+        details.history-details[open] > summary .history-arrow { transform: rotate(90deg); }
+    </style>
+    <script>
+        (function() {
+            try {
+                const theme = localStorage.getItem('theme');
+                if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                }
+            } catch (e) { /* Ignore */ }
+        })();
+    </script>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 sm:p-6 md:p-8 relative overflow-x-hidden">
+
+    <button id="theme-toggle" class="fixed top-4 right-4 bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 p-2 rounded-full shadow-md z-50" aria-label="Toggle Dark Mode"></button>
+    
+    <div class="w-full max-w-7xl"> <!-- Widened max-width for better spacing -->
+        <div class="bg-[var(--card-bg-color)] rounded-2xl shadow-xl p-6 sm:p-8 md:p-10 transition-colors duration-300">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2">BitBot Releases</h1>
+            <p class="text-base mb-6 text-[var(--text-muted-color)]">Find and download the latest assets managed by BitBot.</p>
+            <p class="text-sm text-gray-500 mb-8 -mt-4">Made by <a href="https://www.reddit.com/u/C1oudyLol/" class="text-[var(--primary-color)] hover:underline">/u/C1oudyLol</a></p>
+
+            <div class="flex flex-col md:flex-row gap-4 mb-8">
+                <div class="flex-grow relative">
+                    <input type="text" id="searchInput" placeholder="Search for an app..." class="search-input w-full px-4 py-3 bg-[var(--input-bg-color)] border-2 border-[var(--border-color)] rounded-lg transition-colors duration-300">
+                    <button id="clearSearch" class="absolute right-3 top-1/2 -translate-y-1/2 text-xl text-[var(--text-muted-color)] hover:text-[var(--text-color)] hidden">×</button>
+                </div>
+                <div>
+                    <select id="sort-select" class="sort-select w-full md:w-auto h-full px-4 py-3 bg-[var(--input-bg-color)] border-2 border-[var(--border-color)] rounded-lg transition-colors duration-300">
+                        <option value="default">Default Order</option>
+                        <optgroup label="By Name"><option value="alpha-asc">Name (A-Z)</option><option value="alpha-desc">Name (Z-A)</option></optgroup>
+                        <optgroup label="By Date"><option value="date-desc">Newest Release</option><option value="date-asc">Oldest Release</option></optgroup>
+                    </select>
+                </div>
+            </div>
+
+            <div id="app-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- BEGIN-APP-LOOP -->
+                <section class="app-section flex flex-col bg-gradient-to-br from-[var(--card-bg-color)] to-[var(--card-gradient-to)] border border-[var(--border-color)] rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-app-name="{{app.display_name}}" data-latest-release-date="{{app.latest_release.published_at}}">
+                    
+                    <header class="p-5">
+                        <h2 class="text-2xl font-bold mb-3">{{app.display_name}}</h2>
+                        <!-- IF RELEASES EXIST -->
+                        <div class="latest-release space-y-4">
+                            <div class="font-semibold">
+                                <div class="flex items-center gap-2">
+                                    <h3>v{{app.latest_release.version}}</h3>
+                                    <span class="text-xs font-bold py-0.5 px-2 rounded-full bg-[var(--primary-color)] text-white">Latest</span>
+                                </div>
+                                <p class="release-date text-xs text-[var(--text-muted-color)]" data-date="{{app.latest_release.published_at}}"></p>
+                            </div>
+                            <!-- "FATTER" DOWNLOAD BUTTON -->
+                            <a href="{{app.latest_release.download_url}}" class="download-button w-full text-center text-base bg-[var(--primary-color)] text-white px-6 py-3 rounded-lg font-bold transition-all duration-200 hover:bg-[var(--primary-hover)] shadow-lg hover:shadow-xl">Download</a>
+                        </div>
+                        <!-- ELSE -->
+                        <p class="text-center text-sm text-[var(--text-muted-color)] py-4">No releases found.</p>
+                        <!-- END IF -->
+                    </header>
+
+                    <!-- IF RELEASES EXIST -->
+                    <div class="history-container p-5 border-t border-[var(--border-color)] mt-auto">
+                        <details class="history-details">
+                            <summary class="inline-flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800/50">
+                                <span class="history-arrow">►</span>
+                                <span class="history-toggle-text text-sm font-semibold text-[var(--text-muted-color)]">Version History</span>
+                            </summary>
+                            <div class="mt-4 space-y-3">
+                                <!-- BEGIN-RELEASE-LOOP -->
+                                <div class="release-item flex flex-col sm:flex-row sm:items-center gap-3">
+                                    <div class="font-semibold flex-grow">
+                                        <h3>v{{release.version}}</h3>
+                                        <p class="release-date text-xs text-[var(--text-muted-color)]" data-date="{{release.published_at}}"></p>
+                                    </div>
+                                    <a href="{{release.download_url}}" class="download-button w-full sm:w-auto text-center flex-shrink-0 text-sm font-bold border-2 border-[var(--primary-color)] text-[var(--primary-color)] px-4 py-2 rounded-md transition-colors duration-200 hover:bg-[var(--primary-color)] hover:text-white">Download</a>
+                                </div>
+                                <!-- END-RELEASE-LOOP -->
+                            </div>
+                        </details>
+                    </div>
+                    <!-- END IF -->
+                </section>
+                <!-- END-APP-LOOP -->
+            </div>
+            
+            <div id="no-results" class="hidden text-center py-12"><h3 class="text-xl font-semibold">No Apps Found</h3><p class="text-[var(--text-muted-color)] mt-2">Try adjusting your search.</p></div>
+            <footer class="text-center mt-12 text-sm text-[var(--text-muted-color)] border-t border-[var(--border-color)] pt-8"><p>Generated by BitBot. For more information, visit the <a href="https://github.com/{{bot_repo}}" class="text-[var(--primary-color)] hover:underline">bot repository</a>.</p></footer>
+        </div>
+    </div>
+
+    <script>
+        // The JavaScript from the previous version is already compatible with this new structure.
+        // No changes are needed here.
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggleButton = document.getElementById('theme-toggle');
+            const searchInput = document.getElementById('searchInput');
+            const sortSelect = document.getElementById('sort-select');
+            const appListContainer = document.getElementById('app-list');
+            const clearSearchBtn = document.getElementById('clearSearch');
+            
+            const appData = Array.from(appListContainer.querySelectorAll('.app-section')).map(element => {
+                const dateStr = element.dataset.latestReleaseDate;
+                let latestReleaseDate = new Date(0);
+                if (dateStr) {
+                    const parsedDate = new Date(dateStr);
+                    if (!isNaN(parsedDate.getTime())) latestReleaseDate = parsedDate;
+                }
+                
+                const historyContainer = element.querySelector('.history-container');
+                if (historyContainer && !historyContainer.querySelector('.release-item')) {
+                    historyContainer.style.display = 'none';
+                }
+
+                return { element, name: element.dataset.appName, latestReleaseDate };
+            });
+
+            function formatReleaseDate(isoString) {
+                if (!isoString) return '';
+                const date = new Date(isoString);
+                return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+            }
+
+            function updateAppList() {
+                const searchQuery = searchInput.value.toLowerCase();
+                const sortValue = sortSelect.value;
+                const filteredApps = appData.filter(app => app.name.toLowerCase().includes(searchQuery));
+
+                let sortedApps = [...filteredApps];
+                switch (sortValue) {
+                    case 'alpha-asc': sortedApps.sort((a, b) => a.name.localeCompare(b.name)); break;
+                    case 'alpha-desc': sortedApps.sort((a, b) => b.name.localeCompare(a.name)); break;
+                    case 'date-desc': sortedApps.sort((a, b) => b.latestReleaseDate - a.latestReleaseDate); break;
+                    case 'date-asc': sortedApps.sort((a, b) => a.latestReleaseDate - b.latestReleaseDate); break;
+                }
+
+                const noResultsMessage = document.getElementById('no-results');
+                appListContainer.innerHTML = '';
+                if (sortedApps.length > 0) {
+                    sortedApps.forEach(app => appListContainer.appendChild(app.element));
+                    noResultsMessage.classList.add('hidden');
+                } else {
+                    noResultsMessage.classList.remove('hidden');
+                }
+            }
+            
+            document.querySelectorAll('[data-date]').forEach(el => el.textContent = formatReleaseDate(el.dataset.date));
+
+            const syncThemeButton = () => {
+                const isDark = document.documentElement.classList.contains('dark');
+                themeToggleButton.textContent = isDark ? '☀️' : '🌙';
+            };
+            themeToggleButton.addEventListener('click', () => {
+                const isDark = !document.documentElement.classList.contains('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                document.documentElement.classList.toggle('dark', isDark);
+                syncThemeButton();
+            });
+            syncThemeButton();
+            
+            appListContainer.addEventListener('click', (event) => {
+                const summary = event.target.closest('summary');
+                if (!summary) return;
+                const details = summary.parentElement;
+                const toggleText = summary.querySelector('.history-toggle-text');
+                setTimeout(() => {
+                    if (toggleText) toggleText.textContent = details.open ? 'Hide History' : 'Version History';
+                }, 0);
+            });
+
+            function saveSearch(query) {
+                localStorage.setItem('bitbot_search', query);
+                clearSearchBtn.classList.toggle('hidden', query === '');
+            }
+
+            function saveSort(value) {
+                localStorage.setItem('bitbot_sort', value);
+            }
+
+            searchInput.addEventListener('input', () => {
+                saveSearch(searchInput.value);
+                updateAppList();
+            });
+            sortSelect.addEventListener('change', () => {
+                saveSort(sortSelect.value);
+                updateAppList();
+            });
+            clearSearchBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                saveSearch('');
+                updateAppList();
+            });
+            
+            function loadPersistentState() {
+                const savedSort = localStorage.getItem('bitbot_sort');
+                const savedSearch = localStorage.getItem('bitbot_search');
+                if (savedSort) {
+                    sortSelect.value = savedSort;
+                }
+                if (savedSearch) {
+                    searchInput.value = savedSearch;
+                    clearSearchBtn.classList.remove('hidden');
+                }
+                updateAppList();
+            }
+
+            loadPersistentState();
+        });
+    </script>
+</body>
+</html>            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
             border-color: var(--primary-color) !important;
         }
         details.history-details > summary {
