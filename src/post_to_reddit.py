@@ -19,11 +19,7 @@ from helpers import (
 MAX_OUTBOUND_LINKS_ERROR = 8
 
 def _count_outbound_links(text: str) -> int:
-    url_pattern = re.compile(r'https?://[^
-	
- ]+ | www\[^
-	
- ]+')
+    url_pattern = re.compile(r'https?://[^\s/$.?#].[^\s]*|www\.[^\s/$.?#].[^\s]*')
     matches = url_pattern.findall(text)
     return len(set(matches))
 
@@ -170,7 +166,7 @@ def main():
                 updated_apps[app_id] = {"new": {"display_name": app_data['display_name'], "version": app_data['latest_release']['version'], "url": app_data['latest_release']['download_url']}, "old": "?.?.?"}
     else:
         reddit = init_reddit(config)
-        existing_posts = get_bot_posts(reddit, config) # Assuming get_bot_posts returns a list of posts
+        existing_posts = get_bot_posts(reddit, config)
         versions_on_reddit = parse_versions_from_post(existing_posts[0], config) if existing_posts else {}
         for app_id, app_data in all_available_versions.items():
             if not app_data.get('latest_release'): continue
