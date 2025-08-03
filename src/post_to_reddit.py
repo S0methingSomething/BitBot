@@ -62,6 +62,14 @@ def _generate_dynamic_title(config: dict, added: dict, updated: dict) -> str:
 
 def _generate_changelog(config: dict, added: dict, updated: dict, removed: dict) -> str:
     post_mode = config['reddit'].get('postMode', 'landing_page')
+    
+    if post_mode == 'landing_page':
+        key_suffix = 'landing'
+    elif post_mode == 'direct_link':
+        key_suffix = 'direct'
+    else:
+        key_suffix = 'landing' # Default fallback
+
     asset_name = config['github'].get('assetFileName', 'asset')
     formats = config['reddit']['formats']['changelog']
     sections = []
@@ -84,9 +92,9 @@ def _generate_changelog(config: dict, added: dict, updated: dict, removed: dict)
         if len(lines) > 1:
             sections.append("\n".join(lines))
 
-    if added: create_section("Added", added, f"added_{post_mode}")
-    if updated: create_section("Updated", updated, f"updated_{post_mode}")
-    if removed: create_section("Removed", removed, f"removed_{post_mode}")
+    if added: create_section("Added", added, f"added_{key_suffix}")
+    if updated: create_section("Updated", updated, f"updated_{key_suffix}")
+    if removed: create_section("Removed", removed, f"removed_{key_suffix}")
     
     return "\n\n".join(sections) if sections else "No new updates in this version."
 
