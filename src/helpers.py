@@ -22,16 +22,27 @@ def load_config() -> Dict:
         sys.exit(1)
 
 def load_bot_state() -> Dict:
-    """Loads the bot's current monitoring state (bot_state.json)."""
+    """
+    Loads the bot's state, ensuring the new online/offline structure exists.
+    """
     try:
         with open(paths.BOT_STATE_FILE, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"::warning::`{paths.BOT_STATE_FILE}` not found. Returning empty state.")
-        return {}
-    except json.JSONDecodeError:
-        print(f"::error::Could not decode `{paths.BOT_STATE_FILE}`. The file may be corrupt.", file=sys.stderr)
-        sys.exit(1)
+            state = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        state = {}
+
+    # Ensure the nested structure is present for robustness
+    if 'online' not in state:
+        state['online'] = {}
+    if 'last_posted_versions' not in state['online']:
+        state['online']['last_posted_versions'] = {}
+        
+    if 'offline' not in state:
+        state['offline'] = {}
+    if 'last_generated_versions' not in state['offline']:
+        state['offline']['last_generated_versions'] = {}
+        
+    return state
 
 def save_bot_state(data: Dict):
     """Saves the bot's monitoring state."""
@@ -63,9 +74,9 @@ def parse_release_notes(body: str, tag_name: str, title: str, config: Dict) -> O
     version_key = parsing_keys.get('version_key', 'version')
     asset_name_key = parsing_keys.get('asset_name_key', 'asset_name')
 
-    app_match = re.search(f"^{app_key}:\s*(\S+)", body, re.MULTILINE)
-    version_match = re.search(f"^{version_key}:\s*([\\d\\.]+)", body, re.MULTILINE)
-    asset_match = re.search(f"^{asset_name_key}:\s*(\S+)", body, re.MULTILINE)
+    app_match = re.search(f"^{{app_key}}:\s*(\S+)", body, re.MULTILINE)
+    version_match = re.search(f"^{{version_key}}:\s*([\d\.]+)", body, re.MULTILINE)
+    asset_match = re.search(f"^{{asset_name_key}}:\s*(\S+)", body, re.MULTILINE)
 
     if app_match and version_match and asset_match:
         app_id = app_match.group(1)
@@ -82,7 +93,7 @@ def parse_release_notes(body: str, tag_name: str, title: str, config: Dict) -> O
 
     # --- Priority 3: Oldest Title Format (e.g., "BitLife MonetizationVars v3.19.5") ---
     for app_id, display_name in app_map_by_id.items():
-        match = re.search(f"{re.escape(display_name)}.*?v([\\d\\.]+)", title, re.IGNORECASE)
+        match = re.search(f"{re.escape(display_name)}.*?v([\d\.]+)", title, re.IGNORECASE)
         if match:
             return {"app_id": app_id, "display_name": display_name, "version": match.group(1), "asset_name": config['github']['assetFileName']}
             
@@ -112,7 +123,7 @@ def parse_versions_from_post(post: praw.models.Submission, config: Dict) -> Dict
         for line in changelog_text.splitlines():
             for display_name, app_id in app_map_by_display_name.items():
                 # A flexible regex to find the app name and version on a line
-                version_match = re.search(f"{re.escape(display_name)}.*?to version ([\\d\\.]+)", line, re.IGNORECASE)
+                version_match = re.search(f"{re.escape(display_name)}.*?to version ([\d\.]+)", line, re.IGNORECASE)
                 if version_match:
                     versions[app_id] = version_match.group(1)
                     break # Move to the next line once an app is found
@@ -121,8 +132,8 @@ def parse_versions_from_post(post: praw.models.Submission, config: Dict) -> Dict
     # If the changelog didn't exist or was empty, try parsing the title.
     if not versions:
         # Example title: "[BitBot] MonetizationVars for BitLife v3.19.5"
-        for display_name, app_id in app_map_by_display_name.items():
-            version_match = re.search(f"for {re.escape(display_name)} v([\\d\\.]+)", post.title, re.IGNORECASE)
+        for display_name, app_id in app_map_by_display_.items():
+            version_match = re.search(f"for {re.escape(display_name)} v([\d\.]+)", post.title, re.IGNORECASE)
             if version_match:
                 versions[app_id] = version_match.group(1)
                 # Legacy posts only ever had one app, so we can stop.
