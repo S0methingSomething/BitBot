@@ -204,7 +204,8 @@ def main():
         sys.exit(0)
 
     title = _generate_dynamic_title(config, added_apps, updated_apps)
-    body = _generate_post_body(config, changelog_data, all_available_versions, args.page_url or "https://example.com/preview-link")
+    github_pages_url = config.get('github', {}).get('pages_url', 'https://example.com/preview-link')
+    body = _generate_post_body(config, changelog_data, all_available_versions, args.page_url or github_pages_url)
 
     if is_manual_mode:
         os.makedirs(paths.DIST_DIR, exist_ok=True)
