@@ -154,6 +154,7 @@ def _post_new_release(reddit, title, post_body, config):
 def main():
     parser = argparse.ArgumentParser(description="Post a new release to Reddit if it's out of date.")
     parser.add_argument('--page-url', required=False, default='', help="URL to the GitHub Pages landing page.")
+    parser.add_argument('--generate-only', action='store_true', help="Generate post content without posting to Reddit.")
     args = parser.parse_args()
     config = load_config()
     bot_state = load_bot_state()
@@ -164,7 +165,7 @@ def main():
     with open(paths.RELEASES_JSON_FILE, 'r') as f:
         all_available_versions = json.load(f)
 
-    is_manual_mode = config['reddit'].get('post_manually', False)
+    is_manual_mode = config['reddit'].get('post_manually', False) or args.generate_only
     
     if is_manual_mode:
         print("---" + "-" * 10 + " MANUAL MODE " + "-" * 10 + "---")
