@@ -62,6 +62,20 @@ def save_release_state(data: List[int]):
     with open(paths.RELEASE_STATE_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
+def load_changelog() -> List[Dict]:
+    """Loads the changelog file, returning an empty list if it doesn't exist."""
+    try:
+        with open(paths.CHANGELOG_JSON_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+def save_changelog(data: List[Dict]):
+    """Saves the changelog data."""
+    with open(paths.CHANGELOG_JSON_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
 def parse_release_notes(body: str, tag_name: str, title: str, config: Dict) -> Optional[Dict]:
     """
     Parses release information from its body, tag, or title to support all legacy formats.

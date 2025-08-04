@@ -18,7 +18,9 @@ Available Placeholders:
 | {{initial_status}}          | The full, formatted initial status line for the post.    |
 <!-- TUTORIAL-END -->
 
-## **[⬇️ Download All Releases Here]({{download_portal_url}})**
+You can find all the downloads on our official portals:
+- **[GitHub Pages]({{github_pages_url}})**
+- **[Vercel]({{vercel_url}})**
 
 > ⚠️ **Important:** Ensure the downloaded file is named exactly `{{asset_name}}` before installation.
 

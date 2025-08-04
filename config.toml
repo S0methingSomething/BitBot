@@ -14,6 +14,7 @@ botName = "BitBot"
 creator = "C1oudyLol"
 postMode = "landing_page" # Can be "direct_link" or "landing_page"
 post_manually = false # Set to true to generate post files instead of posting
+post_frequency_days = 7 # Days to wait before creating a new post. Set to 0 to post on every update.
 
 # Template file paths used by the bot
 [reddit.templates]
