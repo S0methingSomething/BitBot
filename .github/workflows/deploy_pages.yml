@@ -24,7 +24,7 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
 
       - name: Deploy to GitHub Pages
         id: deployment
