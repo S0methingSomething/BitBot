@@ -35,7 +35,6 @@ def check_if_bot_release_exists(bot_repo: str, tag: str) -> bool:
 def download_asset(source_repo: str, release_id: int, asset_name: str) -> str:
     """Downloads a specific asset from a specific release."""
     print(f"Downloading asset '{asset_name}' from release ID {release_id}")
-    os.makedirs(paths.DIST_DIR, exist_ok=True)
     
     assets = get_github_data(f"/repos/{source_repo}/releases/{release_id}/assets")
     asset_id = next((asset['id'] for asset in assets if asset['name'] == asset_name), None)
@@ -75,6 +74,7 @@ def create_bot_release(bot_repo: str, tag: str, title: str, notes: str, file_pat
 
 def main():
     config = load_config()
+    os.makedirs(paths.DIST_DIR, exist_ok=True)
     source_repo = config['github']['sourceRepo']
     bot_repo = config['github']['botRepo']
     
@@ -141,6 +141,7 @@ def main():
         except Exception as e:
             print(f"::error::Failed to process app {display_name} from release {release['tag_name']}. Reason: {e}")
 
+    os.makedirs(paths.DIST_DIR, exist_ok=True)
     save_changelog(changelog)
     save_release_state(processed_release_ids)
     print("Release management complete. Changelog updated.")
