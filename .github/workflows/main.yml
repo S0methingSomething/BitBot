@@ -91,7 +91,7 @@ jobs:
         run: |
           URL=$(vercel deploy --prod --token=$VERCEL_TOKEN ./dist)
           echo "url=$URL" >> $GITHUB_OUTPUT
-  
+
   post_to_reddit:
     needs: [deploy_gh_pages, deploy_vercel]
     runs-on: ubuntu-latest

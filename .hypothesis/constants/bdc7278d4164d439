@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/models/config.py
+# hypothesis_version: 6.137.1
+
+['assetFileName', 'botName', 'botRepo', 'displayName', 'endTag', 'firstCheck', 'increaseBy', 'maxWait', 'minFeedbackCount', 'notWorkingKeywords', 'outdatedPostHandling', 'pages_url', 'postMode', 'post_frequency_days', 'post_manually', 'releaseDescription', 'releaseTitle', 'skipContent', 'sourceRepo', 'startTag', 'statusLineFormat', 'statusLineRegex', 'workingKeywords']

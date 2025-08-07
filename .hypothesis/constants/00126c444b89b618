@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/services/github_service.py
+# hypothesis_version: 6.137.1
+
+['--repo', 'GITHUB_TOKEN', 'api', 'gh', 'release', 'view']

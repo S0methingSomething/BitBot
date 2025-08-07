@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/services/file_patcher_service.py
+# hypothesis_version: 6.137.1
+
+[100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, ':', 'com.wtfapps.apollo16', 'latin-1', 'utf-8']

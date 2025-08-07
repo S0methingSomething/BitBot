@@ -1,0 +1,70 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bitbot"
+version = "1.0.0"
+description = "Automated release management and announcement bot."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "C1oudyLol" }]
+requires-python = ">=3.13"
+dependencies = [
+    "praw",
+    "requests",
+    "toml",
+    "packaging",
+    "PyGithub",
+    "pydantic",
+]
+
+[project.scripts]
+bitbot = "src.bitbot.main:main"
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "hypothesis",
+    "xenon",
+    "lxml",
+]
+
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+# https://docs.astral.sh/ruff/rules/
+# The B019 rule is disabled because we are intentionally using @cache on
+# instance methods within a singleton ServiceContainer. This is a valid
+# use case where the memory leak concern is not applicable.
+# The S603 and S607 rules are disabled because we are using the 'gh'
+# command-line tool, which is a trusted internal tool.
+ignore = ["B019", "S603", "S607"]
+
+[tool.mypy]
+python_version = "3.13"
+# Base Strictness
+disallow_untyped_defs = true
+ignore_missing_imports = true
+# Stricter Flags
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+warn_unreachable = true
+warn_return_any = true
+warn_unused_configs = true
+# Target files
+files = ["src/bitbot/"]
+
+# Override for test files to be less strict
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_untyped_calls = false

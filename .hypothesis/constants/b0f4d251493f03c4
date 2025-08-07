@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/models/state.py
+# hypothesis_version: 6.137.1
+
+['activePostId', 'lastCheckTimestamp', 'lastCommentCount']
