@@ -63,7 +63,7 @@ def test_manage_reddit_post_updates_existing_post_if_recent(mock_services):
     changelog = Changelog(added=[ChangelogEntry(app_id="test", version="1.0", asset_name="test.zip")])
     six_days_ago = datetime.now(timezone.utc) - timedelta(days=6)
     mock_services["state_service"].load_bot_state.return_value = BotState(
-        active_post_id="recent_post_id"
+        active_post_id="recent_post_id", last_major_post_timestamp=six_days_ago
     )
     service = RedditOrchestrationService(**mock_services)
 
