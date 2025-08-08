@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Landing Page</title>
+</head>
+<body>
+    <!-- BEGIN-APP-LOOP -->
+    <div class="app">
+        <h1>{{app.display_name}}</h1>
+        
+        <!-- IF RELEASES EXIST -->
+        <p>Latest: {{app.latest_release.version}}</p>
+        
+        <!-- BEGIN-RELEASE-LOOP -->
+        <p>{{release.version}}</p>
+        <!-- END-RELEASE-LOOP -->
+        
+        <!-- ELSE -->
+        <p>No releases yet.</p>
+        <!-- END IF -->
+    </div>
+    <!-- END-APP-LOOP -->
+    
+    <footer>Bot repo: {{bot_repo}}</footer>
+</body>
+</html>

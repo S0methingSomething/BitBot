@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/services/state_service.py
+# hypothesis_version: 6.137.1
+
+['bot_state.json', 'release_state.json', 'w']

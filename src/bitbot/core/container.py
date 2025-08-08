@@ -11,6 +11,10 @@ from ..services.praw_reddit_service import PrawRedditService
 from ..services.release_management_service import ReleaseManagementService
 from ..services.state_service import StateService
 from ..services.abstract.reddit_service_abc import RedditServiceABC
+from ..services.changelog_service import ChangelogService
+from ..services.page_generator_service import PageGeneratorService
+from ..services.reddit_post_service import RedditPostService
+from ..services.reddit_orchestration_service import RedditOrchestrationService
 
 
 class ServiceContainer:
@@ -32,7 +36,7 @@ class ServiceContainer:
     @cache
     def state_service(self) -> StateService:
         """Provide the StateService."""
-        return StateService()
+        return StateService(logging_service=self.logging_service())
 
     @cache
     def github_service(self) -> GitHubService:
@@ -55,6 +59,37 @@ class ServiceContainer:
     def file_patcher_service(self) -> FilePatcherService:
         """Provide the FilePatcherService."""
         return FilePatcherService()
+
+    @cache
+    def changelog_service(self) -> ChangelogService:
+        """Provide the ChangelogService."""
+        return ChangelogService(
+            parsing_service=self.parsing_service(),
+            config=self.config_service().get_config(),
+        )
+
+    @cache
+    def page_generator_service(self) -> PageGeneratorService:
+        """Provide the PageGeneratorService."""
+        return PageGeneratorService(
+            config=self.config_service().get_config(),
+            logger=self.logging_service(),
+        )
+
+    @cache
+    def reddit_post_service(self) -> RedditPostService:
+        """Provide the RedditPostService."""
+        return RedditPostService(config=self.config_service().get_config())
+
+    @cache
+    def reddit_orchestration_service(self) -> RedditOrchestrationService:
+        """Provide the RedditOrchestrationService."""
+        return RedditOrchestrationService(
+            logging_service=self.logging_service(),
+            state_service=self.state_service(),
+            reddit_service=self.reddit_service(),
+            reddit_post_service=self.reddit_post_service(),
+        )
 
     @cache
     def release_management_service(self) -> ReleaseManagementService:

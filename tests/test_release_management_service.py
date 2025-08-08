@@ -90,3 +90,24 @@ def test_skip_release_if_parsing_fails(mock_services):
     mock_services["github_service"].check_release_exists.assert_not_called()
     # The state should still be saved even if one release fails
     mock_services["state_service"].save_release_state.assert_called_once()
+
+
+def test_skip_release_if_bot_release_already_exists(mock_services):
+    """Test that a release is skipped if the corresponding bot release already exists."""
+    # Arrange
+    new_release = {"id": 789, "tag_name": "v3.0", "body": "Release notes", "created_at": "2025-01-03T00:00:00Z"}
+    parsed_info = {"app_id": "another_app", "version": "3.0", "asset_name": "another.zip"}
+
+    mock_services["github_service"].get_source_releases.return_value = [new_release]
+    mock_services["state_service"].load_release_state.return_value = []
+    mock_services["parsing_service"].parse_release_notes.return_value = parsed_info
+    mock_services["github_service"].check_release_exists.return_value = True  # Bot release exists
+    service = ReleaseManagementService(**mock_services)
+
+    # Act
+    service.process_new_releases()
+
+    # Assert
+    mock_services["logging_service"].info.assert_any_call("Release 'another_app-v3.0' already exists. Skipping.")
+    # The state should still be saved
+    mock_services["state_service"].save_release_state.assert_called_once()

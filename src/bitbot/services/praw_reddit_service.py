@@ -5,6 +5,7 @@ import os
 import praw
 
 from ..models.config import RedditConfig
+from ..models.reddit_post import RedditPost
 from .abstract.reddit_service_abc import BotPost, RedditServiceABC
 from .logging_service import LoggingService
 
@@ -53,3 +54,16 @@ class PrawRedditService(RedditServiceABC):
                 )
                 continue
         return bot_posts
+
+    def create_post(self, post: RedditPost) -> str:
+        """Create a new post on Reddit."""
+        subreddit = self._reddit.subreddit(self._config.subreddit)
+        submission = subreddit.submit(title=post.title, selftext=post.body)
+        self._logger.info(f"Successfully created new Reddit post: {submission.id}")
+        return str(submission.id)
+
+    def update_post(self, post_id: str, post: RedditPost) -> None:
+        """Update an existing post on Reddit."""
+        submission = self._reddit.submission(id=post_id)
+        submission.edit(body=post.body)
+        self._logger.info(f"Successfully updated Reddit post: {post_id}")

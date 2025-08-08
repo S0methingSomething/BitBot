@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/services/page_generator_service.py
+# hypothesis_version: 6.137.1
+
+['{{app.display_name}}', '{{bot_repo}}', '{{release.version}}']

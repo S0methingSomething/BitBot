@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/services/release_management_service.py
+# hypothesis_version: 6.137.1
+
+['app_id', 'asset_name', 'body', 'created_at', 'id', 'version']

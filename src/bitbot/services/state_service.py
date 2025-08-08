@@ -3,19 +3,27 @@
 import json
 
 from ..models.state import BotState, ReleaseState
+from .logging_service import LoggingService
 
 
 class StateService:
     """Handles reading and writing state files."""
 
-    def __init__(self, bot_state_path: str = "bot_state.json", release_state_path: str = "release_state.json"):
+    def __init__(
+        self,
+        logging_service: LoggingService,
+        bot_state_path: str = "bot_state.json",
+        release_state_path: str = "release_state.json",
+    ):
         """Initializes the StateService.
 
         Args:
+            logging_service: The logging service.
             bot_state_path: Path to the bot state file.
             release_state_path: Path to the release state file.
 
         """
+        self._logger = logging_service
         self._bot_state_path = bot_state_path
         self._release_state_path = release_state_path
 
