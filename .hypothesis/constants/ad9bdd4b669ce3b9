@@ -1,0 +1,4 @@
+# file: /workspaces/BitBot/src/bitbot/models/post_action.py
+# hypothesis_version: 6.137.1
+
+['create', 'none', 'update']
