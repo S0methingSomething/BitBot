@@ -25,7 +25,7 @@ jobs:
         working-directory: ./src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python gather_post_data.py
+        run: python release_manager.py
 
       - name: Generate Post Content
         id: generator
