@@ -18,7 +18,7 @@ def run_command(
     command: List[str], check: bool = True
 ) -> subprocess.CompletedProcess[str]:
     """Runs a shell command and returns its result."""
-    print(f"Executing: {" ".join(command)}")
+    print(f"Executing: {' '.join(command)}")
     return subprocess.run(command, capture_output=True, text=True, check=check)
 
 
