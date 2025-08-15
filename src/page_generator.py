@@ -3,6 +3,8 @@ import os
 import re
 import sys
 
+from packaging.version import parse as parse_version
+
 
 def _render_template(template_content: str, data: dict, config: dict) -> str:
     """
@@ -92,17 +94,47 @@ def _render_template(template_content: str, data: dict, config: dict) -> str:
     return final_html
 
 
+from packaging.version import parse as parse_version
+
 def main() -> None:
     config = load_config()
-    if not os.path.exists(paths.RELEASES_JSON_FILE):
+    if not os.path.exists(paths.CHANGELOG_JSON_FILE):
         print(
-            f"::error::Release data file not found at '{paths.RELEASES_JSON_FILE}'. "
+            f"::error::Changelog file not found at '{paths.CHANGELOG_JSON_FILE}'. "
             "Cannot generate page.",
             file=sys.stderr,
         )
         sys.exit(1)
-    with open(paths.RELEASES_JSON_FILE, "r") as f:
-        releases_data = json.load(f)
+    with open(paths.CHANGELOG_JSON_FILE, "r") as f:
+        changelog_data = json.load(f)
+
+    # Transform the changelog list into the nested structure the template expects
+    apps_data = {}
+    for release in changelog_data:
+        app_id = release["app_id"]
+        if app_id not in apps_data:
+            apps_data[app_id] = {
+                "display_name": release["display_name"],
+                "releases": [],
+            }
+        apps_data[app_id]["releases"].append({
+            "version": release["version"],
+            "download_url": release["url"],
+            "published_at": release["timestamp"],
+        })
+
+    # Separate latest from previous releases
+    for app_id, data in apps_data.items():
+        if data["releases"]:
+            # Sort by version number to find the latest
+            data["releases"].sort(key=lambda r: parse_version(r["version"]), reverse=True)
+            apps_data[app_id]["latest_release"] = data["releases"][0]
+            apps_data[app_id]["previous_releases"] = data["releases"][1:]
+        else:
+            apps_data[app_id]["latest_release"] = None
+            apps_data[app_id]["previous_releases"] = []
+
+
     custom_template_name = config["reddit"]["templates"].get("custom_landing")
     template_path = (
         paths.get_template_path(custom_template_name)
@@ -113,7 +145,7 @@ def main() -> None:
     print(f"Using template: {template_path}")
     with open(template_path, "r") as f:
         template_content = f.read()
-    final_html = _render_template(template_content, releases_data, config)
+    final_html = _render_template(template_content, apps_data, config)
     os.makedirs(paths.DIST_DIR, exist_ok=True)
     output_path = os.path.join(paths.DIST_DIR, "index.html")
     with open(output_path, "w") as f:
