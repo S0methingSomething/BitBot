@@ -14,6 +14,7 @@ REQUIREMENTS_FILE = os.path.join(ROOT_DIR, 'requirements.txt')
 # --- Output and Artifact Directories ---
 DIST_DIR = os.path.join(ROOT_DIR, 'dist')
 RELEASES_JSON_FILE = os.path.join(DIST_DIR, 'releases.json')
+CHANGELOG_JSON_FILE = os.path.join(DIST_DIR, 'changelog.json')
 LANDING_PAGE_OUTPUT = os.path.join(DIST_DIR, 'index.html')
 
 # --- Template Directory ---
