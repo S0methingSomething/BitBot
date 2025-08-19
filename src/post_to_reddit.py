@@ -167,7 +167,7 @@ def _initialize_state() -> Dict[str, Any]:
 def _create_and_submit_post(config: Dict[str, Any], bot_state: Dict[str, Any], version_changes: Dict[str, Any], all_versions: Dict[str, Any], page_url: str) -> None:
     """Creates the post content and submits it to Reddit."""
     changelog_data = {k: v for k, v in version_changes.items() if k in ["added", "updated", "removed"]}
-    title = _generate_dynamic_title(config, **changelog_data)
+    title = _generate_dynamic_title(config, added=changelog_data["added"], updated=changelog_data["updated"])
     body = _generate_post_body(config, changelog_data, all_versions, page_url)
 
     is_manual = config["reddit"].get("post_manually", False)
