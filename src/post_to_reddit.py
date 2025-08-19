@@ -1,235 +1,208 @@
-import os
-import sys
+import argparse
 import json
 import re
-import argparse
+import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, cast
+
+import praw
 from packaging.version import parse as parse_version
+
 import paths
 from helpers import (
-    load_config,
-    init_reddit,
     get_bot_posts,
-    update_older_posts,
+    init_reddit,
     load_bot_state,
+    load_config,
     save_bot_state,
+    update_older_posts,
 )
+from logging_config import get_logger
+
+logging = get_logger(__name__)
 
 # --- Constants ---
 MAX_OUTBOUND_LINKS_ERROR = 8
 
 def _count_outbound_links(text: str) -> int:
-    url_pattern = re.compile(r'https?://[^\s/$.?#].[^\s]*|www\.[^\s/$.?#].[^\s]*')
-    matches = url_pattern.findall(text)
-    return len(set(matches))
+    url_pattern = re.compile(r"https?://[^\s/$.?#].[^\s]*|www\.[^\s/$.?#].[^\s]*")
+    return len(set(url_pattern.findall(text)))
 
-def _generate_dynamic_title(config: dict, added: dict, updated: dict) -> str:
-    num_added = len(added)
-    num_updated = len(updated)
-    total_changes = num_added + num_updated
-    formats = config['reddit']['formats']['titles']
-    
-    def create_app_list(app_dict):
-        parts = []
-        for _, info in app_dict.items():
-            display_name = info.get('display_name') or info.get('new', {}).get('display_name', 'Unknown App')
-            version = info.get('version') or info.get('new', {}).get('version', '?.?.?')
-            parts.append(f"{display_name} v{version}")
-        return ", ".join(parts)
+def _generate_dynamic_title(config: Dict[str, Any], added: Dict[str, Any], updated: Dict[str, Any]) -> str:
+    num_added, num_updated = len(added), len(updated)
+    formats = config["reddit"]["formats"]["titles"]
+
+    def create_app_list(apps: Dict[str, Any]) -> str:
+        return ", ".join(f"{info.get('display_name', 'Unknown')} v{info.get('version', '?.?.?')}" for _, info in apps.items())
 
     added_list = create_app_list(added)
     updated_list = create_app_list(updated)
-    title_key, placeholders = None, {}
+
     if num_added > 0 and num_updated == 0:
-        title_key = "added_only"
-        placeholders = {"{{added_list}}": added_list}
-    elif num_added == 0 and num_updated > 0:
-        title_key = "updated_only_single" if num_updated == 1 else "updated_only_multi"
-        placeholders = {"{{updated_list}}": updated_list}
-    elif num_added > 0 and num_updated > 0:
-        title_key = "mixed_single_update" if num_updated == 1 else "mixed_multi_update"
-        placeholders = {"{{added_list}}": added_list, "{{updated_list}}": updated_list}
-    
-    if total_changes > 3 or title_key is None:
-        title_key = "generic"
-        placeholders = {"{{date}}": datetime.utcnow().strftime('%Y-%m-%d')}
-    
-    title_format = formats.get(title_key, "[BitBot] Default Fallback Title")
-    final_title = title_format
-    for ph, value in placeholders.items():
-        final_title = final_title.replace(ph, value)
-    return final_title
+        return cast(str, formats["added_only"].replace("{{added_list}}", added_list))
+    if num_added == 0 and num_updated > 0:
+        key = "updated_only_single" if num_updated == 1 else "updated_only_multi"
+        return cast(str, formats[key].replace("{{updated_list}}", updated_list))
+    if num_added > 0 and num_updated > 0:
+        key = "mixed_single_update" if num_updated == 1 else "mixed_multi_update"
+        return cast(str, formats[key].replace("{{added_list}}", added_list).replace("{{updated_list}}", updated_list))
 
-def _generate_changelog(config: dict, added: dict, updated: dict, removed: dict) -> str:
-    post_mode = config['reddit'].get('postMode', 'landing_page')
-    
-    if post_mode == 'landing_page':
-        key_suffix = 'landing'
-    elif post_mode == 'direct_link':
-        key_suffix = 'direct'
-    else:
-        key_suffix = 'landing' # Default fallback
+    return cast(str, formats["generic"].replace("{{date}}", datetime.utcnow().strftime("%Y-%m-%d")))
 
-    asset_name = config['github'].get('assetFileName', 'asset')
-    formats = config['reddit']['formats']['changelog']
+def _format_changelog_line(line_format: str, info: Dict[str, Any], asset_name: str, change_type: str) -> str:
+    """Formats a single line in the changelog."""
+    if change_type == "Added":
+        return line_format.format(display_name=info["display_name"], asset_name=asset_name, version=info["version"], download_url=info["url"])
+    if change_type == "Updated":
+        return line_format.format(display_name=info["new"]["display_name"], asset_name=asset_name, new_version=info["new"]["version"], old_version=info["old"], download_url=info["new"]["url"])
+    if change_type == "Removed":
+        return line_format.format(display_name=info["display_name"], asset_name=asset_name, old_version=info["version"])
+    return ""
+
+def _generate_changelog(config: Dict[str, Any], added: Dict[str, Any], updated: Dict[str, Any], removed: Dict[str, Any]) -> str:
+    post_mode = config["reddit"].get("postMode", "landing_page")
+    key_suffix = "landing" if post_mode == "landing_page" else "direct"
+    asset_name = config["github"].get("assetFileName", "asset")
+    formats = config["reddit"]["formats"]["changelog"]
     sections = []
 
-    def create_section(title, data, key_format):
+    change_types = {"Added": added, "Updated": updated, "Removed": removed}
+    for title, data in change_types.items():
+        if not data:
+            continue
         lines = [f"### {title}"]
-        for _, info in data.items():
-            line_format = formats.get(key_format)
-            if not line_format:
-                print(f"::warning::Changelog format for '{key_format}' not found in config.")
-                continue
-            
-            if title == "Added":
-                line = line_format.replace('{{display_name}}', info['display_name']).replace('{{asset_name}}', asset_name).replace('{{version}}', info['version']).replace('{{download_url}}', info['url'])
-            elif title == "Updated":
-                line = line_format.replace('{{display_name}}', info['new']['display_name']).replace('{{asset_name}}', asset_name).replace('{{new_version}}', info['new']['version']).replace('{{old_version}}', info['old']).replace('{{download_url}}', info['new']['url'])
-            elif title == "Removed":
-                 line = line_format.replace('{{display_name}}', info['display_name']).replace('{{asset_name}}', asset_name).replace('{{old_version}}', info['version'])
-            lines.append(line)
+        key_format = f"{title.lower()}_{key_suffix}"
+        if line_format := formats.get(key_format):
+            for _, info in data.items():
+                lines.append(_format_changelog_line(line_format, info, asset_name, title))
         if len(lines) > 1:
             sections.append("\n".join(lines))
 
-    if added: create_section("Added", added, f"added_{key_suffix}")
-    if updated: create_section("Updated", updated, f"updated_{key_suffix}")
-    if removed: create_section("Removed", removed, f"removed_{key_suffix}")
-    
-    return "\n\n".join(sections) if sections else "No new updates in this version."
+    return "\n\n".join(sections) or "No new updates in this version."
 
-def _generate_available_list(config: dict, all_releases_data: dict) -> str:
-    formats = config['reddit']['formats']['table']
-    header = formats.get('header', '| App | Asset | Version |')
-    divider = formats.get('divider', '|---|---|---:|')
-    line_format = formats.get('line', '| {{display_name}} | {{asset_name}} | v{{version}} |')
-    table_lines = [header, divider]
-    asset_name = config['github'].get('assetFileName', 'asset')
-    sorted_apps = sorted(all_releases_data.items(), key=lambda item: item[1]['display_name'])
-    for _, release_info in sorted_apps:
-        if release_info.get('latest_release'):
-            line = line_format.replace('{{display_name}}', release_info['display_name']).replace('{{asset_name}}', asset_name).replace('{{version}}', release_info['latest_release']['version'])
-            table_lines.append(line)
-    return "\n".join(table_lines)
+def _generate_available_list(config: Dict[str, Any], all_releases: Dict[str, Any]) -> str:
+    formats = config["reddit"]["formats"]["table"]
+    asset_name = config["github"]["assetFileName"]
+    lines = [formats["header"], formats["divider"]]
+    sorted_apps = sorted(all_releases.items(), key=lambda item: item[1]["display_name"])
+    for _, info in sorted_apps:
+        if latest := info.get("latest_release"):
+            lines.append(formats["line"].format(display_name=info["display_name"], asset_name=asset_name, version=latest["version"]))
+    return "\n".join(lines)
 
-def _generate_post_body(config: dict, changelog_data: dict, all_releases_data: dict, page_url: str) -> str:
-    template_name = os.path.basename(config['reddit']['templates']['post'])
-    template_path = paths.get_template_path(template_name)
-    with open(template_path, 'r') as f:
-        raw_template = f.read()
-    
-    ignore_block = config.get('skipContent', {})
-    start_marker, end_marker = ignore_block.get('startTag'), ignore_block.get('endTag')
-    if start_marker and end_marker and start_marker in raw_template:
-        pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
-        clean_template = re.sub(pattern, '', raw_template)
-    else:
-        clean_template = raw_template
-    
-    post_body_template = clean_template.strip()
-    changelog = _generate_changelog(config, **changelog_data)
-    available_list = _generate_available_list(config, all_releases_data)
-    initial_status_line = config['feedback']['statusLineFormat'].replace("{{status}}", config['feedback']['labels']['unknown'])
-    
+def _generate_post_body(config: Dict[str, Any], changelog_data: Dict[str, Any], all_releases: Dict[str, Any], page_url: str) -> str:
+    template_path = Path(paths.TEMPLATES_DIR) / config["reddit"]["templates"]["post"]
+    raw_template = template_path.read_text()
+
+    if start_tag := config.get("skipContent", {}).get("startTag"):
+        raw_template = re.sub(f"{re.escape(start_tag)}.*?{re.escape(config['skipContent']['endTag'])}", "", raw_template, flags=re.DOTALL)
+
     placeholders = {
-        "{{changelog}}": changelog, "{{available_list}}": available_list,
-        "{{bot_name}}": config['reddit']['botName'], "{{bot_repo}}": config['github']['botRepo'],
-        "{{asset_name}}": config['github']['assetFileName'], "{{creator_username}}": config['reddit']['creator'],
-        "{{initial_status}}": initial_status_line, "{{download_portal_url}}": page_url,
+        "changelog": _generate_changelog(config, **changelog_data),
+        "available_list": _generate_available_list(config, all_releases),
+        "initial_status": config["feedback"]["statusLineFormat"].format(status=config["feedback"]["labels"]["unknown"]),
+        "download_portal_url": page_url,
+        **config["reddit"],
+        **config["github"],
     }
-    
-    post_body = post_body_template
-    for placeholder, value in placeholders.items():
-        post_body = post_body.replace(placeholder, str(value))
-    return post_body
+    return cast(str, raw_template.strip().format(**placeholders))
 
-def _post_new_release(reddit, title, post_body, config):
-    link_count = _count_outbound_links(post_body)
-    warn_threshold = config.get('safety', {}).get('max_outbound_links_warn', 5)
-    print(f"Post analysis: Found {link_count} unique outbound link(s).")
+def _post_new_release(reddit: praw.Reddit, title: str, body: str, config: Dict[str, Any]) -> praw.models.Submission:
+    link_count = _count_outbound_links(body)
+    warn_threshold = config.get("safety", {}).get("max_outbound_links_warn", 5)
+    logging.info(f"Post analysis: Found {link_count} unique outbound link(s).")
     if link_count > MAX_OUTBOUND_LINKS_ERROR:
-        print(f"::error::Post contains {link_count} links, which exceeds the hardcoded safety limit of {MAX_OUTBOUND_LINKS_ERROR}. Aborting.")
+        logging.error(f"Post contains {link_count} links, exceeding safety limit of {MAX_OUTBOUND_LINKS_ERROR}. Aborting.")
         sys.exit(1)
     if link_count > warn_threshold:
-        print(f"::warning::Post contains {link_count} links, which is above the warning threshold of {warn_threshold}.")
-    
-    print(f"Submitting new post to r/{config['reddit']['subreddit']}...")
-    print(f"Title: {title}")
-    submission = reddit.subreddit(config['reddit']['subreddit']).submit(title, selftext=post_body)
-    print(f"Post successful: {submission.shortlink}")
+        logging.warning(f"Post contains {link_count} links, which is above the warning threshold of {warn_threshold}.")
+
+    logging.info(f"Submitting new post to r/{config['reddit']['subreddit']}: {title}")
+    submission = reddit.subreddit(config["reddit"]["subreddit"])
+    submission = submission.submit(title, selftext=body)
+    logging.info(f"Post successful: {submission.shortlink}")
     return submission
 
-def main():
+def _get_version_changes(all_versions: Dict[str, Any], versions_to_check: Dict[str, str]) -> Dict[str, Any]:
+    """Compares current versions with the latest versions and returns the changes."""
+    added: Dict[str, Any] = {}
+    updated: Dict[str, Any] = {}
+    removed: Dict[str, Any] = {}
+    new_versions = versions_to_check.copy()
+
+    for app_id, data in all_versions.items():
+        if not (latest := data.get("latest_release")):
+            continue
+        current_v = versions_to_check.get(app_id, "0.0.0")
+        if parse_version(latest["version"]) > parse_version(current_v):
+            new_versions[app_id] = latest["version"]
+            if current_v == "0.0.0":
+                added[app_id] = {"display_name": data["display_name"], "version": latest["version"], "url": latest["download_url"]}
+            else:
+                updated[app_id] = {"new": {"display_name": data["display_name"], "version": latest["version"], "url": latest["download_url"]}, "old": current_v}
+
+    return {"added": added, "updated": updated, "removed": removed, "new_versions": new_versions}
+
+def _handle_manual_post(title: str, body: str, new_versions: Dict[str, str], bot_state: Dict[str, Any]) -> None:
+    """Handles the generation of post files for manual posting."""
+    dist_dir = Path(paths.DIST_DIR)
+    dist_dir.mkdir(exist_ok=True)
+    (dist_dir / "post_title.txt").write_text(title)
+    (dist_dir / "post_body.md").write_text(body)
+    bot_state["offline"]["last_generated_versions"] = new_versions
+    save_bot_state(bot_state)
+    logging.info(f"Successfully generated post files in {dist_dir} and updated offline state.")
+
+def _initialize_state() -> Dict[str, Any]:
+    """Parses arguments and initializes the state."""
     parser = argparse.ArgumentParser(description="Post a new release to Reddit if it's out of date.")
-    parser.add_argument('--page-url', required=False, default='', help="URL to the GitHub Pages landing page.")
-    parser.add_argument('--generate-only', action='store_true', help="Generate post content without posting to Reddit.")
+    parser.add_argument("--page-url", default="", help="URL to the GitHub Pages landing page.")
+    parser.add_argument("--generate-only", action="store_true", help="Generate post content without posting.")
     args = parser.parse_args()
     config = load_config()
     bot_state = load_bot_state()
+    return {"args": args, "config": config, "bot_state": bot_state}
 
-    if not os.path.exists(paths.RELEASES_JSON_FILE):
-        print(f"`{paths.RELEASES_JSON_FILE}` not found. Nothing to post.")
-        sys.exit(0)
-    with open(paths.RELEASES_JSON_FILE, 'r') as f:
-        all_available_versions = json.load(f)
+def _create_and_submit_post(config: Dict[str, Any], bot_state: Dict[str, Any], version_changes: Dict[str, Any], all_versions: Dict[str, Any], page_url: str) -> None:
+    """Creates the post content and submits it to Reddit."""
+    changelog_data = {k: v for k, v in version_changes.items() if k in ["added", "updated", "removed"]}
+    title = _generate_dynamic_title(config, **changelog_data)
+    body = _generate_post_body(config, changelog_data, all_versions, page_url)
 
-    is_manual_mode = config['reddit'].get('post_manually', False) or args.generate_only
-    
-    if is_manual_mode:
-        print("---" + "-" * 10 + " MANUAL MODE " + "-" * 10 + "---")
-        versions_to_check = bot_state['offline']['last_generated_versions']
-    else:
-        print("---" + "-" * 10 + " AUTOMATIC MODE " + "-" * 10 + "---")
-        versions_to_check = bot_state['online']['last_posted_versions']
-
-    added_apps, updated_apps, removed_apps = {}, {}, {}
-    new_versions_state = versions_to_check.copy()
-
-    for app_id, app_data in all_available_versions.items():
-        if not app_data.get('latest_release'): continue
-        
-        latest_version_str = app_data['latest_release']['version']
-        current_version_str = versions_to_check.get(app_id, "0.0.0")
-
-        if parse_version(latest_version_str) > parse_version(current_version_str):
-            new_versions_state[app_id] = latest_version_str
-            if current_version_str == "0.0.0":
-                added_apps[app_id] = {"display_name": app_data['display_name'], "version": latest_version_str, "url": app_data['latest_release']['download_url']}
-            else:
-                updated_apps[app_id] = {"new": {"display_name": app_data['display_name'], "version": latest_version_str, "url": app_data['latest_release']['download_url']}, "old": current_version_str}
-
-    changelog_data = {"added": added_apps, "updated": updated_apps, "removed": removed_apps}
-    if not any(changelog_data.values()):
-        print("No changes detected. State is up-to-date.")
+    is_manual = config["reddit"].get("post_manually", False)
+    if is_manual:
+        _handle_manual_post(title, body, version_changes["new_versions"], bot_state)
         sys.exit(0)
 
-    title = _generate_dynamic_title(config, added_apps, updated_apps)
-    github_pages_url = config.get('github', {}).get('pages_url', 'https://example.com/preview-link')
-    body = _generate_post_body(config, changelog_data, all_available_versions, args.page_url or github_pages_url)
-
-    if is_manual_mode:
-        os.makedirs(paths.DIST_DIR, exist_ok=True)
-        title_path = os.path.join(paths.DIST_DIR, 'post_title.txt')
-        body_path = os.path.join(paths.DIST_DIR, 'post_body.md')
-        with open(title_path, 'w') as f: f.write(title)
-        with open(body_path, 'w') as f: f.write(body)
-        bot_state['offline']['last_generated_versions'] = new_versions_state
-        save_bot_state(bot_state)
-        print(f"Successfully generated post files in {paths.DIST_DIR} and updated offline state.")
-        sys.exit(0)
-
-    # --- Automatic Posting Logic ---
     reddit = init_reddit(config)
-    existing_posts = get_bot_posts(reddit, config)
     new_submission = _post_new_release(reddit, title, body, config)
-    
-    if existing_posts:
-        update_older_posts(existing_posts, {"title": new_submission.title, "url": new_submission.shortlink, "version": "latest"})
-    
-    bot_state['online']['last_posted_versions'] = new_versions_state
-    bot_state['online']['activePostId'] = new_submission.id
+    if existing_posts := get_bot_posts(reddit, config):
+        update_older_posts(existing_posts, {"title": new_submission.title, "url": new_submission.shortlink, "version": "latest"}, config)
+
+    bot_state["online"].update({"last_posted_versions": version_changes["new_versions"], "activePostId": new_submission.id})
     save_bot_state(bot_state)
-    print("Post and update process complete. Online state updated.")
+    logging.info("Post and update process complete. Online state updated.")
+
+def main() -> None:
+    state = _initialize_state()
+    args, config, bot_state = state["args"], state["config"], state["bot_state"]
+
+    releases_path = Path(paths.RELEASES_JSON_FILE)
+    if not releases_path.exists():
+        logging.info(f"`{releases_path}` not found. Nothing to post.")
+        sys.exit(0)
+
+    all_versions = json.loads(releases_path.read_text())
+    versions_to_check = bot_state["offline" if args.generate_only else "online"]["last_generated_versions" if args.generate_only else "last_posted_versions"]
+
+    version_changes = _get_version_changes(all_versions, versions_to_check)
+    if not any([version_changes["added"], version_changes["updated"], version_changes["removed"]]):
+        logging.info("No changes detected. State is up-to-date.")
+        sys.exit(0)
+
+    page_url = args.page_url or config.get("github", {}).get("pages_url", "")
+    _create_and_submit_post(config, bot_state, version_changes, all_versions, page_url)
 
 if __name__ == "__main__":
     main()
