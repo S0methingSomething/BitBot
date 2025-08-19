@@ -26,7 +26,7 @@ jobs:
       - name: Install Dependencies with uv
         run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install . --system
       - name: Run Release Manager
         id: manager
         working-directory: ./src
@@ -47,7 +47,7 @@ jobs:
       - name: Install Dependencies with uv
         run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install . --system
       - name: Gather All Bot Releases
         id: gatherer
         working-directory: ./src
@@ -86,7 +86,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install . --system
       - name: Generate Static Page
         working-directory: ./src
         run: python page_generator.py
@@ -116,7 +116,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install . --system
       - name: Post / Update Reddit
         working-directory: ./src
         env:
