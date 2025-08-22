@@ -2,7 +2,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 import paths
 from helpers import load_config, load_release_state, save_release_state
@@ -14,10 +14,10 @@ logging = get_logger(__name__)
 DOWNLOAD_DIR = Path(paths.DIST_DIR)
 
 # --- Helper Functions ---
-def run_command(command: List[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+def run_command(command: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
     """Runs a shell command and returns its result."""
     logging.info(f"Executing: {' '.join(command)}")
-    return subprocess.run(command, capture_output=True, text=True, check=check)
+    return subprocess.run(command, capture_output=True, text=True, check=check)  # noqa: S603
 
 def get_github_data(url: str) -> Any:
     """Fetches data from the GitHub API using the gh cli."""
@@ -25,12 +25,12 @@ def get_github_data(url: str) -> Any:
     return json.loads(result.stdout)
 
 # --- Core Logic ---
-def get_source_releases(repo: str) -> List[Dict[str, Any]]:
+def get_source_releases(repo: str) -> list[dict[str, Any]]:
     """Gets the last 30 releases from the source repository."""
     logging.info(f"Fetching latest releases from source repo: {repo}")
-    return cast(List[Dict[str, Any]], get_github_data(f"/repos/{repo}/releases?per_page=30"))
+    return cast(list[dict[str, Any]], get_github_data(f"/repos/{repo}/releases?per_page=30"))
 
-def _parse_line(line: str, app_id_map: Dict[str, str]) -> Optional[Dict[str, Any]]:
+def _parse_line(line: str, app_id_map: dict[str, str]) -> dict[str, Any] | None:
     """Parses a single line for release information."""
     try:
         key, value = line.split(":", 1)
@@ -41,15 +41,15 @@ def _parse_line(line: str, app_id_map: Dict[str, str]) -> Optional[Dict[str, Any
     except ValueError:
         return None
 
-def parse_release_description(description: str, apps_config: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def parse_release_description(description: str, apps_config: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Parses a release description with a structured key-value format."""
-    found_releases: List[Dict[str, Any]] = []
-    current_release: Dict[str, Any] = {}
+    found_releases: list[dict[str, Any]] = []
+    current_release: dict[str, Any] = {}
     app_id_map = {app["displayName"].lower(): app["id"] for app in apps_config}
 
     for line in description.splitlines():
-        line = line.strip()
-        if not line:
+        stripped_line = line.strip()
+        if not stripped_line:
             if current_release:
                 found_releases.append(current_release)
             current_release = {}
@@ -117,7 +117,7 @@ def create_bot_release(bot_repo: str, tag: str, title: str, notes: str, file_pat
         str(file_path)
     ])
 
-def process_app(app: Dict[str, Any], bot_repo: str, source_repo: str, release_id: int, release_tag: str) -> Optional[Dict[str, Any]]:
+def process_app(app: dict[str, Any], bot_repo: str, source_repo: str, release_id: int, release_tag: str) -> dict[str, Any] | None:
     """Processes a single app from a release description."""
     if not all(app.get(k) for k in ["app_id", "version", "asset_name", "display_name"]):
         logging.warning(f"Skipping incomplete app info: {app}")
@@ -142,10 +142,10 @@ def process_app(app: Dict[str, Any], bot_repo: str, source_repo: str, release_id
         logging.error(f"Failed to process app {app['display_name']} from release {release_tag}. Reason: {e}")
         return None
 
-def process_release(release: Dict[str, Any], config: Dict[str, Any], processed_ids: List[int]) -> Dict[str, Any]:
+def process_release(release: dict[str, Any], config: dict[str, Any], processed_ids: list[int]) -> dict[str, Any]:
     """Processes a single source release and all the apps within it."""
     logging.info(f"--- Processing source release: {release['tag_name']} ({release['id']}) ---")
-    processed_data: Dict[str, Any] = {}
+    processed_data: dict[str, Any] = {}
     if not (description := release.get("body", "")):
         logging.warning("Release has no description. Skipping.")
         return processed_data
@@ -181,7 +181,7 @@ def main() -> None:
 
     logging.info(f"Found {len(new_releases)} new source release(s) to process.")
     new_releases.sort(key=lambda r: r["created_at"])
-    all_processed_data: Dict[str, Any] = {}
+    all_processed_data: dict[str, Any] = {}
 
     for release in new_releases:
         all_processed_data.update(process_release(release, config, processed_ids))

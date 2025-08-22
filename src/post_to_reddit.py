@@ -2,9 +2,9 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 import praw
 from packaging.version import parse as parse_version
@@ -29,11 +29,11 @@ def _count_outbound_links(text: str) -> int:
     url_pattern = re.compile(r"https?://[^\s/$.?#].[^\s]*|www\.[^\s/$.?#].[^\s]*")
     return len(set(url_pattern.findall(text)))
 
-def _generate_dynamic_title(config: Dict[str, Any], added: Dict[str, Any], updated: Dict[str, Any]) -> str:
+def _generate_dynamic_title(config: dict[str, Any], added: dict[str, Any], updated: dict[str, Any]) -> str:
     num_added, num_updated = len(added), len(updated)
     formats = config["reddit"]["formats"]["titles"]
 
-    def create_app_list(apps: Dict[str, Any]) -> str:
+    def create_app_list(apps: dict[str, Any]) -> str:
         return ", ".join(f"{info.get('display_name', 'Unknown')} v{info.get('version', '?.?.?')}" for _, info in apps.items())
 
     added_list = create_app_list(added)
@@ -48,9 +48,9 @@ def _generate_dynamic_title(config: Dict[str, Any], added: Dict[str, Any], updat
         key = "mixed_single_update" if num_updated == 1 else "mixed_multi_update"
         return cast(str, formats[key].replace("{{added_list}}", added_list).replace("{{updated_list}}", updated_list))
 
-    return cast(str, formats["generic"].replace("{{date}}", datetime.utcnow().strftime("%Y-%m-%d")))
+    return cast(str, formats["generic"].replace("{{date}}", datetime.now(UTC).strftime("%Y-%m-%d")))
 
-def _format_changelog_line(line_format: str, info: Dict[str, Any], asset_name: str, change_type: str) -> str:
+def _format_changelog_line(line_format: str, info: dict[str, Any], asset_name: str, change_type: str) -> str:
     """Formats a single line in the changelog."""
     if change_type == "Added":
         return line_format.format(display_name=info["display_name"], asset_name=asset_name, version=info["version"], download_url=info["url"])
@@ -60,7 +60,7 @@ def _format_changelog_line(line_format: str, info: Dict[str, Any], asset_name: s
         return line_format.format(display_name=info["display_name"], asset_name=asset_name, old_version=info["version"])
     return ""
 
-def _generate_changelog(config: Dict[str, Any], added: Dict[str, Any], updated: Dict[str, Any], removed: Dict[str, Any]) -> str:
+def _generate_changelog(config: dict[str, Any], added: dict[str, Any], updated: dict[str, Any], removed: dict[str, Any]) -> str:
     post_mode = config["reddit"].get("postMode", "landing_page")
     key_suffix = "landing" if post_mode == "landing_page" else "direct"
     asset_name = config["github"].get("assetFileName", "asset")
@@ -74,14 +74,14 @@ def _generate_changelog(config: Dict[str, Any], added: Dict[str, Any], updated: 
         lines = [f"### {title}"]
         key_format = f"{title.lower()}_{key_suffix}"
         if line_format := formats.get(key_format):
-            for _, info in data.items():
+            for _, info in data.values():
                 lines.append(_format_changelog_line(line_format, info, asset_name, title))
         if len(lines) > 1:
             sections.append("\n".join(lines))
 
     return "\n\n".join(sections) or "No new updates in this version."
 
-def _generate_available_list(config: Dict[str, Any], all_releases: Dict[str, Any]) -> str:
+def _generate_available_list(config: dict[str, Any], all_releases: dict[str, Any]) -> str:
     formats = config["reddit"]["formats"]["table"]
     asset_name = config["github"]["assetFileName"]
     lines = [formats["header"], formats["divider"]]
@@ -91,7 +91,7 @@ def _generate_available_list(config: Dict[str, Any], all_releases: Dict[str, Any
             lines.append(formats["line"].format(display_name=info["display_name"], asset_name=asset_name, version=latest["version"]))
     return "\n".join(lines)
 
-def _generate_post_body(config: Dict[str, Any], changelog_data: Dict[str, Any], all_releases: Dict[str, Any], page_url: str) -> str:
+def _generate_post_body(config: dict[str, Any], changelog_data: dict[str, Any], all_releases: dict[str, Any], page_url: str) -> str:
     template_path = Path(paths.TEMPLATES_DIR) / config["reddit"]["templates"]["post"]
     raw_template = template_path.read_text()
 
@@ -108,7 +108,7 @@ def _generate_post_body(config: Dict[str, Any], changelog_data: Dict[str, Any], 
     }
     return cast(str, raw_template.strip().format(**placeholders))
 
-def _post_new_release(reddit: praw.Reddit, title: str, body: str, config: Dict[str, Any]) -> praw.models.Submission:
+def _post_new_release(reddit: praw.Reddit, title: str, body: str, config: dict[str, Any]) -> praw.models.Submission:
     link_count = _count_outbound_links(body)
     warn_threshold = config.get("safety", {}).get("max_outbound_links_warn", 5)
     logging.info(f"Post analysis: Found {link_count} unique outbound link(s).")
@@ -124,11 +124,11 @@ def _post_new_release(reddit: praw.Reddit, title: str, body: str, config: Dict[s
     logging.info(f"Post successful: {submission.shortlink}")
     return submission
 
-def _get_version_changes(all_versions: Dict[str, Any], versions_to_check: Dict[str, str]) -> Dict[str, Any]:
+def _get_version_changes(all_versions: dict[str, Any], versions_to_check: dict[str, str]) -> dict[str, Any]:
     """Compares current versions with the latest versions and returns the changes."""
-    added: Dict[str, Any] = {}
-    updated: Dict[str, Any] = {}
-    removed: Dict[str, Any] = {}
+    added: dict[str, Any] = {}
+    updated: dict[str, Any] = {}
+    removed: dict[str, Any] = {}
     new_versions = versions_to_check.copy()
 
     for app_id, data in all_versions.items():
@@ -144,7 +144,7 @@ def _get_version_changes(all_versions: Dict[str, Any], versions_to_check: Dict[s
 
     return {"added": added, "updated": updated, "removed": removed, "new_versions": new_versions}
 
-def _handle_manual_post(title: str, body: str, new_versions: Dict[str, str], bot_state: Dict[str, Any]) -> None:
+def _handle_manual_post(title: str, body: str, new_versions: dict[str, str], bot_state: dict[str, Any]) -> None:
     """Handles the generation of post files for manual posting."""
     dist_dir = Path(paths.DIST_DIR)
     dist_dir.mkdir(exist_ok=True)
@@ -154,7 +154,7 @@ def _handle_manual_post(title: str, body: str, new_versions: Dict[str, str], bot
     save_bot_state(bot_state)
     logging.info(f"Successfully generated post files in {dist_dir} and updated offline state.")
 
-def _initialize_state() -> Dict[str, Any]:
+def _initialize_state() -> dict[str, Any]:
     """Parses arguments and initializes the state."""
     parser = argparse.ArgumentParser(description="Post a new release to Reddit if it's out of date.")
     parser.add_argument("--page-url", default="", help="URL to the GitHub Pages landing page.")
@@ -164,7 +164,7 @@ def _initialize_state() -> Dict[str, Any]:
     bot_state = load_bot_state()
     return {"args": args, "config": config, "bot_state": bot_state}
 
-def _create_and_submit_post(config: Dict[str, Any], bot_state: Dict[str, Any], version_changes: Dict[str, Any], all_versions: Dict[str, Any], page_url: str) -> None:
+def _create_and_submit_post(config: dict[str, Any], bot_state: dict[str, Any], version_changes: dict[str, Any], all_versions: dict[str, Any], page_url: str) -> None:
     """Creates the post content and submits it to Reddit."""
     changelog_data = {k: v for k, v in version_changes.items() if k in ["added", "updated", "removed"]}
     title = _generate_dynamic_title(config, added=changelog_data["added"], updated=changelog_data["updated"])

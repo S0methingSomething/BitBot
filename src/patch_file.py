@@ -1,15 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 BitBot Core Processor: Decrypts, Modifies, and Re-encrypts a target asset file.
 """
 import base64
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from logging_config import get_logger
 
 logging = get_logger(__name__)
+
+EXPECTED_ARG_COUNT = 3
 
 # --- Constants ---
 DEFAULT_CIPHER_KEY = "com.wtfapps.apollo16"
@@ -35,9 +36,9 @@ def b64_decode_and_xor(b64: str, key: str) -> str:
     xor_result = bytes([b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(decoded_bytes)])
     return xor_result.decode("latin-1")
 
-def decrypt(encrypted_content: str, obfuscated_key: str) -> Dict[str, Any]:
+def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, Any]:
     """Decrypts the content of the asset file into a Python dictionary."""
-    item_map: Dict[str, Any] = {}
+    item_map: dict[str, Any] = {}
     for line in encrypted_content.splitlines():
         if not (line := line.strip()) or ":" not in line:
             continue
@@ -53,7 +54,7 @@ def decrypt(encrypted_content: str, obfuscated_key: str) -> Dict[str, Any]:
             item_map[dec_key] = dec_val_b64
     return item_map
 
-def modify(data_object: Dict[str, Any]) -> Dict[str, Any]:
+def modify(data_object: dict[str, Any]) -> dict[str, Any]:
     """Sets all boolean false values to true."""
     logging.info("Modifying data: Setting all boolean 'false' values to 'true'.")
     for key, value in data_object.items():
@@ -61,7 +62,7 @@ def modify(data_object: Dict[str, Any]) -> Dict[str, Any]:
             data_object[key] = True
     return data_object
 
-def encrypt(data_object: Dict[str, Any], obfuscated_key: str) -> str:
+def encrypt(data_object: dict[str, Any], obfuscated_key: str) -> str:
     """Re-encrypts the modified data object back into the file format."""
     logging.info("Re-encrypting data...")
     output_lines = []
@@ -79,7 +80,8 @@ def encrypt(data_object: Dict[str, Any], obfuscated_key: str) -> str:
 
 def main() -> None:
     """Main function to orchestrate the file processing."""
-    if len(sys.argv) != 3:
+    expected_arg_count = 3
+    if len(sys.argv) != expected_arg_count:
         logging.error(f"Usage: python {sys.argv[0]} <input-file> <output-file>")
         sys.exit(1)
 

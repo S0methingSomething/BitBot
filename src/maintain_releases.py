@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 import requests
 
@@ -9,19 +9,21 @@ from logging_config import get_logger
 
 logging = get_logger(__name__)
 
+MIN_RELEASES_TO_MARK_OUTDATED = 2
 
-def _fetch_releases(repo: str, headers: Dict[str, str]) -> List[Dict[str, Any]]:
+
+def _fetch_releases(repo: str, headers: dict[str, str]) -> list[dict[str, Any]]:
     """Fetches all releases from the specified repository."""
     releases_url = f"https://api.github.com/repos/{repo}/releases"
     try:
-        response = requests.get(releases_url, headers=headers)
+        response = requests.get(releases_url, headers=headers, timeout=10)
         response.raise_for_status()
-        return cast(List[Dict[str, Any]], response.json())
+        return cast(list[dict[str, Any]], response.json())
     except requests.RequestException as e:
         logging.error(f"Could not fetch releases: {e}")
         sys.exit(1)
 
-def _update_release_title(release: Dict[str, Any], repo: str, headers: Dict[str, str]) -> bool:
+def _update_release_title(release: dict[str, Any], repo: str, headers: dict[str, str]) -> bool:
     """Updates a single release title to mark it as outdated."""
     if release["name"].startswith("[OUTDATED] "):
         return False
@@ -32,7 +34,7 @@ def _update_release_title(release: Dict[str, Any], repo: str, headers: Dict[str,
     payload = {"name": new_title}
 
     try:
-        update_response = requests.patch(update_url, headers=headers, json=payload)
+        update_response = requests.patch(update_url, headers=headers, json=payload, timeout=10)
         update_response.raise_for_status()
         logging.info(f"-> Successfully updated to '{new_title}'.")
         return True
@@ -57,7 +59,7 @@ def main() -> None:
     releases = _fetch_releases(bot_repo, headers)
     non_legacy_releases = [r for r in releases if "-v" not in r.get("tag_name", "")]
 
-    if len(non_legacy_releases) < 2:
+    if len(non_legacy_releases) < MIN_RELEASES_TO_MARK_OUTDATED:
         logging.info("Not enough non-legacy releases to mark any as outdated. Exiting.")
         sys.exit(0)
 

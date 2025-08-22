@@ -2,7 +2,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from github import Github, GithubException
 from packaging.version import parse as parse_version
@@ -14,7 +14,7 @@ from logging_config import get_logger
 logging = get_logger(__name__)
 
 
-def _parse_and_add_release(release: Any, aggregated_data: Dict[str, Any], config: Dict[str, Any]) -> None:
+def _parse_and_add_release(release: Any, aggregated_data: dict[str, Any], config: dict[str, Any]) -> None:
     """Parses a single release and adds it to the aggregated data."""
     parsed_info = parse_release_notes(release.body, release.tag_name, release.title, config)
     if not parsed_info:
@@ -38,23 +38,23 @@ def _parse_and_add_release(release: Any, aggregated_data: Dict[str, Any], config
         "release_notes": release.body, "release_url": release.html_url, "tag_name": release.tag_name
     })
 
-def _process_releases(releases: Any, config: Dict[str, Any]) -> Dict[str, Any]:
+def _process_releases(releases: Any, config: dict[str, Any]) -> dict[str, Any]:
     """Processes a list of releases and aggregates the data."""
-    aggregated_data: Dict[str, Any] = {}
+    aggregated_data: dict[str, Any] = {}
     for release in releases:
         _parse_and_add_release(release, aggregated_data, config)
     return aggregated_data
 
-def _find_best_release(release_group: List[Dict[str, Any]], app_id: str) -> Dict[str, Any]:
+def _find_best_release(release_group: list[dict[str, Any]], app_id: str) -> dict[str, Any]:
     """Finds the best release from a group of releases with the same version."""
     if len(release_group) == 1:
         return release_group[0]
     best = next((r for r in release_group if r["tag_name"].startswith(f"{app_id}-v")), None)
     return best or sorted(release_group, key=lambda x: x["published_at"], reverse=True)[0]
 
-def _finalize_data(aggregated_data: Dict[str, Any]) -> Dict[str, Any]:
+def _finalize_data(aggregated_data: dict[str, Any]) -> dict[str, Any]:
     """Finalizes the aggregated data by cleaning and sorting releases."""
-    final_data: Dict[str, Any] = {}
+    final_data: dict[str, Any] = {}
     for app_id, app_info in aggregated_data.items():
         clean_releases = [_find_best_release(group, app_id) for group in app_info["releases_by_version"].values()]
         clean_releases.sort(key=lambda r: parse_version(r["version"]), reverse=True)

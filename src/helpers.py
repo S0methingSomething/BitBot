@@ -3,7 +3,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 import praw
 import toml
@@ -15,7 +15,7 @@ logging = get_logger(__name__)
 
 # --- Configuration and State Management ---
 
-def load_config() -> Dict[str, Any]:
+def load_config() -> dict[str, Any]:
     """Loads the main configuration file (config.toml)."""
     try:
         return toml.loads(Path(paths.CONFIG_FILE).read_text())
@@ -26,10 +26,10 @@ def load_config() -> Dict[str, Any]:
         logging.error(f"Failed to parse `{paths.CONFIG_FILE}`: {e}")
         sys.exit(1)
 
-def load_bot_state() -> Dict[str, Any]:
+def load_bot_state() -> dict[str, Any]:
     """Loads the bot's state, ensuring the nested structure exists."""
     try:
-        state: Dict[str, Any] = json.loads(Path(paths.BOT_STATE_FILE).read_text())
+        state: dict[str, Any] = json.loads(Path(paths.BOT_STATE_FILE).read_text())
     except (FileNotFoundError, json.JSONDecodeError):
         state = {}
     # Ensure nested structure for robustness
@@ -37,22 +37,22 @@ def load_bot_state() -> Dict[str, Any]:
     state.setdefault("offline", {}).setdefault("last_generated_versions", {})
     return state
 
-def save_bot_state(data: Dict[str, Any]) -> None:
+def save_bot_state(data: dict[str, Any]) -> None:
     """Saves the bot's monitoring state."""
     Path(paths.BOT_STATE_FILE).write_text(json.dumps(data, indent=2))
 
-def load_release_state() -> List[int]:
+def load_release_state() -> list[int]:
     """Loads the list of processed source release IDs."""
     try:
-        return cast(List[int], json.loads(Path(paths.RELEASE_STATE_FILE).read_text()))
+        return cast(list[int], json.loads(Path(paths.RELEASE_STATE_FILE).read_text()))
     except (FileNotFoundError, json.JSONDecodeError):
         return []
 
-def save_release_state(data: List[int]) -> None:
+def save_release_state(data: list[int]) -> None:
     """Saves the list of processed source release IDs."""
     Path(paths.RELEASE_STATE_FILE).write_text(json.dumps(data, indent=2))
 
-def _parse_structured_format(body: str, app_map: Dict[str, str]) -> Optional[Dict[str, str]]:
+def _parse_structured_format(body: str, app_map: dict[str, str]) -> dict[str, str] | None:
     """Parses the new structured format from the release body."""
     app_match = re.search(r"^app:\s*(\S+)", body, re.MULTILINE)
     version_match = re.search(r"^version:\s*([\d\.]+)", body, re.MULTILINE)
@@ -63,7 +63,7 @@ def _parse_structured_format(body: str, app_map: Dict[str, str]) -> Optional[Dic
             return {"app_id": app_id, "display_name": app_map[app_id], "version": version_match.group(1), "asset_name": asset_match.group(1)}
     return None
 
-def _parse_legacy_formats(tag_name: str, title: str, app_map: Dict[str, str], asset_file: str) -> Optional[Dict[str, str]]:
+def _parse_legacy_formats(tag_name: str, title: str, app_map: dict[str, str], asset_file: str) -> dict[str, str] | None:
     """Parses legacy formats from the tag name or title."""
     for app_id, display_name in app_map.items():
         if tag_name.lower().startswith(f"{app_id.lower()}-v"):
@@ -74,7 +74,7 @@ def _parse_legacy_formats(tag_name: str, title: str, app_map: Dict[str, str], as
             return {"app_id": app_id, "display_name": display_name, "version": match.group(1), "asset_name": asset_file}
     return None
 
-def parse_release_notes(body: str, tag_name: str, title: str, config: Dict[str, Any]) -> Optional[Dict[str, str]]:
+def parse_release_notes(body: str, tag_name: str, title: str, config: dict[str, Any]) -> dict[str, str] | None:
     """Parses release info from body, tag, or title to support legacy formats."""
     app_map = {app["id"]: app["displayName"] for app in config.get("apps", [])}
     asset_file = config["github"]["assetFileName"]
@@ -89,9 +89,9 @@ def parse_release_notes(body: str, tag_name: str, title: str, config: Dict[str, 
 
     return None
 
-def parse_versions_from_post(post: praw.models.Submission, config: Dict[str, Any]) -> Dict[str, str]:
+def parse_versions_from_post(post: praw.models.Submission, config: dict[str, Any]) -> dict[str, str]:
     """Parses app versions from a Reddit post, supporting multiple formats."""
-    versions: Dict[str, str] = {}
+    versions: dict[str, str] = {}
     app_map = {app["displayName"].lower(): app["id"] for app in config.get("apps", [])}
 
     # --- New Format: Changelog ---
@@ -111,7 +111,7 @@ def parse_versions_from_post(post: praw.models.Submission, config: Dict[str, Any
 
 # --- Reddit Client and Post Management ---
 
-def init_reddit(config: Dict[str, Any]) -> praw.Reddit:
+def init_reddit() -> praw.Reddit:
     """Initializes and returns a PRAW Reddit instance."""
     return praw.Reddit(
         client_id=os.environ["REDDIT_CLIENT_ID"],
@@ -122,14 +122,14 @@ def init_reddit(config: Dict[str, Any]) -> praw.Reddit:
         validate_on_submit=True,
     )
 
-def get_bot_posts(reddit: praw.Reddit, config: Dict[str, Any]) -> List[praw.models.Submission]:
+def get_bot_posts(reddit: praw.Reddit, config: dict[str, Any]) -> list[praw.models.Submission]:
     """Fetches all of the bot's release posts from the configured subreddit."""
     bot_user = reddit.user.me()
     subreddit = config["reddit"]["subreddit"].lower()
     identifier = "[BitBot] MonetizationVars"
     return [p for p in bot_user.submissions.new(limit=100) if p.subreddit.display_name.lower() == subreddit and p.title.startswith(identifier)]
 
-def _create_banner(template_path: Path, latest_details: Dict[str, Any], config: Dict[str, Any]) -> str:
+def _create_banner(template_path: Path, latest_details: dict[str, Any], config: dict[str, Any]) -> str:
     """Creates the banner to inject into older posts."""
     raw_template = template_path.read_text()
     start_tag, end_tag = config.get("skipContent", {}).get("startTag"), config.get("skipContent", {}).get("endTag")
@@ -151,7 +151,7 @@ def _inject_banner_into_post(post: praw.models.Submission, banner: str) -> None:
     except Exception as e:
         logging.warning(f"Failed to update banner in post {post.id}: {e}")
 
-def update_older_posts(older_posts: List[praw.models.Submission], latest_details: Dict[str, Any], config: Dict[str, Any]) -> None:
+def update_older_posts(older_posts: list[praw.models.Submission], latest_details: dict[str, Any], config: dict[str, Any]) -> None:
     """Updates older posts by injecting an 'outdated' banner."""
     mode = config.get("outdatedPostHandling", {}).get("mode", "inject")
     if mode != "inject":

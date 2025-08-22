@@ -1,9 +1,9 @@
 import os
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 from helpers import init_reddit, load_bot_state, load_config, save_bot_state
 from logging_config import get_logger
@@ -11,7 +11,7 @@ from logging_config import get_logger
 logging = get_logger(__name__)
 
 
-def _analyze_comments(comments: List[Any], config: Dict[str, Any]) -> str:
+def _analyze_comments(comments: list[Any], config: dict[str, Any]) -> str:
     """Analyzes comments and returns the new status."""
     working_kw = re.compile("|".join(config["feedback"]["workingKeywords"]), re.I)
     not_working_kw = re.compile("|".join(config["feedback"]["notWorkingKeywords"]), re.I)
@@ -27,7 +27,7 @@ def _analyze_comments(comments: List[Any], config: Dict[str, Any]) -> str:
         return cast(str, config["feedback"]["labels"]["working"])
     return cast(str, config["feedback"]["labels"]["unknown"])
 
-def _update_post_status(submission: Any, new_status: str, config: Dict[str, Any]) -> None:
+def _update_post_status(submission: Any, new_status: str, config: dict[str, Any]) -> None:
     """Updates the post with the new status if it has changed."""
     new_line = config["feedback"]["statusLineFormat"].replace("{{status}}", new_status)
     regex = re.compile(config["feedback"]["statusLineRegex"], re.MULTILINE)
@@ -39,7 +39,7 @@ def _update_post_status(submission: Any, new_status: str, config: Dict[str, Any]
     else:
         logging.info("Status is already correct.")
 
-def _update_timing_interval(state: Dict[str, Any], num_comments: int, config: Dict[str, Any]) -> None:
+def _update_timing_interval(state: dict[str, Any], num_comments: int, config: dict[str, Any]) -> None:
     """Updates the timing interval based on comment activity."""
     last_count = state.get("lastCommentCount", 0)
     if num_comments > last_count:
@@ -49,7 +49,7 @@ def _update_timing_interval(state: Dict[str, Any], num_comments: int, config: Di
     if last_count != num_comments:
         state["lastCommentCount"] = num_comments
 
-def check_post_status(config: Dict[str, Any], state: Dict[str, Any]) -> bool:
+def check_post_status(config: dict[str, Any], state: dict[str, Any]) -> bool:
     """Analyzes feedback and updates the post status."""
     active_post_id = state.get("activePostId")
     if not active_post_id:
@@ -75,7 +75,7 @@ def main() -> None:
     config = load_config()
     state = load_bot_state()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     last_check = datetime.fromisoformat(state.get("lastCheckTimestamp", "2000-01-01T00:00:00Z").replace("Z", "+00:00"))
     interval = state.get("currentIntervalSeconds", config["timing"]["firstCheck"])
 

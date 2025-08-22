@@ -2,7 +2,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import paths
 from helpers import load_config
@@ -11,7 +11,7 @@ from logging_config import get_logger
 logging = get_logger(__name__)
 
 
-def _render_release_loop(template: str, releases: List[Dict[str, Any]]) -> str:
+def _render_release_loop(template: str, releases: list[dict[str, Any]]) -> str:
     """Renders the inner loop for previous releases."""
     release_loop_pattern = re.compile(r"<!-- BEGIN-RELEASE-LOOP -->(.*?)<!-- END-RELEASE-LOOP -->", re.DOTALL)
     match = release_loop_pattern.search(template)
@@ -27,7 +27,7 @@ def _render_release_loop(template: str, releases: List[Dict[str, Any]]) -> str:
         all_releases_html.append(release_html)
     return release_loop_pattern.sub("".join(all_releases_html), template)
 
-def _render_app_template(app_template: str, app_data: Dict[str, Any]) -> str:
+def _render_app_template(app_template: str, app_data: dict[str, Any]) -> str:
     """Renders a single app's data into the template."""
     app_html = app_template
     conditional_pattern = re.compile(r"<!-- IF RELEASES EXIST -->(.*?)<!-- ELSE -->(.*?)<!-- END IF -->", re.DOTALL)
@@ -43,7 +43,7 @@ def _render_app_template(app_template: str, app_data: Dict[str, Any]) -> str:
 
     return _render_release_loop(app_html, app_data.get("previous_releases", []))
 
-def _render_template(template_content: str, data: Dict[str, Any], config: Dict[str, Any]) -> str:
+def _render_template(template_content: str, data: dict[str, Any], config: dict[str, Any]) -> str:
     """
     Renders a template with a clean data structure, supporting nested loops and
     conditional blocks.
@@ -58,8 +58,7 @@ def _render_template(template_content: str, data: Dict[str, Any], config: Dict[s
     all_app_html = []
     sorted_app_ids = sorted(data.keys(), key=lambda k: data[k]["display_name"])
 
-    for app_id in sorted_app_ids:
-        all_app_html.append(_render_app_template(app_template, data[app_id]))
+    all_app_html = [_render_app_template(app_template, data[app_id]) for app_id in sorted_app_ids]
 
     final_html = app_loop_pattern.sub("".join(all_app_html), template_content)
     return final_html.replace("{{bot_repo}}", config["github"]["botRepo"])

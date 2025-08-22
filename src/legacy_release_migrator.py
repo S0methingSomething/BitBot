@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from github import Github, GithubException
 
@@ -11,7 +11,7 @@ from logging_config import get_logger
 logging = get_logger(__name__)
 
 
-def _process_release(release: Any, config: Dict[str, Any]) -> str:
+def _process_release(release: Any, config: dict[str, Any]) -> str:
     """Processes a single release for migration."""
     if "app:" in release.body and "version:" in release.body and "asset_name:" in release.body:
         return "skipped"

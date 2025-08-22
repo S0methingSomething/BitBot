@@ -1,24 +1,33 @@
-.PHONY: setup check fix
+.PHONY: setup check fix test test-all
 
 VENV_DIR := .venv
-PYTHON := $(VENV_DIR)/bin/python
+UV := uv
 SRC_DIR := src
 
 setup:
-	@echo ">>> Setting up virtual environment in $(VENV_DIR)..."
-	python3 -m venv $(VENV_DIR)
-	@echo ">>> Installing dependencies with uv..."
-	$(PYTHON) -m pip install -q uv
-	$(VENV_DIR)/bin/uv pip install -e .[dev]
+	@echo ">>> Installing uv if not present..."
+	@command -v uv >/dev/null 2>&1 || { echo "Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
+	@echo ">>> Setting up Python 3.13 environment..."
+	$(UV) venv --python 3.13 $(VENV_DIR)
+	@echo ">>> Installing dependencies..."
+	$(UV) pip install -e .[dev]
 
 check:
 	@echo ">>> Running ruff checks..."
-	$(PYTHON) -m ruff check $(SRC_DIR)
+	$(UV) run ruff check $(SRC_DIR)
 	@echo ">>> Running mypy type checks..."
-	$(PYTHON) -m mypy $(SRC_DIR)
+	$(UV) run mypy $(SRC_DIR)
 	@echo ">>> Running xenon complexity checks..."
-	$(PYTHON) -m xenon --max-absolute B --max-modules A --max-average A $(SRC_DIR)
+	$(UV) run xenon --max-absolute B --max-modules A --max-average A $(SRC_DIR)
+
+test:
+	@echo ">>> Running pytest..."
+	$(UV) run pytest
+
+test-all:
+	@echo ">>> Running pytest..."
+	$(UV) run pytest
 
 fix:
 	@echo ">>> Running ruff to auto-fix files..."
-	$(PYTHON) -m ruff check --fix $(SRC_DIR)
+	$(UV) run ruff check --fix $(SRC_DIR)
