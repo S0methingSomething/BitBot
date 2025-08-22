@@ -17,10 +17,10 @@ post_manually = false # Set to true to generate post files instead of posting
 
 # Template file paths used by the bot
 [reddit.templates]
-post = "templates/post_template.md"
-outdated_post = "templates/outdated_template.md"
-inject_banner = "templates/inject_template.md"
-custom_landing = "templates/custom_landing_page.example.html" # Optional
+post = "post_template.md"
+outdated_post = "outdated_template.md"
+inject_banner = "inject_template.md"
+custom_landing = "custom_landing_page.example.html" # Optional
 
 # Dynamic formats for post content
 [reddit.formats]
