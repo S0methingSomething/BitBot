@@ -74,8 +74,7 @@ def _generate_changelog(config: dict[str, Any], added: dict[str, Any], updated: 
         lines = [f"### {title}"]
         key_format = f"{title.lower()}_{key_suffix}"
         if line_format := formats.get(key_format):
-            for _, info in data.values():
-                lines.append(_format_changelog_line(line_format, info, asset_name, title))
+            lines.extend(_format_changelog_line(line_format, info, asset_name, title) for info in data.values())
         if len(lines) > 1:
             sections.append("\n".join(lines))
 
