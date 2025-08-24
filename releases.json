@@ -1,0 +1,47 @@
+{
+  "bitlife_es": {
+    "display_name": "BitLife Espa\u00f1ol",
+    "version": "1.18.11",
+    "latest_release": {
+      "version": "1.18.11",
+      "download_url": "https://github.com/S0methingSomething/BitBot/releases/download/bitlife_es-v1.18.11/MonetizationVars",
+      "published_at": "2025-08-02T03:36:24Z"
+    }
+  },
+  "bitlife_br": {
+    "display_name": "BitLife BR",
+    "version": "1.18.11",
+    "latest_release": {
+      "version": "1.18.11",
+      "download_url": "https://github.com/S0methingSomething/BitBot/releases/download/bitlife_br-v1.18.11/MonetizationVars",
+      "published_at": "2025-08-02T03:36:24Z"
+    }
+  },
+  "bitlife_fr": {
+    "display_name": "BitLife Fran\u00e7ais",
+    "version": "3.18.11",
+    "latest_release": {
+      "version": "3.18.11",
+      "download_url": "https://github.com/S0methingSomething/BitBot/releases/download/bitlife_fr-v3.18.11/MonetizationVars",
+      "published_at": "2025-08-02T03:36:24Z"
+    }
+  },
+  "bitlife_go": {
+    "display_name": "BitLife Go",
+    "version": "1.1.3",
+    "latest_release": {
+      "version": "1.1.3",
+      "download_url": "https://github.com/S0methingSomething/BitBot/releases/download/bitlife_go-v1.1.3/MonetizationVars",
+      "published_at": "2025-07-11T03:39:35Z"
+    }
+  },
+  "bitlife": {
+    "display_name": "BitLife",
+    "version": "3.19.7",
+    "latest_release": {
+      "version": "3.19.7",
+      "download_url": "https://github.com/S0methingSomething/BitBot/releases/download/bitlife-v3.19.7/MonetizationVars",
+      "published_at": "2025-05-31T16:55:04Z"
+    }
+  }
+}
