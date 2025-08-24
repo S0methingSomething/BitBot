@@ -1,11 +1,11 @@
 import sys
 from pathlib import Path
 
+from config_loader import load_config
 from helpers import (
     get_bot_posts,
     init_reddit,
     load_bot_state,
-    load_config,
     parse_versions_from_post,
     save_bot_state,
 )
@@ -36,10 +36,14 @@ def main() -> None:
     versions_on_reddit = parse_versions_from_post(latest_post, config)
 
     if not versions_on_reddit:
-        logging.error("Could not parse any versions from the latest post. State will not be updated.")
+        logging.error(
+            "Could not parse any versions from the latest post. State will not be updated."
+        )
         sys.exit(1)
 
-    logging.info(f"Updating local state with versions from Reddit: {versions_on_reddit}")
+    logging.info(
+        f"Updating local state with versions from Reddit: {versions_on_reddit}"
+    )
 
     bot_state = load_bot_state()
     bot_state["online"]["last_posted_versions"] = versions_on_reddit
@@ -48,6 +52,7 @@ def main() -> None:
     save_bot_state(bot_state)
 
     logging.info("Successfully synchronized Reddit state to bot_state.json.")
+
 
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

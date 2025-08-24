@@ -2,11 +2,27 @@ import pytest
 from hypothesis import given, strategies as st
 
 from post_to_reddit import _generate_dynamic_title
+from models.config import Config
 
 # --- Test Data ---
 
-MOCK_CONFIG = {
-    "reddit": {
+MOCK_CONFIG = Config(
+    github={
+        "sourceRepo": "test/test",
+        "botRepo": "test/test",
+        "assetFileName": "test",
+    },
+    reddit={
+        "subreddit": "test",
+        "botName": "test",
+        "creator": "test",
+        "postMode": "landing_page",
+        "post_manually": False,
+        "templates": {
+            "post": "test",
+            "outdated_post": "test",
+            "inject_banner": "test",
+        },
         "formats": {
             "titles": {
                 "added_only": "New Apps Added: {{added_list}}",
@@ -15,10 +31,42 @@ MOCK_CONFIG = {
                 "mixed_single_update": "New: {{added_list}} & Updated: {{updated_list}}",
                 "mixed_multi_update": "New: {{added_list}} & Updates: {{updated_list}}",
                 "generic": "Bot Update",
+            },
+            "changelog": {
+                "added_landing": "test",
+                "updated_landing": "test",
+                "removed_landing": "test",
+                "added_direct": "test",
+                "updated_direct": "test",
+                "removed_direct": "test",
+            },
+            "table": {
+                "header": "test",
+                "divider": "test",
+                "line": "test",
             }
         }
-    }
-}
+    },
+    safety={"max_outbound_links_warn": 5},
+    outdatedPostHandling={"mode": "test"},
+    messages={"releaseTitle": "test", "releaseDescription": "test"},
+    skipContent={"startTag": "test", "endTag": "test"},
+    feedback={
+        "statusLineFormat": "test",
+        "statusLineRegex": "test",
+        "labels": {
+            "working": "test",
+            "broken": "test",
+            "unknown": "test",
+        },
+        "workingKeywords": ["test"],
+        "notWorkingKeywords": ["test"],
+        "minFeedbackCount": 1,
+    },
+    timing={"firstCheck": 1, "maxWait": 1, "increaseBy": 1},
+    parsing={"app_key": "test", "version_key": "test", "asset_name_key": "test"},
+    apps=[],
+)
 
 ADDED_SINGLE = {"app1": {"display_name": "App One", "version": "1.0.0"}}
 ADDED_MULTI = {

@@ -137,3 +137,7 @@ cython_debug/
 
 # Ruff
 .ruff_cache/
+
+# BitBot credentials (NEVER COMMIT THESE)
+credentials.toml
+.bitbot-credentials.json

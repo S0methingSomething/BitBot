@@ -1,3 +1,9 @@
+# Authentication configuration
+[auth]
+mode = "environment" # Can be "environment" or "persistent"
+auto_save = false    # Automatically save credentials to credentials.toml
+auto_load = true     # Automatically load credentials from credentials.toml
+
 # Configure which repositories the bot monitors and updates
 [github]
 sourceRepo = "S0methingSomething/BitEdit"
@@ -13,14 +19,14 @@ subreddit = "BitTest1"
 botName = "BitBot"
 creator = "C1oudyLol"
 postMode = "landing_page" # Can be "direct_link" or "landing_page"
-post_manually = false # Set to true to generate post files instead of posting
+post_manually = true # Set to true to generate post files instead of posting
 
 # Template file paths used by the bot
 [reddit.templates]
 post = "post_template.md"
 outdated_post = "outdated_template.md"
 inject_banner = "inject_template.md"
-custom_landing = "custom_landing_page.example.html" # Optional
+# custom_landing = "custom_landing_page.example.html" # Optional - commented out to use default
 
 # Dynamic formats for post content
 [reddit.formats]
@@ -34,17 +40,17 @@ custom_landing = "custom_landing_page.example.html" # Optional
   generic = "[BitBot] Multi-App Update ({{date}})"
 
   [reddit.formats.changelog]
-  added_landing = "* Added {{display_name}} {{asset_name}} v{{version}}"
-  updated_landing = "* Updated {{display_name}} {{asset_name}} to v{{new_version}} (from v{{old_version}})"
-  removed_landing = "* Removed {{display_name}} {{asset_name}} (was v{{old_version}})"
-  added_direct = "* Added {{display_name}} {{asset_name}} v{{version}} [Download]({{download_url}})"
-  updated_direct = "* Updated {{display_name}} {{asset_name}} to v{{new_version}} (from v{{old_version}}) [Download]({{download_url}})"
-  removed_direct = "* Removed {{display_name}} {{asset_name}} (was v{{old_version}})"
+  added_landing = "* Added {display_name} {asset_name} v{version}"
+  updated_landing = "* Updated {display_name} {asset_name} to v{new_version} (from v{old_version})"
+  removed_landing = "* Removed {display_name} {asset_name} (was v{old_version})"
+  added_direct = "* Added {display_name} {asset_name} v{version} [Download]({download_url})"
+  updated_direct = "* Updated {display_name} {asset_name} to v{new_version} (from v{old_version}) [Download]({download_url})"
+  removed_direct = "* Removed {display_name} {asset_name} (was v{old_version})"
 
   [reddit.formats.table]
   header = "| App | Asset | Version |"
   divider = "|---|---|---:|"
-  line = "| {{display_name}} | {{asset_name}} | v{{version}} |"
+  line = "| {display_name} | {asset_name} | v{version} |"
 
 # Safety features to prevent account flagging.
 [safety]
@@ -84,6 +90,29 @@ firstCheck = 300
 maxWait = 3600
 increaseBy = 300
 
+# Weekly digest settings
+[digest]
+enabled = true
+cycleDays = 7
+
+# Deployment configuration
+[deployment]
+providers = ["github"]
+
+  # GitHub Pages deployment
+  [deployment.github]
+  owner = "S0methingSomething"
+  repo = "BitBot"
+  branch = "gh-pages"
+  # token = "ghp_your_github_token"  # Optional: can use GH_TOKEN env var
+
+  # Uncomment and configure for Cloudflare Pages deployment
+  # [deployment.cloudflare]
+  # accountId = "your_cloudflare_account_id"
+  # projectName = "bitbot"
+  # apiToken = "your_cloudflare_api_token"  # Optional: can use CLOUDFLARE_API_TOKEN env var
+  # branch = "main"
+
 # Defines the keys to look for when parsing release descriptions.
 [parsing]
 app_key = "app"
@@ -105,7 +134,7 @@ displayName = "BitLife BR"
 
 [[apps]]
 id = "bitlife_fr"
-displayName = "BitLife Fraçais"
+displayName = "BitLife Français"
 
 [[apps]]
 id = "bitlife_es"

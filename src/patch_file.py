@@ -1,6 +1,7 @@
 """
 BitBot Core Processor: Decrypts, Modifies, and Re-encrypts a target asset file.
 """
+
 import base64
 import sys
 from pathlib import Path
@@ -14,27 +15,66 @@ EXPECTED_ARG_COUNT = 3
 
 # --- Constants ---
 DEFAULT_CIPHER_KEY = "com.wtfapps.apollo16"
-B64_NET_BOOLEAN_TRUE = "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAQs="
-B64_NET_BOOLEAN_FALSE = "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAAw="
-OBF_CHAR_MAP = {0x61:0x7a,0x62:0x6d,0x63:0x79,0x64:0x6c,0x65:0x78,0x66:0x6b,0x67:0x77,0x68:0x6a,0x69:0x76,0x6a:0x69,0x6b:0x75,0x6c:0x68,0x6d:0x74,0x6e:0x67,0x6f:0x73,0x70:0x66,0x71:0x72,0x72:0x65,0x73:0x71,0x74:0x64,0x75:0x70,0x76:0x63,0x77:0x6f,0x78:0x62,0x79:0x6e,0x7a:0x61}
+B64_NET_BOOLEAN_TRUE = (
+    "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAQs="
+)
+B64_NET_BOOLEAN_FALSE = (
+    "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAAw="
+)
+OBF_CHAR_MAP = {
+    0x61: 0x7A,
+    0x62: 0x6D,
+    0x63: 0x79,
+    0x64: 0x6C,
+    0x65: 0x78,
+    0x66: 0x6B,
+    0x67: 0x77,
+    0x68: 0x6A,
+    0x69: 0x76,
+    0x6A: 0x69,
+    0x6B: 0x75,
+    0x6C: 0x68,
+    0x6D: 0x74,
+    0x6E: 0x67,
+    0x6F: 0x73,
+    0x70: 0x66,
+    0x71: 0x72,
+    0x72: 0x65,
+    0x73: 0x71,
+    0x74: 0x64,
+    0x75: 0x70,
+    0x76: 0x63,
+    0x77: 0x6F,
+    0x78: 0x62,
+    0x79: 0x6E,
+    0x7A: 0x61,
+}
+
 
 def get_obfuscated_key(key: str) -> str:
     """Applies a simple character substitution obfuscation to the cipher key."""
     return "".join(chr(OBF_CHAR_MAP.get(ord(char), ord(char))) for char in key.lower())
 
+
 def xor_and_b64_encode(text: str, key: str) -> str:
     """Performs an XOR operation and then Base64 encodes the result."""
     key_bytes = key.encode("latin-1")
     text_bytes = text.encode("latin-1")
-    xor_result = bytes([b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(text_bytes)])
+    xor_result = bytes(
+        [b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(text_bytes)]
+    )
     return base64.b64encode(xor_result).decode("utf-8")
+
 
 def b64_decode_and_xor(b64: str, key: str) -> str:
     """Decodes a Base64 string and then performs an XOR operation."""
     key_bytes = key.encode("latin-1")
     decoded_bytes = base64.b64decode(b64)
-    xor_result = bytes([b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(decoded_bytes)])
+    xor_result = bytes(
+        [b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(decoded_bytes)]
+    )
     return xor_result.decode("latin-1")
+
 
 def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, Any]:
     """Decrypts the content of the asset file into a Python dictionary."""
@@ -54,6 +94,7 @@ def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, Any]:
             item_map[dec_key] = dec_val_b64
     return item_map
 
+
 def modify(data_object: dict[str, Any]) -> dict[str, Any]:
     """Sets all boolean false values to true."""
     logging.info("Modifying data: Setting all boolean 'false' values to 'true'.")
@@ -61,6 +102,7 @@ def modify(data_object: dict[str, Any]) -> dict[str, Any]:
         if value is False:
             data_object[key] = True
     return data_object
+
 
 def encrypt(data_object: dict[str, Any], obfuscated_key: str) -> str:
     """Re-encrypts the modified data object back into the file format."""
@@ -77,6 +119,7 @@ def encrypt(data_object: dict[str, Any], obfuscated_key: str) -> str:
         encrypted_value = xor_and_b64_encode(str(value_to_serialize), obfuscated_key)
         output_lines.append(f"{encrypted_key}:{encrypted_value}")
     return "\n".join(output_lines)
+
 
 def main() -> None:
     """Main function to orchestrate the file processing."""
@@ -103,6 +146,7 @@ def main() -> None:
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

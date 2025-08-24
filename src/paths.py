@@ -18,6 +18,7 @@ LANDING_PAGE_OUTPUT = DIST_DIR / "index.html"
 TEMPLATES_DIR = ROOT_DIR / "templates"
 DEFAULT_LANDING_PAGE = TEMPLATES_DIR / "default_landing_page.html"
 
+
 def get_template_path(template_name: str) -> Path:
     """Returns the absolute path for a given template name."""
     return TEMPLATES_DIR / template_name

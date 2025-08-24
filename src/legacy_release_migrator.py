@@ -5,38 +5,52 @@ from typing import Any
 
 from github import Github, GithubException
 
-from helpers import load_config, parse_release_notes
+from config_loader import load_config
+from helpers import parse_release_notes
 from logging_config import get_logger
 
 logging = get_logger(__name__)
 
 
-def _process_release(release: Any, config: dict[str, Any]) -> str:
+def _process_release(release: Any, config: Any) -> str:
     """Processes a single release for migration."""
-    if "app:" in release.body and "version:" in release.body and "asset_name:" in release.body:
+    if (
+        "app:" in release.body
+        and "version:" in release.body
+        and "asset_name:" in release.body
+    ):
         return "skipped"
 
     logging.info(f"--- Migrating legacy release: {release.tag_name} ---")
-    parsed_info = parse_release_notes(release.body, release.tag_name, release.title, config)
+    parsed_info = parse_release_notes(
+        release.body, release.tag_name, release.title, config
+    )
 
     if not parsed_info:
-        logging.error(f"Could not parse info for tag {release.tag_name}. Cannot migrate.")
+        logging.error(
+            f"Could not parse info for tag {release.tag_name}. Cannot migrate."
+        )
         return "failed"
 
     app_id = parsed_info["app_id"]
     version = parsed_info["version"]
     asset_name = parsed_info["asset_name"]
-    logging.info(f"  Parsed Info: App='{app_id}', Version='{version}', Asset='{asset_name}'")
+    logging.info(
+        f"  Parsed Info: App='{app_id}', Version='{version}', Asset='{asset_name}'"
+    )
 
     new_body = f"app: {app_id}\nversion: {version}\nasset_name: {asset_name}\n"
 
     try:
-        logging.info(f"  Updating release '{release.tag_name}' with new structured body.")
+        logging.info(
+            f"  Updating release '{release.tag_name}' with new structured body."
+        )
         release.update_release(name=release.title, message=new_body)
         return "updated"
     except GithubException as e:
         logging.error(f"Failed to update release {release.tag_name}: {e}")
         return "failed"
+
 
 def migrate_releases() -> None:
     """
@@ -45,12 +59,14 @@ def migrate_releases() -> None:
     """
     config = load_config()
     g = Github(os.getenv("GITHUB_TOKEN"))
-    bot_repo_name = config["github"]["botRepo"]
+    bot_repo_name = config.github.bot_repo
 
     try:
         repo = g.get_repo(bot_repo_name)
         releases = repo.get_releases()
-        logging.info(f"Found {releases.totalCount} releases in {bot_repo_name}. Analyzing for migration...")
+        logging.info(
+            f"Found {releases.totalCount} releases in {bot_repo_name}. Analyzing for migration..."
+        )
     except GithubException as e:
         logging.error(f"Failed to get repository or releases: {e}")
         sys.exit(1)
@@ -60,7 +76,9 @@ def migrate_releases() -> None:
         status = _process_release(release, config)
         results[status] += 1
 
-    logging.info(f"Migration complete. Updated: {results['updated']}, Skipped: {results['skipped']}, Failed: {results['failed']}.")
+    logging.info(
+        f"Migration complete. Updated: {results['updated']}, Skipped: {results['skipped']}, Failed: {results['failed']}."
+    )
     if results["failed"] > 0:
         sys.exit(1)
 
