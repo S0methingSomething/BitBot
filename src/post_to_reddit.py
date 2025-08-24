@@ -1,11 +1,8 @@
 import argparse
 import json
-import re
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
-from unittest.mock import MagicMock
+from typing import Any
 
 import praw
 from packaging.version import parse as parse_version
@@ -17,11 +14,7 @@ from digest_aggregator import (
     should_create_new_digest_cycle,
     start_new_digest_cycle,
 )
-from dry_run import (
-    DryRunLevel,
-    get_dry_run_level,
-    is_dry_run,
-)
+from dry_run import is_dry_run
 from helpers import (
     get_bot_posts,
     init_reddit,
@@ -30,65 +23,15 @@ from helpers import (
 )
 from io_handler import IOHandler
 from logging_config import get_logger
+from placeholder_parser import generate_post_placeholders, process_placeholders
+from reddit.available_list_generator import generate_available_list
+from reddit.changelog_generator import generate_changelog
+from reddit.post_body_generator import generate_post_body
+from reddit.poster import post_new_release
+from reddit.title_generator import generate_dynamic_title
+from reddit.version_detector import get_version_changes
 
 logging = get_logger(__name__)
-
-# --- Constants ---
-MAX_OUTBOUND_LINKS_ERROR = 8
-
-
-def _count_outbound_links(text: str) -> int:
-    url_pattern = re.compile(r"https?://[^\s/$.?#].[^\s]*|www\.[^\s/$.?#].[^\s]*")
-    return len(set(url_pattern.findall(text)))
-
-
-def _create_app_list(apps: dict[str, Any]) -> str:
-    """Create a formatted list of apps."""
-    return ", ".join(
-        f"{info.get('display_name', 'Unknown')} v{info.get('version', '?.?.?')}"
-        for _, info in apps.items()
-    )
-
-
-def _format_title_for_added_apps(formats: Any, added_list: str) -> str:
-    """Format title for added apps only."""
-    template = formats.added_only
-    return cast(str, template.replace("{{added_list}}", added_list))
-
-
-def _format_title_for_updated_apps(
-    formats: Any, updated_list: str, num_updated: int
-) -> str:
-    """Format title for updated apps only."""
-    if num_updated == 1:
-        template = formats.updated_only_single
-    else:
-        template = formats.updated_only_multi
-    return cast(str, template.replace("{{updated_list}}", updated_list))
-
-
-def _format_title_for_mixed_apps(
-    formats: Any, added_list: str, updated_list: str, num_updated: int
-) -> str:
-    """Format title for mixed added and updated apps."""
-    if num_updated == 1:
-        template = formats.mixed_single_update
-    else:
-        template = formats.mixed_multi_update
-    return cast(
-        str,
-        template.replace("{{added_list}}", added_list).replace(
-            "{{updated_list}}", updated_list
-        ),
-    )
-
-
-def _format_generic_title(formats: Any) -> str:
-    """Format generic title."""
-    template = formats.generic
-    return cast(
-        str, template.replace("{{date}}", datetime.now(UTC).strftime("%Y-%m-%d"))
-    )
 
 
 def _generate_dynamic_title(
@@ -97,37 +40,8 @@ def _generate_dynamic_title(
     updated: dict[str, Any],
     fresh_start: bool = False,
 ) -> str:
-    num_added, num_updated = len(added), len(updated)
-    formats = config.reddit.formats.titles
-
-    # Special handling for fresh start
-    if fresh_start and num_added > 0 and num_updated == 0:
-        # For fresh start with only added apps, use a startup title
-        return "[BitBot] Startup - Initial Release"
-
-    def create_app_list(apps: dict[str, Any]) -> str:
-        return ", ".join(
-            f"{info.get('display_name', 'Unknown')} v{info.get('version', '?.?.?')}"
-            for _, info in apps.items()
-        )
-
-    added_list = create_app_list(added)
-    updated_list = create_app_list(updated)
-
-    # Determine which format to use based on the counts
-    if num_added > 0 and num_updated == 0:
-        return _format_title_for_added_apps(formats, added_list)
-
-    if num_added == 0 and num_updated > 0:
-        return _format_title_for_updated_apps(formats, updated_list, num_updated)
-
-    if num_added > 0 and num_updated > 0:
-        return _format_title_for_mixed_apps(
-            formats, added_list, updated_list, num_updated
-        )
-
-    # Generic case
-    return _format_generic_title(formats)
+    """Generate a dynamic title for a Reddit post."""
+    return str(generate_dynamic_title(config, added, updated, fresh_start))
 
 
 def _format_added_changelog_line(
@@ -202,38 +116,13 @@ def _format_changelog_section(
 def _generate_changelog(
     config: Any, added: dict[str, Any], updated: dict[str, Any], removed: dict[str, Any]
 ) -> str:
-    post_mode = config.reddit.post_mode
-    key_suffix = "landing" if post_mode == "landing_page" else "direct"
-    asset_name = config.github.asset_file_name
-    formats = config.reddit.formats.changelog
-    sections = []
-
-    # Format each section
-    for title, data in [("Added", added), ("Updated", updated), ("Removed", removed)]:
-        section = _format_changelog_section(
-            title, data, formats, asset_name, key_suffix
-        )
-        if section:
-            sections.append(section)
-
-    return "\n\n".join(sections) or "No new updates in this version."
+    """Generate a changelog for a Reddit post."""
+    return str(generate_changelog(config, added, updated, removed))
 
 
 def _generate_available_list(config: Any, all_releases: dict[str, Any]) -> str:
-    formats = config.reddit.formats.table
-    asset_name = config.github.asset_file_name
-    lines = [formats.header, formats.divider]
-    sorted_apps = sorted(all_releases.items(), key=lambda item: item[1]["display_name"])
-    for _, info in sorted_apps:
-        if latest := info.get("latest_release"):
-            lines.append(
-                formats.line.format(
-                    display_name=info["display_name"],
-                    asset_name=asset_name,
-                    version=latest["version"],
-                )
-            )
-    return "\n".join(lines)
+    """Generate an available list for a Reddit post."""
+    return str(generate_available_list(config, all_releases))
 
 
 def _generate_post_body(
@@ -242,125 +131,15 @@ def _generate_post_body(
     all_releases: dict[str, Any],
     page_url: str,
 ) -> str:
-    template_path = Path(paths.TEMPLATES_DIR) / config.reddit.templates.post
-    raw_template = template_path.read_text()
-
-    if start_tag := config.skip_content.start_tag:
-        raw_template = re.sub(
-            f"{re.escape(start_tag)}.*?{re.escape(config.skip_content.end_tag)}",
-            "",
-            raw_template,
-            flags=re.DOTALL,
-        )
-
-    placeholders = {
-        "changelog": _generate_changelog(config, **changelog_data),
-        "available_list": _generate_available_list(config, all_releases),
-        "initial_status": config.feedback.status_line_format.format(
-            status=config.feedback.labels.unknown
-        ),
-        "download_portal_url": page_url,
-        "bot_name": config.reddit.bot_name,
-        "creator_username": config.reddit.creator,
-        "subreddit": config.reddit.subreddit,
-        "post_mode": config.reddit.post_mode,
-        "bot_repo": config.github.bot_repo,
-        "source_repo": config.github.source_repo,
-        "asset_name": config.github.asset_file_name,
-        "pages_url": config.github.pages_url or "",
-        "version": "",  # Will be set based on releases
-        "status": config.feedback.labels.unknown,  # Add status placeholder
-    }
-
-    # Add version information if we have releases
-    if all_releases:
-        # Get the first app's version as the main version
-        for app_data in all_releases.values():
-            if "latest_release" in app_data and "version" in app_data["latest_release"]:
-                placeholders["version"] = app_data["latest_release"]["version"]
-                break
-
-    # Replace double curly brace placeholders
-    for key, value in placeholders.items():
-        raw_template = raw_template.replace(f"{{{{{key}}}}}", str(value))
-
-    # Also replace single brace placeholders that might be left over
-    for key, value in placeholders.items():
-        raw_template = raw_template.replace(f"{{{key}}}", str(value))
-
-    return cast(str, raw_template.strip())
-    # Replace double curly brace placeholders
-    for key, value in placeholders.items():
-        raw_template = raw_template.replace(f"{{{{{key}}}}}", str(value))
-
-    return cast(str, raw_template.strip())
+    """Generate the body of a Reddit post."""
+    return str(generate_post_body(config, changelog_data, all_releases, page_url))
 
 
 def _post_new_release(
     reddit: praw.Reddit, title: str, body: str, config: Any
 ) -> praw.models.Submission:
-    link_count = _count_outbound_links(body)
-    warn_threshold = config.safety.max_outbound_links_warn
-    logging.info(f"Post analysis: Found {link_count} unique outbound link(s).")
-    if link_count > MAX_OUTBOUND_LINKS_ERROR:
-        logging.error(
-            f"Post contains {link_count} links, exceeding safety limit of {MAX_OUTBOUND_LINKS_ERROR}. Aborting."
-        )
-        sys.exit(1)
-    if link_count > warn_threshold:
-        logging.warning(
-            f"Post contains {link_count} links, which is above the warning threshold of {warn_threshold}."
-        )
-
-    # Check dry-run level for different behaviors
-    dry_run_level = get_dry_run_level()
-
-    if dry_run_level == 0:  # Full dry-run
-        logging.info(f"DRY_RUN: Would submit new post to r/{config.reddit.subreddit}")
-        logging.info(f"  Title: {title}")
-        logging.info(f"  Body: {body[:200]}...")  # Log first 200 chars of body
-        # Return a mock submission object
-        mock_submission = MagicMock()
-        mock_submission.id = "mock-post-id-dry-run"
-        mock_submission.title = title
-        mock_submission.shortlink = "https://dry-run.reddit.post/mock-post-id"
-        return mock_submission
-    if dry_run_level in [1, 2]:  # Read-only or safe writes
-        logging.info(
-            f"DRY_RUN_LEVEL_{dry_run_level}: Would submit new post to r/{config.reddit.subreddit}"
-        )
-        logging.info(f"  Title: {title}")
-        logging.info(f"  Body: {body[:200]}...")  # Log first 200 chars of body
-        # Return a mock submission object
-        mock_submission = MagicMock()
-        mock_submission.id = "mock-post-id-read-only"
-        mock_submission.title = title
-        mock_submission.shortlink = "https://dry-run.reddit.post/mock-post-id"
-        return mock_submission
-    if dry_run_level == DryRunLevel.PUBLIC_PREVIEW:  # Public preview - create draft
-        if is_dry_run():
-            logging.info(
-                f"PUBLIC_PREVIEW: Would submit draft post to r/{config.reddit.subreddit}"
-            )
-            logging.info(f"  Title: {title}")
-            logging.info(f"  Body: {body[:200]}...")
-            mock_submission = MagicMock()
-            mock_submission.id = "mock-post-id-preview"
-            mock_submission.title = f"[DRAFT] {title}"
-            mock_submission.shortlink = "https://preview.reddit.post/mock-post-id"
-            return mock_submission
-        logging.info(f"Submitting draft post to r/{config.reddit.subreddit}: {title}")
-        submission = reddit.subreddit(config.reddit.subreddit)
-        # Submit as selftext but mark as draft (if Reddit API supports it)
-        submission = submission.submit(f"[DRAFT] {title}", selftext=body)
-        logging.info(f"Draft post successful: {submission.shortlink}")
-        return submission
-    # Production mode
-    logging.info(f"Submitting new post to r/{config.reddit.subreddit}: {title}")
-    submission = reddit.subreddit(config.reddit.subreddit)
-    submission = submission.submit(title, selftext=body)
-    logging.info(f"Post successful: {submission.shortlink}")
-    return submission
+    """Post a new release to Reddit."""
+    return post_new_release(reddit, title, body, config)
 
 
 def _check_added_or_updated_apps(
@@ -429,38 +208,11 @@ def _process_added_or_updated_apps(
     updated: dict[str, Any],
     new_versions: dict[str, str],
 ) -> None:
-    """Process added or updated apps."""
-    for app_id, data in all_versions.items():
-        if not (latest := data.get("latest_release")):
-            continue
-        current_v = versions_to_check.get(app_id, "0.0.0")
-        if parse_version(latest["version"]) > parse_version(current_v):
-            new_versions[app_id] = latest["version"]
-            if current_v == "0.0.0":
-                added[app_id] = {
-                    "display_name": data["display_name"],
-                    "version": latest["version"],
-                    "url": latest["download_url"],
-                }
-            else:
-                updated[app_id] = {
-                    "new": {
-                        "display_name": data["display_name"],
-                        "version": latest["version"],
-                        "url": latest["download_url"],
-                    },
-                    "old": current_v,
-                }
-        elif parse_version(latest["version"]) < parse_version(current_v):
-            # Handle version rollback
-            updated[app_id] = {
-                "new": {
-                    "display_name": data["display_name"],
-                    "version": latest["version"],
-                    "url": latest["download_url"],
-                },
-                "old": current_v,
-            }
+    """Process added or updated apps.
+
+    DEPRECATED: This function has been moved to reddit.version_detector module.
+    """
+    # This function is now in the version_detector module
 
 
 def _process_removed_apps(
@@ -469,44 +221,18 @@ def _process_removed_apps(
     removed: dict[str, Any],
     config: Any,
 ) -> None:
-    """Process removed apps."""
-    for app_id, current_v in versions_to_check.items():
-        if app_id not in all_versions and current_v != "0.0.0":
-            # Find the app display name from config
-            display_name = app_id  # Default to app_id
-            for app in config.apps:
-                if app.id == app_id:
-                    display_name = app.display_name
-                    break
-            removed[app_id] = {"display_name": display_name, "version": current_v}
+    """Process removed apps.
+
+    DEPRECATED: This function has been moved to reddit.version_detector module.
+    """
+    # This function is now in the version_detector module
 
 
 def _get_version_changes(
     all_versions: dict[str, Any], versions_to_check: dict[str, str]
 ) -> dict[str, Any]:
     """Compares current versions with the latest versions and returns the changes."""
-    added: dict[str, Any] = {}
-    updated: dict[str, Any] = {}
-    removed: dict[str, Any] = {}
-    new_versions = versions_to_check.copy()
-
-    # Load config to get app display names
-    config = load_config()
-
-    # Check for added or updated apps
-    _process_added_or_updated_apps(
-        all_versions, versions_to_check, added, updated, new_versions
-    )
-
-    # Check for removed apps (apps that were in versions_to_check but not in all_versions)
-    _process_removed_apps(versions_to_check, all_versions, removed, config)
-
-    return {
-        "added": added,
-        "updated": updated,
-        "removed": removed,
-        "new_versions": new_versions,
-    }
+    return dict(get_version_changes(all_versions, versions_to_check))
 
 
 def _handle_manual_post(
@@ -762,50 +488,26 @@ def _generate_digest_post_body(
     template_path = Path(paths.TEMPLATES_DIR) / config.reddit.templates.post
     raw_template = template_path.read_text()
 
-    if start_tag := config.skip_content.start_tag:
-        raw_template = re.sub(
-            f"{re.escape(start_tag)}.*?{re.escape(config.skip_content.end_tag)}",
-            "",
-            raw_template,
-            flags=re.DOTALL,
-        )
-
-    placeholders = {
-        "changelog": changelog,
-        "available_list": _generate_available_list(config, all_versions),
-        "initial_status": config.feedback.status_line_format.format(
-            status=config.feedback.labels.unknown
-        ),
-        "download_portal_url": page_url,
-        "bot_name": config.reddit.bot_name,
-        "creator_username": config.reddit.creator,
-        "subreddit": config.reddit.subreddit,
-        "post_mode": config.reddit.post_mode,
-        "bot_repo": config.github.bot_repo,
-        "source_repo": config.github.source_repo,
-        "asset_name": config.github.asset_file_name,
-        "pages_url": config.github.pages_url or "",
-        "version": "",  # Will be set based on releases
-        "status": config.feedback.labels.unknown,  # Add status placeholder
+    # Create changelog data structure for digest
+    changelog_data: dict[str, Any] = {
+        "added": {},
+        "updated": {},
+        "removed": {},
     }
 
-    # Add version information if we have releases
-    if all_versions:
-        # Get the first app's version as the main version
-        for app_data in all_versions.values():
-            if "latest_release" in app_data and "version" in app_data["latest_release"]:
-                placeholders["version"] = app_data["latest_release"]["version"]
-                break
+    # Generate placeholders
+    placeholders = generate_post_placeholders(
+        changelog_data,
+        all_versions,
+        page_url,
+        config,
+    )
 
-    # Replace double curly brace placeholders
-    for key, value in placeholders.items():
-        raw_template = raw_template.replace(f"{{{{{key}}}}}", str(value))
+    # Override changelog with digest content
+    placeholders["changelog"] = changelog
 
-    # Also replace single brace placeholders that might be left over
-    for key, value in placeholders.items():
-        raw_template = raw_template.replace(f"{{{key}}}", str(value))
-
-    return cast(str, raw_template.strip())
+    # Process template with placeholders
+    return str(process_placeholders(raw_template, placeholders, config))
 
 
 def main() -> None:

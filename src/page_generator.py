@@ -9,6 +9,7 @@ from config_loader import load_config
 from deployment import DeploymentFactory
 from dry_run import is_dry_run
 from logging_config import get_logger
+from placeholder_parser import generate_page_placeholders, process_placeholders
 
 logging = get_logger(__name__)
 
@@ -70,10 +71,17 @@ def _render_template(template_content: str, data: dict[str, Any], config: Any) -
     Renders a template with a clean data structure, supporting nested loops and
     conditional blocks.
     """
+    # Generate placeholders
+    placeholders = generate_page_placeholders(data, config)
+
+    # Process template with placeholders
+    processed_template = process_placeholders(template_content, placeholders, config)
+
+    # Handle app loops (existing logic)
     app_loop_pattern = re.compile(
         r"<!-- BEGIN-APP-LOOP -->(.*?)<!-- END-APP-LOOP -->", re.DOTALL
     )
-    app_template_match = app_loop_pattern.search(template_content)
+    app_template_match = app_loop_pattern.search(processed_template)
 
     if not app_template_match:
         return "<!-- APP-LOOP not found in template -->"
@@ -86,8 +94,7 @@ def _render_template(template_content: str, data: dict[str, Any], config: Any) -
         _render_app_template(app_template, data[app_id]) for app_id in sorted_app_ids
     ]
 
-    final_html = app_loop_pattern.sub("".join(all_app_html), template_content)
-    return final_html.replace("{{bot_repo}}", config.github.bot_repo)
+    return app_loop_pattern.sub("".join(all_app_html), processed_template)
 
 
 def _handle_deployments(
