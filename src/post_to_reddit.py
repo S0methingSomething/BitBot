@@ -9,6 +9,7 @@ from packaging.version import parse as parse_version
 
 import paths
 from config_loader import load_config
+from credentials import setup_credentials
 from digest_aggregator import (
     format_digest_changelog,
     should_create_new_digest_cycle,
@@ -32,6 +33,15 @@ from reddit.title_generator import generate_dynamic_title
 from reddit.version_detector import get_version_changes
 
 logging = get_logger(__name__)
+
+# Auto-setup credentials
+try:
+    config = load_config()
+    auto_save = getattr(config.auth, "auto_save", False)
+    auto_load = getattr(config.auth, "auto_load", False)
+    setup_credentials(auto_save=auto_save, auto_load=auto_load)
+except Exception:
+    logging.warning("Failed to auto-setup credentials")
 
 
 def _generate_dynamic_title(

@@ -16,6 +16,7 @@ Available Placeholders:
 | {{asset_name}}              | The name of the file asset, like `MonetizationVars`.     |
 | {{creator_username}}        | The creator's Reddit username (from `config.json`).      |
 | {{initial_status}}          | The full, formatted initial status line for the post.    |
+| {{cloudflare_url}}          | The Cloudflare Pages URL (if configured).                |
 <!-- TUTORIAL-END -->
 
 ## **[⬇️ Download All Releases Here]({{download_portal_url}})**

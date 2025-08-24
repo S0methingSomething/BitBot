@@ -6,12 +6,22 @@ from typing import Any
 
 import paths
 from config_loader import load_config
+from credentials import setup_credentials
 from deployment import DeploymentFactory
 from dry_run import is_dry_run
 from logging_config import get_logger
 from placeholder_parser import generate_page_placeholders, process_placeholders
 
 logging = get_logger(__name__)
+
+# Auto-setup credentials
+try:
+    config = load_config()
+    auto_save = getattr(config.auth, "auto_save", False)
+    auto_load = getattr(config.auth, "auto_load", False)
+    setup_credentials(auto_save=auto_save, auto_load=auto_load)
+except Exception:
+    logging.warning("Failed to auto-setup credentials")
 
 
 def _render_release_loop(template: str, releases: list[dict[str, Any]]) -> str:
@@ -166,10 +176,6 @@ def main() -> None:
     output_path = dist_dir / "index.html"
     output_path.write_text(final_html)
     logging.info(f"Successfully generated landing page at: {output_path}")
-
-    # Handle deployments if configured
-    if hasattr(config, "deployment"):
-        _handle_deployments(config.deployment, dist_dir, config)
 
     # Handle deployments if configured
     if hasattr(config, "deployment"):

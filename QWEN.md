@@ -2,185 +2,150 @@
 
 ## Project Overview
 
-BitBot is an automated release management and announcement bot designed to monitor a source GitHub repository for new releases, patch asset files, create corresponding releases on its own repository, and announce them on Reddit. The project is built to be highly modular, configurable, and maintainable.
+BitBot is an automated release management and announcement bot written in Python. Its primary purpose is to monitor a source GitHub repository for new releases, automatically download, patch, and re-release assets to its own repository, and then announce these updates on Reddit.
 
 ### Core Features
 
-- **Automated Release Patching**: Monitors a source repository and automatically downloads, patches, and re-releases assets.
-- **Structured Release Parsing**: Uses a robust, key-value format in release notes for reliable app detection.
-- **Dual Reddit Posting Modes**: Direct Link Mode (individual download links) and Landing Page Mode (static HTML landing page).
-- **Customizable HTML Templates**: The landing page can be fully customized using a placeholder and loop system.
-- **Community Feedback Monitoring**: Actively checks comments on Reddit posts for keywords to provide real-time status updates.
-- **Pure Python Toolchain**: Backend logic written in Python for simplicity and consistency.
+- **Automated Release Patching**: Monitors a source repository, downloads assets, patches them (e.g., setting boolean values to `true`), and creates corresponding releases on the bot's repository.
+- **Structured Release Parsing**: Uses a key-value format in source release notes for reliable identification of apps and versions.
+- **Dual Reddit Posting Modes**:
+  - **Direct Link Mode**: Posts individual download links for each updated app directly to a Reddit post.
+  - **Landing Page Mode**: Generates a static HTML landing page (hosted via GitHub Pages) listing all download links and posts a single link to this page.
+- **Customizable HTML Templates**: The landing page and Reddit posts can be fully customized using templates with a placeholder and loop system.
+- **Community Feedback Monitoring**: Monitors comments on Reddit posts for keywords (e.g., "working", "broken") to update the post's status dynamically.
+- **Multi-Level Dry-Run Support**: Five levels of dry-run mode (`FULL_DRY_RUN`, `READ_ONLY`, `SAFE_WRITES`, `PUBLIC_PREVIEW`, `PRODUCTION`) for safe testing and development.
+- **Pure Python Toolchain**: Backend logic implemented entirely in Python.
 - **Fast CI/CD**: Uses `uv` for rapid dependency installation in GitHub Actions.
-- **GitHub Codespaces Friendly**: TOML-based credential management for persistent storage.
-- **Multi-Level Dry-Run Support**: Five levels of dry-run mode for testing different scenarios.
+- **GitHub Codespaces Friendly**: TOML-based credential management for persistent storage in Codespaces.
 
 ## Project Structure
 
 ```
-BitBot/
+.
 ├── .github/workflows/     # GitHub Actions workflows
 ├── docs/                  # Project documentation
 ├── src/                   # Python source code
 ├── templates/             # Markdown and HTML templates
-├── tests/                 # Test files
+├── tests/                 # Python test suite
 ├── config.toml            # Main configuration file
 ├── credentials.example.toml # Example credentials file
-├── Makefile               # Build and run commands
-├── pyproject.toml         # Python project configuration
-├── README.md              # Project documentation
-└── requirements.txt       # Python dependencies
+├── Makefile               # Commands for setup, running, testing
+├── pyproject.toml         # Python project and dependency configuration
+├── README.md              # Project README
+├── QWEN.md                # This file
 ```
 
-## Technology Stack
+## Key Technologies
 
-- **Language**: Python 3.13
-- **Dependency Management**: `uv` for fast dependency installation
-- **Package Management**: `pyproject.toml` with optional dev dependencies
-- **Testing**: `pytest` with `hypothesis` for property-based testing
-- **Code Quality**: `ruff` for linting, `mypy` for type checking, `xenon` for complexity analysis
-- **Documentation**: Markdown files in `docs/` directory
-- **External APIs**: GitHub API via `gh` CLI, Reddit API via `praw`
-- **Templating**: Custom HTML templating engine with loops and conditionals
-- **Logging**: Custom logging with `rich` for styled console output
+- **Language**: Python 3.13+
+- **Dependency Management & Virtual Environments**: `uv`
+- **Dependencies**:
+  - `praw`: Reddit API wrapper
+  - `requests`: HTTP library
+  - `toml`: TOML file parser
+  - `packaging`: Utilities for versioning
+  - `PyGithub`: GitHub API wrapper
+  - `pydantic`: Data validation and settings management
+  - `rich`: Rich text and beautiful formatting in the terminal
+- **Development Dependencies**:
+  - `ruff`: Linter and formatter
+  - `mypy`: Static type checker
+  - `xenon`: Code complexity analyzer
+  - `pytest`: Testing framework
+  - `hypothesis`: Property-based testing library
+- **Configuration**: TOML files (`config.toml`, `credentials.toml`)
+- **Deployment**: GitHub Actions, GitHub Pages
 
-## Configuration
+## Building, Running, and Testing
 
-The project uses TOML-based configuration files:
+### Prerequisites
 
-1. **Main Configuration**: `config.toml` contains all bot settings
-2. **Credentials**: `credentials.toml` (gitignored) stores API keys and secrets
-3. **Templates**: Files in `templates/` directory for Reddit posts and landing pages
-
-Key configuration sections include:
-- Authentication settings
-- GitHub repository configuration
-- Reddit posting settings
-- Safety features
-- Feedback analysis
-- Deployment settings
-
-## Core Components
-
-### 1. Release Management (`src/release_manager.py`)
-- Monitors source GitHub repository for new releases
-- Parses structured release descriptions
-- Downloads and patches asset files
-- Creates new releases in the bot repository
-
-### 2. Reddit Posting (`src/post_to_reddit.py`)
-- Generates Reddit post content from templates
-- Supports both direct link and landing page modes
-- Posts to Reddit with appropriate formatting
-- Manages post updates and status monitoring
-
-### 3. Landing Page Generation (`src/page_generator.py`)
-- Creates static HTML landing pages
-- Uses customizable templates with placeholder system
-- Supports deployment to GitHub Pages and Cloudflare Pages
-
-### 4. Comment Monitoring (`src/check_comments.py`)
-- Analyzes Reddit comments for feedback keywords
-- Updates post status based on community feedback
-- Implements adaptive polling intervals
-
-### 5. File Patching (`src/patch_file.py`)
-- Decrypts, modifies, and re-encrypts asset files
-- Sets boolean values to true for monetization
-
-### 6. Digest Aggregation (`src/digest_aggregator.py`)
-- Collects releases over time for weekly digest posts
-- Formats changelog for digest posts
-
-### 7. Deployment Services (`src/deployment.py`)
-- Supports multiple deployment targets (GitHub Pages, Cloudflare Pages)
-- Handles deployment configuration and execution
-
-## Dry-Run Levels
-
-BitBot supports five different dry-run levels for testing:
-
-1. **Level 0 (FULL_DRY_RUN)**: No external interactions at all
-2. **Level 1 (READ_ONLY)**: Allows external read operations only
-3. **Level 2 (SAFE_WRITES)**: Allows safe write operations
-4. **Level 3 (PUBLIC_PREVIEW)**: Allows public preview operations
-5. **Level 4 (PRODUCTION)**: Full production mode
-
-These can be controlled through:
-- `DRY_RUN_LEVEL` environment variable (0-4)
-- `DRY_RUN` environment variable (named modes)
-- Configuration in `config.toml`
-
-## Development Workflow
+- Python 3.13
+- `uv` (for fast dependency installation)
 
 ### Setup
+
 ```bash
-make setup        # Install dependencies using uv
+make setup
+```
+This command installs `uv` if not present, creates a Python 3.13 virtual environment, and installs all project dependencies (including development dependencies) using `uv`.
+
+### Running the Bot (Production)
+
+1. **Configure credentials**:
+   - Copy `credentials.example.toml` to `credentials.toml` and fill in your actual credentials.
+   - Or set credentials as environment variables.
+   - Or use GitHub Codespaces persistent storage.
+2. **Ensure `config.toml` is correctly configured.**
+3. **Run the bot**:
+   ```bash
+   make run
+   ```
+   Or manually:
+   ```bash
+   python src/main.py
+   ```
+
+### Dry-Run Modes
+
+BitBot supports five dry-run levels for testing:
+- **Level 0 (`FULL_DRY_RUN`)**: No external interactions.
+- **Level 1 (`READ_ONLY`)**: Allows external read operations only.
+- **Level 2 (`SAFE_WRITES`)**: Allows safe write operations.
+- **Level 3 (`PUBLIC_PREVIEW`)**: Allows public preview operations (e.g., creating drafts).
+- **Level 4 (`PRODUCTION`)**: Full production mode (default when no dry-run settings are specified).
+
+Example usage:
+```bash
+# Level 0: Full dry-run (default for development)
+export DRY_RUN_LEVEL=0
+python src/main.py
+
+# Level 3: Public preview mode
+export DRY_RUN_LEVEL=3
+python src/main.py
+
+# Production mode (no dry-run)
+unset DRY_RUN_LEVEL
+unset DRY_RUN
+python src/main.py
+
+# Makefile targets
+make dry-run  # Runs in dry-run mode (Level 0)
+make run      # Runs in production mode
 ```
 
-### Testing
+### Running Tests
+
 ```bash
-make test         # Run pytest
-make pytest-dry-run # Run tests in dry-run mode
+# Run the test suite
+make test
+
+# Run tests in dry-run mode
+make pytest-dry-run
 ```
 
-### Code Quality
+### Code Quality Checks
+
 ```bash
-make check        # Run linters and type checking
-make fix          # Auto-fix code formatting issues
+# Run linters, type checker, and complexity checks
+make check
+
+# Automatically fix code quality issues (where possible)
+make fix
 ```
 
-### Running
-```bash
-make dry-run      # Run in dry-run mode for testing
-make run          # Run in production mode
-```
+## Development Conventions
 
-## Credential Management
-
-BitBot supports multiple credential management approaches:
-
-1. **Environment Variables**: Default method using standard environment variables
-2. **GitHub Codespaces Persistent Storage**: TOML-based automatic save/load
-3. **Configuration-Based**: Auto-load from `credentials.toml` file
-4. **Local Configuration File**: Manual configuration in `credentials.toml`
-
-## Data Flow
-
-1. **Release Detection**: Monitor source repository for new releases
-2. **Release Processing**: Download, patch, and re-release assets
-3. **Data Generation**: Create `releases.json` with release information
-4. **Landing Page**: Generate static HTML page with app information
-5. **Reddit Posting**: Create and post announcement to Reddit
-6. **Comment Monitoring**: Monitor feedback and update post status
-7. **Digest Aggregation**: Collect releases for weekly digest posts
-
-## State Management
-
-The bot maintains several state files:
-- `bot_state.json`: Tracks post IDs, versions, and monitoring intervals
-- `release_state.json`: Tracks processed source release IDs
-- `dist/releases.json`: Contains release data for the current cycle
-- `dist/data/digest_history.json`: Tracks releases for digest aggregation
-
-## Deployment
-
-The bot is designed to run in GitHub Actions workflows but can also be run locally. It supports deployment to:
-- GitHub Pages
-- Cloudflare Pages (planned)
-
-## Testing Strategy
-
-- Unit tests with `pytest`
-- Property-based testing with `hypothesis`
-- Dry-run modes for integration testing
-- Mock services for external API testing
-
-## Documentation
-
-Comprehensive documentation is available in the `docs/` directory:
-1. Configuration reference
-2. Templates and customization guide
-3. Workflow explanations
-4. Script breakdowns
+- **Python Version**: Python 3.13 is the target.
+- **Code Style**: Enforced by `ruff` with a configuration targeting high-quality, readable code.
+  - Line length: 88 characters (Black standard).
+  - Strict selection of linting rules (E, W, F, I, B, Q, T20, SIM, PT, RET, PTH, RUF, UP, N, S, A, C4, PIE, PL, PERF, SLF, ARG).
+  - McCabe complexity threshold set to 10.
+- **Type Checking**: Strict `mypy` configuration.
+- **Testing**: `pytest` is used for testing. Tests should be comprehensive and cover different dry-run scenarios.
+- **Code Complexity**: Monitored with `xenon`, aiming for low complexity (max absolute B, modules A, average A).
+- **Dry-Run Support**: Core components are designed to operate under different dry-run levels to prevent unintended external interactions during development and testing.
+- **Configuration**: Uses `pydantic` for robust configuration loading and validation from `config.toml`.
+- **Logging**: Uses Python's `logging` module with `rich` for enhanced terminal output.
+- **Documentation**: Comprehensive documentation is located in the `docs/` directory, covering configuration, templates, workflows, and scripts.

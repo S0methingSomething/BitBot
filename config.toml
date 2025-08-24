@@ -97,7 +97,7 @@ cycleDays = 7
 
 # Deployment configuration
 [deployment]
-providers = ["github"]
+providers = ["github", "cloudflare"]
 
   # GitHub Pages deployment
   [deployment.github]
@@ -106,10 +106,10 @@ providers = ["github"]
   branch = "gh-pages"
   # token = "ghp_your_github_token"  # Optional: can use GH_TOKEN env var
 
-  # Uncomment and configure for Cloudflare Pages deployment
-  # [deployment.cloudflare]
-  # accountId = "your_cloudflare_account_id"
-  # projectName = "bitbot"
+  # Cloudflare Pages deployment
+  [deployment.cloudflare]
+  # accountId = "your_cloudflare_account_id"  # Moved to credentials.toml
+  # projectName = "bitbot"  # Moved to credentials.toml
   # apiToken = "your_cloudflare_api_token"  # Optional: can use CLOUDFLARE_API_TOKEN env var
   # branch = "main"
 

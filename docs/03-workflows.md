@@ -44,6 +44,18 @@ This is the primary workflow that orchestrates the entire release process.
 
 ---
 
+### `deploy_cloudflare.yml` - Cloudflare Pages Deployment
+
+**Trigger:** Runs automatically after `main.yml` completes successfully.
+
+-   This workflow is responsible for deploying the landing page to Cloudflare Pages.
+-   It downloads the `github-pages` artifact created by the `generate_page` job.
+-   It automatically creates the Cloudflare Pages project if it doesn't exist.
+-   It deploys the landing page using the `wrangler` CLI tool.
+-   After deploying, your landing page will be available at `https://<PROJECT_NAME>.<ACCOUNT_ID>.pages.dev/`.
+
+---
+
 ### `check_comments.yml` - Community Feedback Monitor
 
 **Trigger:** Runs on a schedule (every 15 minutes).

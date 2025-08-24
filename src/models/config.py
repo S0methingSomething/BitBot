@@ -15,8 +15,8 @@ class GitHubPagesConfig(BaseModel):
 
 
 class CloudflarePagesConfig(BaseModel):
-    account_id: str = Field(alias="accountId")
-    project_name: str = Field(alias="projectName")
+    account_id: str | None = Field(default=None, alias="accountId")
+    project_name: str | None = Field(default=None, alias="projectName")
     api_token: str | None = Field(default=None, alias="apiToken")
     branch: str = Field(default="main", alias="branch")
 

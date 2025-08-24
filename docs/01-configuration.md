@@ -11,6 +11,7 @@ This section configures the GitHub repositories the bot interacts with.
 -   `sourceRepo`: The repository the bot monitors for new releases (e.g., `S0methingSomething/BitEdit`).
 -   `botRepo`: The repository where the bot will create its own releases with the patched assets (e.g., `S0methingSomething/BitBot`).
 -   `assetFileName`: The name of the asset file the bot should download from the source release and patch.
+-   `pages_url`: (Optional) The URL to your GitHub Pages site. This is used in Reddit posts when `postMode` is set to `landing_page`.
 
 ---
 
@@ -37,6 +38,34 @@ This section defines how the bot should handle its own previous posts after a ne
 
 -   `mode`: The method for marking posts as outdated. Currently, only `"inject"` is fully supported.
 -   `injectTemplateFile`: The path to the Markdown template for the banner that gets injected at the top of old posts.
+
+---
+
+### `[deployment]`
+
+This section configures the deployment targets for the landing page.
+
+-   `providers`: A list of deployment providers to use. Currently supports `github` and `cloudflare`.
+
+#### `[deployment.github]`
+
+Configuration for GitHub Pages deployment.
+
+-   `owner`: The GitHub username or organization that owns the repository.
+-   `repo`: The name of the repository to deploy to.
+-   `branch`: The branch to deploy to (default: `gh-pages`).
+-   `token`: (Optional) GitHub token for authentication. Can also be set via the `GH_TOKEN` environment variable.
+
+#### `[deployment.cloudflare]`
+
+Configuration for Cloudflare Pages deployment.
+
+-   `accountId`: Your Cloudflare account ID.
+-   `projectName`: The name of your Cloudflare Pages project.
+-   `apiToken`: (Optional) Cloudflare API token for authentication. Can also be set via the `CLOUDFLARE_API_TOKEN` environment variable.
+-   `branch`: The branch to deploy to (default: `main`).
+
+After deploying to Cloudflare Pages, your landing page will be available at `https://<PROJECT_NAME>.<ACCOUNT_ID>.pages.dev/`.
 
 ---
 

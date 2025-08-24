@@ -241,6 +241,14 @@ def init_reddit(config: Any) -> praw.Reddit | MagicMock:  # noqa: ARG001
         mock_reddit.user.me().submissions.new.return_value = []
         mock_reddit.subreddit.return_value.submit.return_value = mock_submission
         return mock_reddit
+    
+    # Check if all required Reddit credentials are available
+    required_vars = ["REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_USERNAME", "REDDIT_PASSWORD", "REDDIT_USER_AGENT"]
+    missing_vars = [var for var in required_vars if not os.environ.get(var)]
+    
+    if missing_vars:
+        raise ValueError(f"Missing required Reddit credentials: {', '.join(missing_vars)}. Please check your credentials.toml file.")
+    
     return praw.Reddit(
         client_id=os.environ["REDDIT_CLIENT_ID"],
         client_secret=os.environ["REDDIT_CLIENT_SECRET"],

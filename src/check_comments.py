@@ -6,11 +6,21 @@ from pathlib import Path
 from typing import Any, cast
 
 from config_loader import load_config
+from credentials import setup_credentials
 from dry_run import is_dry_run
 from helpers import init_reddit, load_bot_state, save_bot_state
 from logging_config import get_logger
 
 logging = get_logger(__name__)
+
+# Auto-setup credentials
+try:
+    config = load_config()
+    auto_save = getattr(config.auth, "auto_save", False)
+    auto_load = getattr(config.auth, "auto_load", False)
+    setup_credentials(auto_save=auto_save, auto_load=auto_load)
+except Exception:
+    logging.warning("Failed to auto-setup credentials")
 
 
 def _analyze_comments(comments: list[Any], config: Any) -> str:
