@@ -26,7 +26,7 @@ jobs:
       - name: Install Dependencies with uv
         run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install --system -e ./..
       - name: Run Release Manager
         id: manager
         working-directory: ./src
@@ -47,7 +47,7 @@ jobs:
       - name: Install Dependencies with uv
         run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install --system -e ./..
       - name: Gather All Bot Releases
         id: gatherer
         working-directory: ./src
@@ -86,7 +86,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install --system -e ./..
       - name: Generate Static Page
         working-directory: ./src
         run: python page_generator.py
@@ -116,7 +116,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install --system -e ./..
       - name: Post / Update Reddit
         working-directory: ./src
         env:
@@ -126,8 +126,8 @@ jobs:
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         run: |
-          DRY_RUN_FLAG=""
+          GENERATE_ONLY_FLAG=""
           if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-            DRY_RUN_FLAG="--dry-run"
+            GENERATE_ONLY_FLAG="--generate-only"
           fi
-          python post_to_reddit.py --page-url "${{ needs.generate_page.outputs.page_url }}" $DRY_RUN_FLAG
+          python post_to_reddit.py --page-url "${{ needs.generate_page.outputs.page_url }}" $GENERATE_ONLY_FLAG

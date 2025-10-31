@@ -1,0 +1,75 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Deep Integration: Add Validation to All Functions",
+        "description": "Add deal contracts, beartype decorators, and pydantic models to all 28 remaining unvalidated functions. Current coverage: 17.6% (6/34). Target: 80%+ (27+ functions).",
+        "status": "done",
+        "priority": "high",
+        "details": "Current validated: load_config, load_bot_state, init_reddit, get_github_data, download_asset, patch_file.\n\nPriority functions:\n1. State: save_bot_state, load_release_state, save_release_state\n2. Parsing: parse_release_notes, parse_versions_from_post, parse_release_description\n3. Security: decrypt, encrypt, modify (patch_file.py)\n4. File ops: get_template_path\n5. Helpers: get_bot_posts, update_older_posts, get_source_releases\n6. Entry points: All main() functions\n\nEach function needs:\n- @deal.pre (input validation)\n- @deal.post (output validation)\n- @beartype (runtime types)\n- Pydantic models for data structures",
+        "dependencies": []
+      },
+      {
+        "id": 2,
+        "title": "Add Comprehensive Test Suite",
+        "description": "Critical: Zero test coverage despite 100% validation. Need unit tests for 43 functions, integration tests, and mocking for GitHub/Reddit APIs.",
+        "details": "Current: 0% test coverage, 1776 LOC untested.\n\nRequired:\n- Unit tests for all 43 validated functions\n- Integration tests for main workflows\n- Mock GitHub API responses\n- Mock Reddit API interactions\n- Test fixtures for config/state files\n- Test validation contracts (deal, beartype, pydantic)\n\nTarget: 80%+ test coverage\n\nFiles to test:\n- helpers.py (18 functions)\n- release_manager.py (8 functions)\n- patch_file.py (7 functions)\n- post_to_reddit.py (3 functions)\n- All other modules\n\nTools: pytest, pytest-mock, pytest-cov",
+        "testStrategy": "",
+        "status": "in-progress",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Make Post Detection Robust",
+        "description": "Current post detection is fragile - hardcoded \"[BitBot] MonetizationVars\" string that ignores config and breaks if title changes. Need reliable way to identify bot's own posts.",
+        "details": "Current Issues:\n- Hardcoded post_identifier = \"[BitBot] MonetizationVars\" in helpers.py\n- Ignores config[\"reddit\"][\"postIdentifier\"] \n- Only uses title.startswith() - fragile\n- No fallback if title format changes\n\nProposed Solution (Hybrid Approach):\n1. Store post IDs in bot_state.json\n   - Add \"allPostIds\": [] to track all bot posts\n   - Save post ID when creating/updating posts\n   \n2. Detection logic:\n   - Primary: Check if post.id in bot_state[\"allPostIds\"]\n   - Fallback: Check author == bot_user AND title.startswith(config identifier)\n   - Self-healing: Add discovered posts to state\n   \n3. Use config postIdentifier instead of hardcoded string\n\nBenefits:\n- Survives title format changes\n- Self-healing if state lost\n- Respects configuration\n- No mod permissions needed\n\nFiles to modify:\n- src/helpers.py: get_bot_posts() function\n- src/models.py: Add allPostIds to BotState\n- src/post_to_reddit.py: Save post IDs after creation",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Clarify Rolling Update Changelog Behavior",
+        "description": "Clarify behavior of changelog vs available list in rolling update mode. Need to decide how to display cumulative changes over 7-day update window.",
+        "details": "Current Behavior:\n- Changelog: Shows Added/Updated/Removed in current update\n- Available List: Shows table of all apps with latest versions\n\nQuestion for Rolling Update Mode:\nWhen updating same post for 7 days, what should changelog show?\n\nOption A: Cumulative (all changes over 7 days)\n- Day 0: \"Added BitLife v1.0\"\n- Day 2: Post shows \"Added BitLife v1.0\" + \"Added BitLife Go v2.0\"\n- Day 4: Post shows all 3 changes\n\nOption B: Latest Only\n- Only show most recent change\n- Simpler but loses history\n\nOption C: Keep Both Sections\n- Changelog = recent changes\n- Available List = full inventory\n- Current behavior, just clarify purpose\n\nDecision Needed:\n- Which option fits user workflow?\n- Should changelog accumulate or replace?\n- Is available list redundant with changelog?\n\nFiles affected:\n- src/post_to_reddit.py: _generate_changelog(), _generate_post_body()\n- templates/post_template.md: Post structure",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Refactor to Modular Architecture",
+        "description": "Refactor codebase into proper modular structure. Break up god modules (helpers.py 385 LOC, post_to_reddit.py 358 LOC) into focused, reusable components organized by domain.",
+        "details": "Current Problems:\n- helpers.py: 385 LOC, 7 responsibilities (god module)\n- post_to_reddit.py: 358 LOC, complex logic\n- release_manager.py: 266 LOC, mixed concerns\n- No clear separation of domains\n- Hard to test, hard to maintain\n\nProposed Structure:\n\nsrc/\n├── core/\n│   ├── __init__.py\n│   ├── config.py          - load_config() from helpers.py\n│   ├── state.py           - State management (bot_state, release_state)\n│   └── credentials.py     - Credentials class from helpers.py\n│\n├── reddit/\n│   ├── __init__.py\n│   ├── client.py          - init_reddit() from helpers.py\n│   ├── posts.py           - get_bot_posts(), update_older_posts()\n│   └── parser.py          - parse_versions_from_post()\n│\n├── github/\n│   ├── __init__.py\n│   ├── releases.py        - get_github_data(), get_source_releases()\n│   └── parser.py          - parse_release_notes(), parse_release_description()\n│\n├── scripts/\n│   ├── check_comments.py  - Refactored to use core/reddit\n│   ├── post_to_reddit.py  - Refactored to use core/reddit\n│   ├── release_manager.py - Refactored to use core/github\n│   └── ... (other scripts)\n│\n└── models.py              - Keep as-is (Pydantic models)\n└── paths.py               - Keep as-is (path constants)\n└── patch_file.py          - Keep as-is (standalone utility)\n\nMigration Plan:\n1. Create new directory structure\n2. Extract functions from helpers.py into core/\n3. Extract Reddit logic into reddit/\n4. Extract GitHub logic into github/\n5. Update imports in all scripts\n6. Update tests\n7. Delete old helpers.py\n\nTarget Metrics:\n- Max file size: 150 LOC\n- Single responsibility per module\n- Clear domain boundaries\n- 100% test coverage maintained\n\nBenefits:\n- Easier to understand\n- Easier to test (mock specific modules)\n- Easier to extend\n- Follows Single Responsibility Principle\n- Reduces coupling",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Split Remaining Large Scripts",
+        "description": "Split remaining large scripts into smaller, focused modules. post_to_reddit.py (355 LOC), release_manager.py (268 LOC), and patch_file.py (172 LOC) are still too large and violate Single Responsibility Principle.",
+        "details": "Current Large Scripts:\n1. post_to_reddit.py - 355 LOC\n   - Title generation\n   - Changelog generation\n   - Available list generation\n   - Post body generation\n   - Post creation\n   - Rolling update logic\n   - Main orchestration\n\n2. release_manager.py - 268 LOC\n   - GitHub API calls\n   - Release fetching\n   - Release parsing\n   - Asset downloading\n   - File patching\n   - Release creation\n   - Main orchestration\n\n3. patch_file.py - 172 LOC\n   - Key obfuscation\n   - XOR encoding/decoding\n   - Encryption/decryption\n   - Data modification\n   - Main orchestration\n\nProposed Refactoring:\n\npost_to_reddit.py → reddit/posting/\n├── title_generator.py - _generate_dynamic_title()\n├── changelog.py - _generate_changelog()\n├── body_builder.py - _generate_post_body(), _generate_available_list()\n├── poster.py - _post_new_release()\n└── main.py - Orchestration only (~50 LOC)\n\nrelease_manager.py → gh/releases/\n├── fetcher.py - get_source_releases(), get_github_data()\n├── parser.py - parse_release_description() (merge with existing)\n├── downloader.py - download_asset()\n├── patcher.py - patch_file()\n├── creator.py - create_bot_release()\n└── main.py - Orchestration only (~50 LOC)\n\npatch_file.py → crypto/\n├── obfuscation.py - get_obfuscated_key()\n├── encoding.py - xor_and_b64_encode(), b64_decode_and_xor()\n├── cipher.py - encrypt(), decrypt()\n├── modifier.py - modify()\n└── main.py - Orchestration only (~30 LOC)\n\nTarget Metrics:\n- Max file size: 100 LOC\n- Single responsibility per module\n- Clear function grouping\n- Easier to test individual components\n\nBenefits:\n- Smaller, focused modules\n- Easier to understand\n- Easier to test (mock specific components)\n- Easier to maintain\n- Follows Single Responsibility Principle",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-10-31T10:35:00.809Z",
+      "updated": "2025-10-31T16:40:59.620Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

@@ -26,7 +26,7 @@ jobs:
       - name: Install Dependencies with uv
         run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install --system -e ./..
       
       - name: Run Release Manager
         working-directory: ./src

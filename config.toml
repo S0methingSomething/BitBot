@@ -12,8 +12,13 @@ pages_url = "https://S0methingSomething.github.io/BitBot/"
 subreddit = "BitTest1"
 botName = "BitBot"
 creator = "C1oudyLol"
-postMode = "landing_page" # Can be "direct_link" or "landing_page"
+postMode = "rolling_update" # Can be "direct_link", "landing_page", or "rolling_update"
 post_manually = false # Set to true to generate post files instead of posting
+
+# Rolling update mode settings (only used when postMode = "rolling_update")
+[reddit.rolling]
+days_before_new_post = 7 # Create new post after this many days
+update_existing = true # Update the existing post with new releases
 
 # Template file paths used by the bot
 [reddit.templates]

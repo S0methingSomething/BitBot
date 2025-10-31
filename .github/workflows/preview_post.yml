@@ -18,7 +18,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install --system -e ./..
 
       - name: Gather Release Data
         id: gatherer

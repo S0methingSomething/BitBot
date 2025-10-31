@@ -17,7 +17,7 @@ jobs:
           python-version: '3.10'
       - run: |
           pip install uv
-          uv pip install -r requirements.txt --system
+          uv pip install --system -e ./..
       - name: Run Release Title Updater Script
         working-directory: ./src
         env:
