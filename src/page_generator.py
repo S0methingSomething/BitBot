@@ -6,9 +6,15 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import deal
 from beartype import beartype
 
 
+@deal.pre(lambda template_content, _d, _c: len(template_content) > 0)  # type: ignore[misc]
+@deal.pre(lambda _t, data, _c: isinstance(data, dict))  # type: ignore[misc]
+@deal.pre(lambda _t, _d, config: isinstance(config, dict))  # type: ignore[misc]
+@deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
+@beartype
 def _render_template(template_content: str, data: dict[str, Any], config: dict[str, Any]) -> str:
     """Renders a template with a clean data structure.
 

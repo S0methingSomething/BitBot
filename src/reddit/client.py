@@ -9,6 +9,7 @@ from beartype import beartype
 from core.credentials import Credentials
 
 
+@deal.pre(lambda _config: _config is None or isinstance(_config, dict))  # type: ignore[misc]
 @deal.post(lambda result: result is not None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def init_reddit(_config: dict[str, Any] | None = None) -> praw.Reddit:

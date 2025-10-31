@@ -31,4 +31,9 @@ dev-debug.log
 
 # Task files
 # tasks.json
-# tasks/ 
+# tasks/
+
+# Q CLI conversation saves
+q
+q1
+q* 

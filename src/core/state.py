@@ -45,6 +45,7 @@ def save_bot_state(data: dict[str, Any]) -> None:
 
 
 @deal.post(lambda result: isinstance(result, list))  # type: ignore[misc]
+@deal.post(lambda result: all(isinstance(x, int) for x in result))  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def load_release_state() -> list[int]:
     """Loads the list of processed source release IDs."""

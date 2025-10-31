@@ -3,6 +3,7 @@
 import sys
 from pathlib import Path
 
+import deal
 from beartype import beartype
 
 from core.config import load_config
@@ -12,6 +13,7 @@ from reddit.posts import get_bot_posts
 from reddit.parser import parse_versions_from_post
 
 
+@deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def main() -> None:
     """TODO: Add docstring."""

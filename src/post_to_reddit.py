@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import deal
 from beartype import beartype
 from packaging.version import parse as parse_version
 
@@ -20,6 +21,7 @@ from reddit.posting.poster import post_new_release
 from reddit.posting.title_generator import generate_dynamic_title
 
 
+@deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def main() -> None:  # noqa: PLR0915, C901
     """Post a new release to Reddit if it's out of date."""

@@ -3,6 +3,7 @@
 import sys
 from pathlib import Path
 
+import deal
 from beartype import beartype
 from github import Auth, Github, GithubException
 
@@ -11,6 +12,7 @@ from core.credentials import Credentials
 from gh.parser import parse_release_notes  # Still in helpers.py
 
 
+@deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def migrate_releases() -> None:
     """Performs a one-time migration of all legacy releases to a new structured format.

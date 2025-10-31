@@ -3,6 +3,7 @@
 import sys
 from pathlib import Path
 
+import deal
 from beartype import beartype
 
 from crypto.cipher import decrypt, encrypt
@@ -11,6 +12,7 @@ from crypto.modifier import modify
 from crypto.obfuscation import get_obfuscated_key
 
 
+@deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def main() -> None:
     """Main function to orchestrate the file processing."""

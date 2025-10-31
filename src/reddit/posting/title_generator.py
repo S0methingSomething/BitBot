@@ -3,9 +3,12 @@
 from datetime import datetime, timezone
 from typing import Any
 
+import deal
 from beartype import beartype
 
 
+@deal.pre(lambda app_dict: isinstance(app_dict, dict))  # type: ignore[misc]
+@deal.post(lambda result: len(result) >= 0)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def create_app_list(app_dict: dict[str, Any]) -> str:
     """Create formatted list of app names from dictionary."""
@@ -19,6 +22,11 @@ def create_app_list(app_dict: dict[str, Any]) -> str:
     return ", ".join(parts)
 
 
+@deal.pre(lambda config, _a, _u: isinstance(config, dict))  # type: ignore[misc]
+@deal.pre(lambda _c, added, _u: isinstance(added, dict))  # type: ignore[misc]
+@deal.pre(lambda _c, _a, updated: isinstance(updated, dict))  # type: ignore[misc]
+@deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
+@beartype
 def generate_dynamic_title(
     config: dict[str, Any], added: dict[str, Any], updated: dict[str, Any]
 ) -> str:

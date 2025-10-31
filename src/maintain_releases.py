@@ -3,6 +3,7 @@
 
 import sys
 
+import deal
 import requests
 from beartype import beartype
 
@@ -10,6 +11,7 @@ from core.config import load_config
 from core.credentials import Credentials
 
 
+@deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def main() -> None:
     """Marks old GitHub releases with an [OUTDATED] prefix."""

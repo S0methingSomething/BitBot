@@ -37,6 +37,7 @@ def get_bot_posts(
 @deal.pre(lambda older_posts, latest_release_details, config: isinstance(older_posts, list))  # type: ignore[misc]
 @deal.pre(lambda older_posts, latest_release_details, config: isinstance(latest_release_details, dict))  # type: ignore[misc]
 @deal.pre(lambda older_posts, latest_release_details, config: isinstance(config, dict))  # type: ignore[misc]
+@deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def update_older_posts(  # noqa: C901
     older_posts: list[praw.models.Submission],

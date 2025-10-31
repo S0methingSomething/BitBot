@@ -1,7 +1,6 @@
 """Release management and GitHub operations."""
 
-import sys
-
+import deal
 from beartype import beartype
 
 from core.config import load_config
@@ -14,6 +13,7 @@ from gh.releases.parser import parse_release_description
 from gh.releases.patcher import patch_file
 
 
+@deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def main() -> None:  # noqa: C901, PLR0915, PLR0912
     """Process source releases and create patched bot releases."""

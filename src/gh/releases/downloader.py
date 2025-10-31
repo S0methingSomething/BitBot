@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import deal
+from beartype import beartype
 
 import paths
 from core.credentials import Credentials
@@ -15,6 +16,7 @@ DOWNLOAD_DIR = paths.DIST_DIR
 @deal.pre(lambda _s, _r, asset_name: len(asset_name) > 0)  # type: ignore[misc]
 @deal.pre(lambda _s, release_id, _a: release_id > 0)  # type: ignore[misc]
 @deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
+@beartype
 def download_asset(source_repo: str, release_id: int, asset_name: str) -> str:
     """Downloads a specific asset from a specific release."""
     Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)

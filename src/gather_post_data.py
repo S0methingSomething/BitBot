@@ -4,6 +4,7 @@ import json
 import sys
 from pathlib import Path
 
+import deal
 from beartype import beartype
 from github import Auth, Github, GithubException
 from packaging.version import parse as parse_version
@@ -13,6 +14,7 @@ from core.credentials import Credentials
 from gh.parser import parse_release_notes
 
 
+@deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def main() -> None:  # noqa: C901, PLR0912
     """Gather and aggregate release data from GitHub."""

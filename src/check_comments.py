@@ -5,6 +5,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import deal
 from beartype import beartype
 
 from core.config import load_config
@@ -13,6 +14,7 @@ from core.state import load_bot_state, save_bot_state
 from reddit.client import init_reddit
 
 
+@deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def main() -> None:  # noqa: C901, PLR0912, PLR0915
     """Check comments on the active Reddit post and analyze feedback.

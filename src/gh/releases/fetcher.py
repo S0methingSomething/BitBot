@@ -9,6 +9,7 @@ from beartype import beartype
 
 
 @deal.pre(lambda command, check: isinstance(command, list) and len(command) > 0)  # type: ignore[misc]
+@deal.post(lambda result: result is not None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def run_command(command: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:  # noqa: FBT001, FBT002
     """Runs a shell command and returns its result."""
@@ -17,6 +18,7 @@ def run_command(command: list[str], check: bool = True) -> subprocess.CompletedP
 
 @deal.pre(lambda url: url.startswith("/"))  # type: ignore[misc]
 @deal.post(lambda result: result is not None)  # type: ignore[misc]
+@beartype
 def get_github_data(url: str) -> dict[str, Any] | list[Any]:
     """Fetches data from the GitHub API using the gh cli."""
     command = ["gh", "api", url]
@@ -35,6 +37,7 @@ def get_source_releases(repo: str) -> list[dict[str, Any]]:
 
 @deal.pre(lambda bot_repo, tag: "/" in bot_repo)  # type: ignore[misc]
 @deal.pre(lambda bot_repo, tag: len(tag) > 0)  # type: ignore[misc]
+@deal.post(lambda result: isinstance(result, bool))  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def check_if_bot_release_exists(bot_repo: str, tag: str) -> bool:
     """Checks if a release with the given tag exists in the bot repo."""

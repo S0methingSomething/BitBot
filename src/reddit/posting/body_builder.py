@@ -4,11 +4,18 @@ import re
 from pathlib import Path
 from typing import Any
 
+import deal
+from beartype import beartype
+
 import paths
 
 from reddit.posting.changelog import generate_changelog
 
 
+@deal.pre(lambda config, _a: isinstance(config, dict))  # type: ignore[misc]
+@deal.pre(lambda _c, all_releases_data: isinstance(all_releases_data, dict))  # type: ignore[misc]
+@deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
+@beartype
 def generate_available_list(config: dict[str, Any], all_releases_data: dict[str, Any]) -> str:
     """Generate available apps table."""
     formats: dict[str, str] = config["reddit"]["formats"]["table"]
@@ -30,6 +37,12 @@ def generate_available_list(config: dict[str, Any], all_releases_data: dict[str,
     return "\n".join(table_lines)
 
 
+@deal.pre(lambda config, _ch, _ar, _p: isinstance(config, dict))  # type: ignore[misc]
+@deal.pre(lambda _c, changelog_data, _ar, _p: isinstance(changelog_data, dict))  # type: ignore[misc]
+@deal.pre(lambda _c, _ch, all_releases_data, _p: isinstance(all_releases_data, dict))  # type: ignore[misc]
+@deal.pre(lambda _c, _ch, _ar, page_url: len(page_url) > 0)  # type: ignore[misc]
+@deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
+@beartype
 def generate_post_body(
     config: dict[str, Any],
     changelog_data: dict[str, Any],

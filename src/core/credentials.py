@@ -21,6 +21,7 @@ class Credentials:
         return token
 
     @staticmethod
+    @deal.post(lambda result: isinstance(result, str))  # type: ignore[misc]
     @beartype  # type: ignore[misc]
     def get_github_output() -> str:
         """Get GitHub Actions output file path."""
