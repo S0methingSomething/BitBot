@@ -14,22 +14,22 @@ class Ok(Generic[T]):
     """Success result."""
     value: T
     
-    @beartype
+    @beartype  # type: ignore[misc]
     def is_ok(self) -> bool:
         """Check if result is Ok."""
         return True
     
-    @beartype
+    @beartype  # type: ignore[misc]
     def is_err(self) -> bool:
         """Check if result is Err."""
         return False
     
-    @beartype
+    @beartype  # type: ignore[misc]
     def unwrap(self) -> T:
         """Get the value."""
         return self.value
     
-    @beartype
+    @beartype  # type: ignore[misc]
     def unwrap_or(self, default: T) -> T:
         """Get value or default."""
         return self.value
@@ -40,22 +40,22 @@ class Err(Generic[E]):
     """Error result."""
     error: E
     
-    @beartype
+    @beartype  # type: ignore[misc]
     def is_ok(self) -> bool:
         """Check if result is Ok."""
         return False
     
-    @beartype
+    @beartype  # type: ignore[misc]
     def is_err(self) -> bool:
         """Check if result is Err."""
         return True
     
-    @beartype
+    @beartype  # type: ignore[misc]
     def unwrap(self) -> None:
         """Raise error."""
         raise RuntimeError(f"Called unwrap on Err: {self.error}")
     
-    @beartype
+    @beartype  # type: ignore[misc]
     def unwrap_or(self, default: E) -> E:
         """Get default value."""
         return default
