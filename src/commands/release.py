@@ -34,7 +34,6 @@ def run() -> None:
                 progress.add_task(description="Managing releases...", total=None)
                 raise NotImplementedError("Legacy script moved - needs refactoring")
 
-
                 try:
                     console.print("[green]✓ Successfully managed releases[/green]")
                 except SystemExit as e:

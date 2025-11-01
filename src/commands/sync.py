@@ -34,7 +34,6 @@ def run() -> None:
                 progress.add_task(description="Syncing Reddit state...", total=None)
                 raise NotImplementedError("Legacy script moved - needs refactoring")
 
-
                 try:
                     console.print("[green]✓ Successfully synced Reddit state[/green]")
                 except SystemExit as e:

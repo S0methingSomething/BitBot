@@ -34,7 +34,6 @@ def run() -> None:
                 progress.add_task(description="Gathering post data...", total=None)
                 raise NotImplementedError("Legacy script moved - needs refactoring")
 
-
                 try:
                     console.print("[green]✓ Successfully gathered post data[/green]")
                 except SystemExit as e:

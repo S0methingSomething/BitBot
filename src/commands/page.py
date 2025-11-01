@@ -34,7 +34,6 @@ def run() -> None:
                 progress.add_task(description="Generating landing page...", total=None)
                 raise NotImplementedError("Legacy script moved - needs refactoring")
 
-
                 try:
                     console.print("[green]✓ Successfully generated landing page[/green]")
                 except SystemExit as e:

@@ -292,11 +292,22 @@
         ],
         "priority": "high",
         "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Remove Lazy Noqa Comments and Fix Ruff Errors Properly",
+        "description": "Remove all lazy noqa comments and actually fix the underlying ruff errors instead of suppressing them. Currently ~150+ errors are suppressed with noqa, defeating the purpose of linting.",
+        "details": "Current state:\n- Added noqa comments to suppress errors instead of fixing them\n- Ruff is now useless because everything is suppressed\n- Need to actually fix the root causes\n\nErrors to fix properly:\n\n1. ARG005 (103 errors): Unused lambda arguments in @deal contracts\n   - Fix: Rewrite @deal.pre lambdas to only include params being validated\n   - Example: @deal.pre(lambda x, y: len(x) > 0) where y is unused\n   - Should be: @deal.pre(lambda x, _: len(x) > 0) or split into separate contracts\n\n2. BLE001 (7 errors): Blind exception catching\n   - Fix: Catch specific exceptions instead of Exception\n   - Example: except Exception as e → except (ValueError, KeyError) as e\n   - Only use except Exception where truly necessary (error framework)\n\n3. E501 (5 errors): Line too long (>100 chars)\n   - Fix: Break long lines properly\n   - Use parentheses for line continuation\n   - Split long function signatures\n\n4. ARG002 (3 errors): Unused method arguments\n   - Fix: Rename unused args to _ or remove if not needed\n   - Example: def unwrap_or(self, default: T) where default unused\n   - Should be: def unwrap_or(self, _: T) or remove parameter\n\n5. FBT003 (2 errors): Boolean positional values\n   - Fix: Use named arguments or constants\n   - Example: return Ok(False) → return Ok(RELEASE_NOT_FOUND)\n\n6. PLR0911 (2 errors): Too many return statements\n   - Fix: Refactor to reduce branches or mark as acceptable\n\n7. Others: B904, S112, PLW0603, etc.\n   - Fix each properly based on context\n\nStrategy:\n1. Remove all noqa comments\n2. Run ruff to see real error count\n3. Fix errors by category (ARG005 first, then BLE001, etc.)\n4. Only add noqa for truly legitimate cases (not laziness)\n\nTarget: <20 ruff errors (only legitimate suppressions)\n\nBenefits:\n- Ruff becomes useful again\n- Code quality actually improves\n- Catches real issues\n- No false sense of cleanliness",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-01T02:23:29.162Z",
+      "updated": "2025-11-01T02:54:05.453Z",
       "description": "Tasks for master context"
     }
   }
