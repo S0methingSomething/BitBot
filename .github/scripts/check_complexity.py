@@ -40,6 +40,9 @@ def main() -> None:
     all_violations = []
 
     for filepath in src_dir.rglob("*.py"):
+        # Skip legacy directory
+        if "legacy" in filepath.parts:
+            continue
         violations = analyze_file(filepath, max_complexity)
         all_violations.extend(violations)
 

@@ -1,11 +1,10 @@
-from beartype import beartype
-
 """Sync command for BitBot CLI."""
 
 import sys
 from pathlib import Path
 
 import typer
+from beartype import beartype
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -32,26 +31,18 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Syncing Reddit state...", total=None)
-                raise NotImplementedError("Legacy script moved - needs refactoring")
-
-                try:
-                    console.print("[green]✓ Successfully synced Reddit state[/green]")
-                except SystemExit as e:
-                    if e.code != 0:
-                        error = BitBotError("Sync failed")
-                        logger.log_error(error, LogLevel.ERROR)
-                        console.print("[red]✗ Failed to sync Reddit state[/red]")
-                        raise typer.Exit(code=e.code)
+                msg = "Legacy script moved - needs refactoring"
+                raise NotImplementedError(msg)
 
         except BitBotError as e:
             logger.log_error(e, LogLevel.ERROR)
             console.print(f"[red]✗ Error:[/red] {e.message}")
-            raise typer.Exit(code=1)
-        except Exception as e:  # noqa: BLE001
+            raise typer.Exit(code=1) from None
+        except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)
             console.print(f"[red]✗ Error:[/red] {e}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from None
 
 
 if __name__ == "__main__":

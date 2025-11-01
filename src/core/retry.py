@@ -27,13 +27,13 @@ def retry(
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         @beartype  # type: ignore[misc]
-        def wrapper(*args: Any, **kwargs: Any) -> T:  # noqa: ANN401
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             last_exception: Exception | None = None
 
             for attempt in range(max_attempts):
                 try:
                     return func(*args, **kwargs)
-                except Exception as e:  # noqa: PERF203
+                except Exception as e:
                     if not any(isinstance(e, error_type) for error_type in retry_on):
                         raise
 

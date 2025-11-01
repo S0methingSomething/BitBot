@@ -24,7 +24,7 @@ def get_error_context() -> dict[str, Any]:
 
 @contextmanager
 @beartype  # type: ignore[misc]
-def error_context(**context: Any) -> Generator[None, None, None]:  # noqa: ANN401
+def error_context(**context: Any) -> Generator[None, None, None]:
     """Context manager for adding error context."""
     if not hasattr(_context_stack, "stack"):
         _context_stack.stack = []

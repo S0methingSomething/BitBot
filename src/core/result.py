@@ -32,7 +32,7 @@ class Ok(Generic[T]):
         return self.value
 
     @beartype  # type: ignore[misc]
-    def unwrap_or(self, default: T) -> T:  # noqa: ARG002
+    def unwrap_or(self, default: T) -> T:
         """Get value or default."""
         return self.value
 

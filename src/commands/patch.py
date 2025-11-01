@@ -1,12 +1,10 @@
-from beartype import beartype
-
 """Patch command for BitBot CLI."""
 
-# Import from parent
 import sys
 from pathlib import Path
 
 import typer
+from beartype import beartype
 from rich.console import Console
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -30,7 +28,7 @@ def run(
 
     if result.is_err():
         console.print(f"[red]✗ Error:[/red] {result.error}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     console.print("[green]✓ Successfully patched file[/green]")
 

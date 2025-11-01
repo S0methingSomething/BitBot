@@ -42,7 +42,7 @@ def parse_release_notes(
     for app_id, display_name in app_map_by_id.items():
         if tag_name.lower().startswith(f"{app_id.lower()}-v"):
             version_part = tag_name.split("-v")
-            if len(version_part) == 2:  # noqa: PLR2004
+            if len(version_part) == 2:
                 return {
                     "app_id": app_id,
                     "display_name": display_name,

@@ -44,7 +44,7 @@ def process_file(input_path: Path, output_path: Path) -> Result[None, str]:
 @beartype  # type: ignore[misc]
 def main() -> None:
     """Main function to orchestrate the file processing."""
-    if len(sys.argv) != 3:  # noqa: PLR2004
+    if len(sys.argv) != 3:
         sys.exit(1)
 
     input_file_path = Path(sys.argv[1])

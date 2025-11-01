@@ -50,12 +50,12 @@ class Container:
         self._services: dict[str, Any] = {}
 
     @beartype  # type: ignore[misc]
-    def register(self, name: str, service: Any) -> None:  # noqa: ANN401
+    def register(self, name: str, service: Any) -> None:
         """Register a service."""
         self._services[name] = service
 
     @beartype  # type: ignore[misc]
-    def get(self, name: str) -> Any:  # noqa: ANN401
+    def get(self, name: str) -> Any:
         """Get a service."""
         if name not in self._services:
             msg = f"Service '{name}' not registered"
@@ -75,7 +75,7 @@ _container: Container | None = None
 @beartype  # type: ignore[misc]
 def get_container() -> Container:
     """Get the global container instance."""
-    global _container  # noqa: PLW0603
+    global _container
     if _container is None:
         _container = Container()
     return _container
@@ -84,5 +84,5 @@ def get_container() -> Container:
 @beartype  # type: ignore[misc]
 def reset_container() -> None:
     """Reset the global container (for testing)."""
-    global _container  # noqa: PLW0603
+    global _container
     _container = None

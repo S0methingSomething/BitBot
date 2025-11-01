@@ -9,7 +9,7 @@ from beartype import beartype
 @deal.pre(lambda description, apps_config: isinstance(apps_config, list))  # type: ignore[misc]
 @deal.post(lambda result: isinstance(result, list))  # type: ignore[misc]
 @beartype  # type: ignore[misc]
-def parse_release_description(  # noqa: C901
+def parse_release_description(
     description: str, apps_config: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     """Parses a release description with a structured key-value format."""

@@ -18,7 +18,7 @@ def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, str | bool
         if not line.strip():
             continue
         parts = line.split(":", 1)
-        if len(parts) != 2:  # noqa: PLR2004
+        if len(parts) != 2:
             continue
         enc_key, enc_val = parts
         dec_key = b64_decode_and_xor(enc_key.strip(), obfuscated_key)

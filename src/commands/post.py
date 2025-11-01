@@ -1,11 +1,10 @@
-from beartype import beartype
-
 """Post command for BitBot CLI."""
 
 import sys
 from pathlib import Path
 
 import typer
+from beartype import beartype
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -35,36 +34,18 @@ def run(
                 console=console,
             ) as progress:
                 progress.add_task(description="Posting to Reddit...", total=None)
-                raise NotImplementedError("Legacy script moved - needs refactoring")
-
-                # Import here to avoid circular imports
-
-                # Temporarily override sys.argv for the old script
-                old_argv = sys.argv
-                sys.argv = ["post_to_reddit"]
-                if page_url:
-                    sys.argv.extend(["--page-url", page_url])
-
-                try:
-                    console.print("[green]✓ Successfully posted to Reddit[/green]")
-                except SystemExit as e:
-                    if e.code != 0:
-                        error = BitBotError("Post to Reddit failed")
-                        logger.log_error(error, LogLevel.ERROR)
-                        console.print("[red]✗ Failed to post to Reddit[/red]")
-                        raise typer.Exit(code=e.code)
-                finally:
-                    sys.argv = old_argv
+                msg = "Legacy script moved - needs refactoring"
+                raise NotImplementedError(msg)
 
         except BitBotError as e:
             logger.log_error(e, LogLevel.ERROR)
             console.print(f"[red]✗ Error:[/red] {e.message}")
-            raise typer.Exit(code=1)
-        except Exception as e:  # noqa: BLE001
+            raise typer.Exit(code=1) from None
+        except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)
             console.print(f"[red]✗ Error:[/red] {e}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from None
 
 
 if __name__ == "__main__":

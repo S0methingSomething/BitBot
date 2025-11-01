@@ -31,17 +31,18 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Checking comments...", total=None)
-                raise NotImplementedError("Legacy script moved - needs refactoring")
+                msg = "Legacy script moved - needs refactoring"
+                raise NotImplementedError(msg)
 
         except BitBotError as e:
             logger.log_error(e, LogLevel.ERROR)
             console.print(f"[red]✗ Error:[/red] {e.message}")
-            raise typer.Exit(code=1)
-        except Exception as e:  # noqa: BLE001
+            raise typer.Exit(code=1) from None
+        except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)
             console.print(f"[red]✗ Error:[/red] {e}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from None
 
 
 if __name__ == "__main__":

@@ -42,6 +42,26 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "D104"]
+".github/scripts/*.py" = ["T201", "PTH123", "UP038"]  # CI scripts can use print, open, tuple isinstance
+"src/cli.py" = ["E402", "FBT001", "FBT003"]  # sys.path manipulation, typer bool options
+"src/commands/*.py" = [
+    "BLE001",  # CLI boundary catches all exceptions
+    "TRY301",  # NotImplementedError placeholders
+    "B008",    # Typer argument defaults
+]
+"src/core/config.py" = ["PLR0911", "BLE001"]  # Multiple validation returns, file I/O
+"src/core/errors.py" = ["DTZ005"]  # Timestamp without timezone is intentional
+"src/core/retry.py" = ["PERF203", "ANN401"]  # try-except in loop, generic wrapper needs Any
+"src/core/state.py" = ["BLE001"]  # File I/O catches all exceptions
+"src/core/container.py" = ["ANN401", "PLW0603"]  # Generic container needs Any, global is intentional
+"src/core/error_context.py" = ["ANN401"]  # Context dict needs Any
+"src/core/result.py" = ["ARG002"]  # Unused args in Err methods are intentional
+"src/crypto/*.py" = ["ARG005", "PLR2004"]  # Deal lambda args, magic numbers in parsing
+"src/gh/parser.py" = ["ARG005", "PLR2004", "C901"]  # Deal lambda args, parsing complexity
+"src/gh/releases/*.py" = ["ARG005", "FBT001", "FBT002", "FBT003", "S603", "BLE001", "C901"]  # Deal lambdas, bool flags, subprocess, complexity
+"src/reddit/*.py" = ["ARG005", "C901", "S110", "BLE001"]  # Deal lambdas, complexity, intentional catches
+"src/patch_file.py" = ["PLR2004", "BLE001"]  # Magic numbers, file I/O catches
+"src/legacy/*.py" = ["ALL"]  # Legacy code - ignore all errors
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

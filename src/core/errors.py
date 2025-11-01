@@ -15,7 +15,7 @@ class BitBotError(Exception):
         super().__init__(message)
         self.message = message
         self.context = context or {}
-        self.timestamp = datetime.now()  # noqa: DTZ005
+        self.timestamp = datetime.now()
 
     @beartype  # type: ignore[misc]
     def to_dict(self) -> dict[str, Any]:

@@ -19,7 +19,7 @@ def run_command(
 ) -> Result[subprocess.CompletedProcess[str], GitHubAPIError]:
     """Runs a shell command and returns its result."""
     try:
-        result = subprocess.run(command, capture_output=True, text=True, check=check)  # noqa: S603
+        result = subprocess.run(command, capture_output=True, text=True, check=check)
         return Ok(result)
     except subprocess.CalledProcessError as e:
         return Err(GitHubAPIError(f"Command failed: {' '.join(command)}: {e.stderr}"))

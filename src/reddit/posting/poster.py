@@ -44,5 +44,5 @@ def post_new_release(
         return reddit.subreddit(config["reddit"]["subreddit"]).submit(title, selftext=post_body)
     except RedditAPIException:
         sys.exit(1)
-    except Exception:  # noqa: BLE001
+    except Exception:
         sys.exit(1)

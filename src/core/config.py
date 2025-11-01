@@ -34,5 +34,5 @@ def load_config() -> Result[dict[str, Any], ConfigurationError]:
         return Err(ConfigurationError(f"Config file not found: {paths.CONFIG_FILE}"))
     except toml.TomlDecodeError as e:
         return Err(ConfigurationError(f"Invalid TOML syntax: {e}"))
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return Err(ConfigurationError(f"Failed to load config: {e}"))

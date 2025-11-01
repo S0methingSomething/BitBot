@@ -48,7 +48,7 @@ def get_bot_posts(
 @deal.pre(lambda older_posts, latest_release_details, config: isinstance(config, dict))  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 @retry(max_attempts=3, on=[RedditAPIError])
-def update_older_posts(  # noqa: C901
+def update_older_posts(
     older_posts: list[praw.models.Submission],
     latest_release_details: dict[str, Any],
     config: dict[str, Any],
@@ -110,7 +110,7 @@ def update_older_posts(  # noqa: C901
                 if new_body.strip() and new_body != original_body:
                     old_post.edit(body=new_body)
                     updated_count += 1
-            except Exception:  # noqa: BLE001, S110
+            except Exception:
                 pass
 
         return Ok(None)
