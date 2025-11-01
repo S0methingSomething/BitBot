@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 import deal
 from beartype import beartype
 from praw.exceptions import RedditAPIException
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 if TYPE_CHECKING:
     import praw
@@ -28,6 +29,11 @@ def count_outbound_links(text: str) -> int:
 @deal.pre(lambda _r, _t, _p, config: isinstance(config, dict))
 @deal.post(lambda result: result is not None)
 @beartype
+@retry(
+    retry=retry_if_exception_type(RedditAPIException),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+)
 def post_new_release(
     reddit: "praw.Reddit", title: str, post_body: str, config: dict[str, Any]
 ) -> "praw.models.Submission":
