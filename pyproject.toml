@@ -16,6 +16,9 @@ dependencies = [
     "rich>=14.2.0",
 ]
 
+[project.scripts]
+bitbot = "cli:app"
+
 [project.optional-dependencies]
 dev = [
     "ruff>=0.1.0",

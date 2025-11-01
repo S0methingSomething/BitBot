@@ -8,6 +8,11 @@ Requires-Dist: requests>=2.31.0
 Requires-Dist: toml>=0.10.2
 Requires-Dist: packaging>=23.2
 Requires-Dist: PyGithub>=2.1.1
+Requires-Dist: beartype>=0.22.4
+Requires-Dist: pydantic>=2.12.3
+Requires-Dist: deal>=4.24.5
+Requires-Dist: typer>=0.20.0
+Requires-Dist: rich>=14.2.0
 Provides-Extra: dev
 Requires-Dist: ruff>=0.1.0; extra == "dev"
 Requires-Dist: mypy>=1.7.0; extra == "dev"

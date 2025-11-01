@@ -1,0 +1,2 @@
+[console_scripts]
+bitbot = cli:app
