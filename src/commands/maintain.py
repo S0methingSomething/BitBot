@@ -10,9 +10,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from core.config import load_config
 from core.error_context import error_context
 from core.error_logger import LogLevel, get_logger
 from core.errors import BitBotError
+from gh.releases.fetcher import get_github_data
+from gh.releases.updater import update_release_title
 
 app = typer.Typer()
 console = Console()
@@ -22,8 +25,8 @@ logger = get_logger(console=console)
 @beartype
 @app.command()
 def run() -> None:
-    """Maintain releases."""
-    with error_context(operation="maintain_releases"):
+    """Mark old releases as outdated."""
+    with error_context(command="maintain"):
         try:
             with Progress(
                 SpinnerColumn(),
@@ -31,8 +34,62 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Maintaining releases...", total=None)
-                msg = "Legacy script moved - needs refactoring"
-                raise NotImplementedError(msg)
+
+                # Load config
+                config_result = load_config()
+                if config_result.is_err():
+                    error = BitBotError(f"Config error: {config_result.error}")
+                    logger.log_error(error, LogLevel.ERROR)
+                    console.print(f"[red]✗ Error:[/red] {config_result.error}")
+                    raise typer.Exit(code=1) from None
+                config = config_result.unwrap()
+
+                bot_repo = config["github"]["botRepo"]
+
+                # Fetch releases
+                releases_result = get_github_data(f"/repos/{bot_repo}/releases")
+                if releases_result.is_err():
+                    error = BitBotError(f"GitHub error: {releases_result.error}")
+                    logger.log_error(error, LogLevel.ERROR)
+                    console.print(f"[red]✗ Error:[/red] {releases_result.error}")
+                    raise typer.Exit(code=1) from None
+                releases = releases_result.unwrap()
+
+                if not isinstance(releases, list) or not releases:
+                    console.print("[yellow][i] No releases found[/yellow]")
+                    return
+
+                # Mark old releases as outdated
+                updated_count = 0
+                for i, release in enumerate(releases):
+                    tag = release.get("tag_name", "")
+                    title = release.get("name", "")
+
+                    if not tag or not title:
+                        continue
+
+                    # Skip most recent release
+                    if i == 0:
+                        continue
+
+                    # Skip if already marked
+                    if title.startswith("[OUTDATED]"):
+                        continue
+
+                    # Update title
+                    new_title = f"[OUTDATED] {title}"
+                    update_result = update_release_title(bot_repo, tag, new_title)
+                    if update_result.is_err():
+                        console.print(f"[yellow]⚠[/yellow] Failed to update {tag}")
+                        continue
+
+                    console.print(f"[cyan]✓[/cyan] Marked {tag} as outdated")
+                    updated_count += 1
+
+                if updated_count == 0:
+                    console.print("[green]✓[/green] All releases up to date")
+                else:
+                    console.print(f"[green]✓[/green] Updated {updated_count} release(s)")
 
         except BitBotError as e:
             logger.log_error(e, LogLevel.ERROR)
