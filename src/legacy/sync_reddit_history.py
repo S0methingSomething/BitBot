@@ -16,8 +16,8 @@ from reddit.posts import get_bot_posts
 @deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def main() -> None:
-    """TODO: Add docstring."""
     """Synchronizes the bot's online state with the latest post on Reddit.
+
     This script reads the latest Reddit post, parses the versions from it,
     and updates the `online.last_posted_versions` in `bot_state.json`.
     """

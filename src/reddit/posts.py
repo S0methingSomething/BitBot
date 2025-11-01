@@ -11,9 +11,12 @@ from beartype import beartype
 from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 import paths
+from core.error_logger import get_logger
 from core.errors import RedditAPIError
 from core.result import Err, Ok, Result
 from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
+
+logger = get_logger(__name__)
 
 
 @deal.pre(lambda reddit, config: reddit is not None)
@@ -121,8 +124,9 @@ def update_older_posts(
                 if new_body.strip() and new_body != original_body:
                     old_post.edit(body=new_body)
                     updated_count += 1
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to update post %s: %s", old_post.id, e)
+                continue
 
         return Ok(None)
     except Exception as e:
