@@ -1,0 +1,36 @@
+"""Patch command for BitBot CLI."""
+
+from pathlib import Path
+
+import typer
+from rich.console import Console
+
+# Import from parent
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from patch_file import process_file
+
+app = typer.Typer()
+console = Console()
+
+
+@app.command()
+def run(
+    input_file: Path = typer.Argument(..., help="Input file to patch"),
+    output_file: Path = typer.Argument(..., help="Output file path"),
+) -> None:
+    """Patch an asset file by decrypting, modifying, and re-encrypting."""
+    console.print(f"[cyan]Patching file:[/cyan] {input_file} → {output_file}")
+    
+    result = process_file(input_file, output_file)
+    
+    if result.is_err():
+        console.print(f"[red]✗ Error:[/red] {result.error}")
+        raise typer.Exit(code=1)
+    
+    console.print("[green]✓ Successfully patched file[/green]")
+
+
+if __name__ == "__main__":
+    app()
