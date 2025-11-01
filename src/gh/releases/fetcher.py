@@ -14,7 +14,6 @@ from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 
 
 @deal.pre(lambda command, check: isinstance(command, list) and len(command) > 0)  # type: ignore[misc]
-@deal.post(lambda result: result.is_ok() or result.is_err())  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def run_command(
     command: list[str], check: bool = True
@@ -27,8 +26,7 @@ def run_command(
         return Err(GitHubAPIError(f"Command failed: {' '.join(command)}: {e.stderr}"))
 
 
-@deal.pre(lambda url: url.startswith("/"))  # type: ignore[misc]
-@deal.post(lambda result: result.is_ok() or result.is_err())  # type: ignore[misc]
+@deal.pre(lambda url: url.startswith("/"), message="GitHub API URLs must start with /")  # type: ignore[misc]
 @beartype
 @retry(
     retry=retry_if_result(should_retry_api_error),
@@ -75,7 +73,6 @@ def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIErro
 
 @deal.pre(lambda bot_repo, tag: "/" in bot_repo)  # type: ignore[misc]
 @deal.pre(lambda bot_repo, tag: len(tag) > 0)  # type: ignore[misc]
-@deal.post(lambda result: result.is_ok() or result.is_err())  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def check_if_bot_release_exists(bot_repo: str, tag: str) -> Result[bool, GitHubAPIError]:
     """Checks if a release with the given tag exists in the bot repo."""

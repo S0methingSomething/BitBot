@@ -15,10 +15,14 @@ from core.result import Err, Ok, Result
 BEARTYPE_STRICT = BeartypeConf(strategy=BeartypeStrategy.On)
 
 
-@deal.post(lambda result: result.is_ok() or result.is_err())  # type: ignore[misc]
-@deal.post(lambda result: result.is_err() or "github" in result.unwrap())  # type: ignore[misc]
-@deal.post(lambda result: result.is_err() or "reddit" in result.unwrap())  # type: ignore[misc]
-@deal.post(lambda result: result.is_err() or isinstance(result.unwrap(), dict))  # type: ignore[misc]
+@deal.post(  # type: ignore[misc]
+    lambda result: result.is_err() or "github" in result.unwrap(),
+    message="Config must contain 'github' section",
+)
+@deal.post(  # type: ignore[misc]
+    lambda result: result.is_err() or "reddit" in result.unwrap(),
+    message="Config must contain 'reddit' section",
+)
 @beartype(conf=BEARTYPE_STRICT)  # type: ignore[misc]
 def load_config() -> Result[dict[str, Any], ConfigurationError]:
     """Loads the main configuration file (config.toml)."""
