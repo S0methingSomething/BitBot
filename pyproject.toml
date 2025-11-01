@@ -122,5 +122,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
     "snoop>=0.6.0",
+    "types-requests>=2.32.4.20250913",
+    "types-toml>=0.10.8.20240310",
     "vulture>=2.14",
 ]
