@@ -27,6 +27,14 @@ class FunctionValidation:
     type_strength: float  # 0-100, penalized for Any usage
     any_justified: bool  # Whether Any usage is justified
     justification_reason: str  # Why Any is justified/unjustified
+    # NEW: Sophisticated features
+    type_complexity: int  # Nesting depth of types (0-10+)
+    validation_depth: float  # Contract effectiveness (0-100)
+    code_smells: list[str]  # Detected code smells
+    escape_hatches: int  # cast() usage count
+    loc: int  # Lines of code
+    param_count: int  # Number of parameters
+    cyclomatic_complexity: int  # Estimated complexity
 
 
 @dataclass
@@ -51,6 +59,12 @@ class FileStats:
     type_strength_score: float  # Average type strength
     justified_any_count: int  # Functions with justified Any
     unjustified_any_count: int  # Functions with unjustified Any
+    # NEW: Sophisticated features
+    avg_type_complexity: float  # Average type nesting depth
+    avg_validation_depth: float  # Average contract effectiveness
+    total_code_smells: int  # Total code smells detected
+    total_escape_hatches: int  # Total cast() usage
+    god_functions: list[str]  # Functions >50 LOC or >10 branches
 
 
 class ValidationAnalyzer(ast.NodeVisitor):
@@ -63,7 +77,9 @@ class ValidationAnalyzer(ast.NodeVisitor):
         self.pydantic_models = 0
         self.current_function: dict[str, Any] | None = None
 
-    def _is_any_justified(self, node: ast.FunctionDef, weak_types: list[str]) -> tuple[bool, str]:
+    def _is_any_justified(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef, weak_types: list[str]
+    ) -> tuple[bool, str]:
         """Determine if Any usage is justified based on context."""
         if not weak_types:
             return True, "No Any usage"
@@ -129,6 +145,177 @@ class ValidationAnalyzer(ast.NodeVisitor):
         if unjustifications:
             return False, f"Unjustified: {', '.join(unjustifications[:2])}"
         return False, "Unclear justification"
+
+    def _calculate_type_complexity(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+        """Calculate type nesting depth (0-10+)."""
+        max_depth = 0
+
+        def get_depth(annotation: ast.expr, current_depth: int = 0) -> int:
+            if isinstance(annotation, ast.Subscript):
+                # dict[str, Any] or list[dict[...]]
+                return max(
+                    get_depth(annotation.value, current_depth + 1),
+                    get_depth(annotation.slice, current_depth + 1),
+                )
+            if isinstance(annotation, ast.Tuple):
+                # Union types or tuple elements
+                return max(
+                    (get_depth(elt, current_depth) for elt in annotation.elts),
+                    default=current_depth,
+                )
+            return current_depth
+
+        # Check return type
+        if node.returns:
+            max_depth = max(max_depth, get_depth(node.returns))
+
+        # Check parameter types
+        for arg in node.args.args:
+            if arg.annotation:
+                max_depth = max(max_depth, get_depth(arg.annotation))
+
+        return max_depth
+
+    def _calculate_validation_depth(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> float:
+        """Calculate contract effectiveness (0-100)."""
+        score = 0.0
+        param_count = len(node.args.args)
+
+        if param_count == 0:
+            return 100.0  # No params to validate
+
+        validated_params = set()
+
+        for dec in node.decorator_list:
+            try:
+                dec_str = ast.unparse(dec)
+                if "deal.pre" in dec_str or "@pre" in dec_str:
+                    # Parse lambda to see which params are checked
+                    if "lambda" in dec_str:
+                        # Extract parameter names from lambda
+                        for arg in node.args.args:
+                            if arg.arg in dec_str and arg.arg != "_":
+                                validated_params.add(arg.arg)
+                        # Check if it's a weak contract
+                        if ": True" in dec_str or "lambda: " in dec_str:
+                            score -= 20  # Penalty for useless contract
+            except Exception:
+                continue
+
+        # Score based on parameter coverage
+        if param_count > 0:
+            coverage = len(validated_params) / param_count
+            score += coverage * 100
+
+        return max(0.0, min(100.0, score))
+
+    def _detect_code_smells(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
+        """Detect code smells in function."""
+        smells = []
+
+        # 1. God function (>50 LOC)
+        loc = (node.end_lineno or node.lineno) - node.lineno
+        if loc > 50:
+            smells.append(f"god_function ({loc} LOC)")
+
+        # 2. Long parameter list (>5 params)
+        param_count = len(node.args.args)
+        if param_count > 5:
+            smells.append(f"long_params ({param_count} params)")
+
+        # 3. Deep nesting (>4 levels)
+        max_nesting = self._calculate_max_nesting(node)
+        if max_nesting > 4:
+            smells.append(f"deep_nesting ({max_nesting} levels)")
+
+        # 4. High cyclomatic complexity (>10 branches)
+        complexity = self._calculate_cyclomatic_complexity(node)
+        if complexity > 10:
+            smells.append(f"high_complexity ({complexity} branches)")
+
+        return smells
+
+    def _calculate_max_nesting(self, node: ast.AST) -> int:
+        """Calculate maximum nesting depth."""
+        max_depth = 0
+
+        class NestingVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.current_depth = 0
+                self.max_depth = 0
+
+            def visit_If(self, node):
+                self.current_depth += 1
+                self.max_depth = max(self.max_depth, self.current_depth)
+                self.generic_visit(node)
+                self.current_depth -= 1
+
+            def visit_For(self, node):
+                self.current_depth += 1
+                self.max_depth = max(self.max_depth, self.current_depth)
+                self.generic_visit(node)
+                self.current_depth -= 1
+
+            def visit_While(self, node):
+                self.current_depth += 1
+                self.max_depth = max(self.max_depth, self.current_depth)
+                self.generic_visit(node)
+                self.current_depth -= 1
+
+            def visit_With(self, node):
+                self.current_depth += 1
+                self.max_depth = max(self.max_depth, self.current_depth)
+                self.generic_visit(node)
+                self.current_depth -= 1
+
+            def visit_Try(self, node):
+                self.current_depth += 1
+                self.max_depth = max(self.max_depth, self.current_depth)
+                self.generic_visit(node)
+                self.current_depth -= 1
+
+        visitor = NestingVisitor()
+        visitor.visit(node)
+        return visitor.max_depth
+
+    def _calculate_cyclomatic_complexity(self, node: ast.AST) -> int:
+        """Calculate cyclomatic complexity (branch count)."""
+        complexity = 1  # Base complexity
+
+        class ComplexityVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.complexity = 1
+
+            def visit_If(self, node):
+                self.complexity += 1
+                self.generic_visit(node)
+
+            def visit_For(self, node):
+                self.complexity += 1
+                self.generic_visit(node)
+
+            def visit_While(self, node):
+                self.complexity += 1
+                self.generic_visit(node)
+
+            def visit_ExceptHandler(self, node):
+                self.complexity += 1
+                self.generic_visit(node)
+
+            def visit_BoolOp(self, node):
+                self.complexity += len(node.values) - 1
+                self.generic_visit(node)
+
+        visitor = ComplexityVisitor()
+        visitor.visit(node)
+        return visitor.complexity
+
+    def _count_escape_hatches(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+        """Count cast() usage in function."""
+        count = 0
+        func_body = ast.unparse(node)
+        count += func_body.count("cast(")
+        return count
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Visit class definition."""
@@ -227,6 +414,15 @@ class ValidationAnalyzer(ast.NodeVisitor):
             type_strength,
         )
 
+        # Calculate new sophisticated metrics
+        type_complexity = self._calculate_type_complexity(node)
+        validation_depth = self._calculate_validation_depth(node)
+        code_smells = self._detect_code_smells(node)
+        escape_hatches = self._count_escape_hatches(node)
+        loc = (node.end_lineno or node.lineno) - node.lineno
+        param_count = len(node.args.args)
+        cyclomatic_complexity = self._calculate_cyclomatic_complexity(node)
+
         func_val = FunctionValidation(
             name=node.name,
             line=node.lineno,
@@ -242,6 +438,13 @@ class ValidationAnalyzer(ast.NodeVisitor):
             type_strength=type_strength,
             any_justified=any_justified,
             justification_reason=justification_reason,
+            type_complexity=type_complexity,
+            validation_depth=validation_depth,
+            code_smells=code_smells,
+            escape_hatches=escape_hatches,
+            loc=loc,
+            param_count=param_count,
+            cyclomatic_complexity=cyclomatic_complexity,
         )
 
         self.functions.append(func_val)
@@ -333,6 +536,23 @@ def analyze_file(filepath: Path) -> FileStats | None:
         # Count total type: ignore comments
         type_ignores = content.count("# type: ignore")
 
+        # Calculate new sophisticated metrics
+        avg_type_complexity = (
+            sum(f.type_complexity for f in analyzer.functions) / len(analyzer.functions)
+            if analyzer.functions
+            else 0.0
+        )
+        avg_validation_depth = (
+            sum(f.validation_depth for f in analyzer.functions) / len(analyzer.functions)
+            if analyzer.functions
+            else 0.0
+        )
+        total_code_smells = sum(len(f.code_smells) for f in analyzer.functions)
+        total_escape_hatches = sum(f.escape_hatches for f in analyzer.functions)
+        god_functions = [
+            f.name for f in analyzer.functions if any("god_function" in s for s in f.code_smells)
+        ]
+
         return FileStats(
             path=str(filepath.relative_to("src")),
             functions=len(analyzer.functions),
@@ -352,6 +572,11 @@ def analyze_file(filepath: Path) -> FileStats | None:
             type_strength_score=type_strength_score,
             justified_any_count=justified_any_count,
             unjustified_any_count=unjustified_any_count,
+            avg_type_complexity=avg_type_complexity,
+            avg_validation_depth=avg_validation_depth,
+            total_code_smells=total_code_smells,
+            total_escape_hatches=total_escape_hatches,
+            god_functions=god_functions,
         )
 
     except SyntaxError as e:
@@ -364,7 +589,7 @@ def analyze_file(filepath: Path) -> FileStats | None:
 
 def generate_recommendations(stats: FileStats) -> list[str]:
     """Generate actionable recommendations for a file."""
-    recommendations = []
+    recommendations: list[str] = []
 
     if stats.functions == 0:
         return recommendations
@@ -499,6 +724,45 @@ def main() -> None:
         print(f"✅ All {total_weak_types} Any usages are justified (dynamic data)\n")
     else:
         print("✅ No Any usage - perfect type safety!\n")
+
+    # NEW: Sophisticated metrics
+    print("🔬 SOPHISTICATED ANALYSIS")
+
+    # Type Complexity
+    avg_type_complexity = (
+        sum(s.avg_type_complexity for s in all_stats) / len(all_stats) if all_stats else 0
+    )
+    print(f"Average Type Complexity: {avg_type_complexity:.1f} (nesting depth)")
+    complex_types = sum(1 for s in all_stats for f in s.validation_details if f.type_complexity > 3)
+    if complex_types > 0:
+        print(f"  ⚠️  {complex_types} functions with deeply nested types (>3 levels)")
+
+    # Validation Depth
+    avg_validation_depth = (
+        sum(s.avg_validation_depth for s in all_stats) / len(all_stats) if all_stats else 0
+    )
+    print(f"Average Validation Depth: {avg_validation_depth:.1f}% (parameter coverage)")
+    weak_contracts = sum(
+        1 for s in all_stats for f in s.validation_details if f.validation_depth < 50
+    )
+    if weak_contracts > 0:
+        print(f"  ⚠️  {weak_contracts} functions with weak contracts (<50% param coverage)")
+
+    # Code Smells
+    total_smells = sum(s.total_code_smells for s in all_stats)
+    print(f"Code Smells Detected: {total_smells}")
+    if total_smells > 0:
+        god_funcs = sum(len(s.god_functions) for s in all_stats)
+        if god_funcs > 0:
+            print(f"  ⚠️  {god_funcs} god functions (>50 LOC or >10 branches)")
+
+    # Escape Hatches
+    total_casts = sum(s.total_escape_hatches for s in all_stats)
+    print(f"Escape Hatches (cast): {total_casts}")
+    if total_casts > 0:
+        print(f"  ⚠️  {total_casts} cast() usages bypass type checking")
+
+    print()
 
     # File-by-file analysis
     print("📁 FILE INTEGRATION SCORES\n")

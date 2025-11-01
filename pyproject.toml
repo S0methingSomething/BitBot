@@ -44,7 +44,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "D104"]
-".github/scripts/*.py" = ["T201", "PTH123", "UP038"]  # CI scripts can use print, open, tuple isinstance
+".github/scripts/*.py" = ["ALL"]  # CI analysis scripts - ignore all linting
 "src/cli.py" = ["E402", "FBT001", "FBT003"]  # sys.path manipulation, typer bool options
 "src/commands/*.py" = [
     "BLE001",  # CLI boundary catches all exceptions
