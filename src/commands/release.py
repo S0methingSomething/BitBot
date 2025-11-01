@@ -80,9 +80,13 @@ def run() -> None:
 
                     # Patch
                     original_path = download_result.unwrap()
-                    patched_path = patch_file(str(original_path), asset_name)
+                    patch_result = patch_file(str(original_path), asset_name)
+                    if patch_result.is_err():
+                        console.print(f"[red]✗[/red] {app_name}: {patch_result.error}")
+                        continue
 
                     # Create release
+                    patched_path = patch_result.unwrap()
                     release_tag = f"{release.tag}-{app_name.replace(' ', '-')}"
                     title = f"{app_name} {version}"
                     notes = f"Updated {app_name} to version {version}"
