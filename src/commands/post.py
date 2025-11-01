@@ -20,7 +20,7 @@ console = Console()
 logger = get_logger(console=console)
 
 
-@beartype  # type: ignore[misc]
+@beartype
 @app.command()
 def run(
     page_url: str = typer.Option(None, "--page-url", help="Custom landing page URL"),

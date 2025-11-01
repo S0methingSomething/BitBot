@@ -12,7 +12,7 @@ from core.errors import StateError
 from core.result import Err, Ok, Result
 
 
-@beartype  # type: ignore[misc]
+@beartype
 def load_bot_state() -> Result[dict[str, Any], StateError]:
     """Loads the bot's monitoring state from JSON."""
     try:
@@ -38,9 +38,9 @@ def load_bot_state() -> Result[dict[str, Any], StateError]:
     return Ok(state)
 
 
-@deal.pre(lambda data: isinstance(data, dict))  # type: ignore[misc]
-@deal.pre(lambda data: "online" in data or "offline" in data)  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda data: isinstance(data, dict))
+@deal.pre(lambda data: "online" in data or "offline" in data)
+@beartype
 def save_bot_state(data: dict[str, Any]) -> Result[None, StateError]:
     """Saves the bot's monitoring state."""
     try:
@@ -51,7 +51,7 @@ def save_bot_state(data: dict[str, Any]) -> Result[None, StateError]:
         return Err(StateError(f"Failed to save bot state: {e}"))
 
 
-@beartype  # type: ignore[misc]
+@beartype
 def load_release_state() -> Result[list[int], StateError]:
     """Loads the list of processed source release IDs."""
     try:
@@ -68,8 +68,8 @@ def load_release_state() -> Result[list[int], StateError]:
         return Err(StateError(f"Failed to load release state: {e}"))
 
 
-@deal.pre(lambda data: isinstance(data, list))  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda data: isinstance(data, list))
+@beartype
 def save_release_state(data: list[int]) -> Result[None, StateError]:
     """Saves the list of processed source release IDs."""
     try:

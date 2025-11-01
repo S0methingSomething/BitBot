@@ -6,9 +6,9 @@ import deal
 from beartype import beartype
 
 
-@deal.pre(lambda title, _d, _k, _f, _a: len(title) > 0)  # type: ignore[misc]
-@deal.pre(lambda _t, data, _k, _f, _a: isinstance(data, dict))  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda title, _d, _k, _f, _a: len(title) > 0)
+@deal.pre(lambda _t, data, _k, _f, _a: isinstance(data, dict))
+@beartype
 def create_section(
     title: str,
     data: dict[str, Any],
@@ -51,11 +51,11 @@ def create_section(
     return "\n".join(lines) if len(lines) > 1 else None
 
 
-@deal.pre(lambda config, _a, _u, _r: isinstance(config, dict))  # type: ignore[misc]
-@deal.pre(lambda _c, added, _u, _r: isinstance(added, dict))  # type: ignore[misc]
-@deal.pre(lambda _c, _a, updated, _r: isinstance(updated, dict))  # type: ignore[misc]
-@deal.pre(lambda _c, _a, _u, removed: isinstance(removed, dict))  # type: ignore[misc]
-@deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
+@deal.pre(lambda config, _a, _u, _r: isinstance(config, dict))
+@deal.pre(lambda _c, added, _u, _r: isinstance(added, dict))
+@deal.pre(lambda _c, _a, updated, _r: isinstance(updated, dict))
+@deal.pre(lambda _c, _a, _u, removed: isinstance(removed, dict))
+@deal.post(lambda result: len(result) > 0)
 @beartype
 def generate_changelog(
     config: dict[str, Any],

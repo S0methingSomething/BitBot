@@ -24,31 +24,37 @@ from reddit.client import init_reddit as _init_reddit
 class DefaultConfigService:
     """Default configuration service implementation."""
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def get_config(self) -> dict[str, Any]:
         """Load configuration."""
+        # NOTE: Returns Result type but service interface expects unwrapped dict
+        # This file is unused and should be removed or refactored
         return _load_config()  # type: ignore[no-any-return]
 
 
 class DefaultStateService:
     """Default state management service implementation."""
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def load_bot_state(self) -> dict[str, Any]:
         """Load bot state."""
+        # NOTE: Returns Result type but service interface expects unwrapped dict
+        # This file is unused and should be removed or refactored
         return _load_bot_state()  # type: ignore[no-any-return]
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def save_bot_state(self, data: dict[str, Any]) -> None:
         """Save bot state."""
         _save_bot_state(data)
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def load_release_state(self) -> list[int]:
         """Load release state."""
+        # NOTE: Returns Result type but service interface expects unwrapped list
+        # This file is unused and should be removed or refactored
         return _load_release_state()  # type: ignore[no-any-return]
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def save_release_state(self, data: list[int]) -> None:
         """Save release state."""
         _save_release_state(data)
@@ -62,7 +68,7 @@ class DefaultRedditService:
         self._config = config
         self._client: praw.Reddit | None = None
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def get_client(self) -> praw.Reddit:
         """Get Reddit client (lazy initialization)."""
         if self._client is None:

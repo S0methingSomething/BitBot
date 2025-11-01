@@ -1,10 +1,10 @@
 """Configuration management for BitBot."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import deal
-import toml  # type: ignore[import-untyped]
+import toml
 from beartype import BeartypeConf, BeartypeStrategy, beartype
 
 import paths
@@ -15,20 +15,20 @@ from core.result import Err, Ok, Result
 BEARTYPE_STRICT = BeartypeConf(strategy=BeartypeStrategy.On)
 
 
-@deal.post(  # type: ignore[misc]
+@deal.post(
     lambda result: result.is_err() or "github" in result.unwrap(),
     message="Config must contain 'github' section",
 )
-@deal.post(  # type: ignore[misc]
+@deal.post(
     lambda result: result.is_err() or "reddit" in result.unwrap(),
     message="Config must contain 'reddit' section",
 )
-@beartype(conf=BEARTYPE_STRICT)  # type: ignore[misc]
+@beartype(conf=BEARTYPE_STRICT)
 def load_config() -> Result[dict[str, Any], ConfigurationError]:
     """Loads the main configuration file (config.toml)."""
     try:
         with Path(paths.CONFIG_FILE).open() as f:
-            config = toml.load(f)
+            config = cast("dict[str, Any]", toml.load(f))
 
         # Validate required keys
         if not config:
@@ -38,7 +38,7 @@ def load_config() -> Result[dict[str, Any], ConfigurationError]:
         if "reddit" not in config:
             return Err(ConfigurationError("Config missing 'reddit' key"))
 
-        return Ok(config)  # type: ignore[no-any-return]
+        return Ok(config)
     except FileNotFoundError:
         return Err(ConfigurationError(f"Config file not found: {paths.CONFIG_FILE}"))
     except toml.TomlDecodeError as e:

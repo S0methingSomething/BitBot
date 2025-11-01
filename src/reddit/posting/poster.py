@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 MAX_OUTBOUND_LINKS_ERROR = 8
 
 
-@deal.pre(lambda text: len(text) >= 0)  # type: ignore[misc]
-@deal.post(lambda result: result >= 0)  # type: ignore[misc]
+@deal.pre(lambda text: len(text) >= 0)
+@deal.post(lambda result: result >= 0)
 @beartype
 def count_outbound_links(text: str) -> int:
     """Count outbound links in text."""
@@ -23,10 +23,10 @@ def count_outbound_links(text: str) -> int:
     return len(set(url_pattern.findall(text)))
 
 
-@deal.pre(lambda _r, title, _p, _c: len(title) > 0)  # type: ignore[misc]
-@deal.pre(lambda _r, _t, post_body, _c: len(post_body) > 0)  # type: ignore[misc]
-@deal.pre(lambda _r, _t, _p, config: isinstance(config, dict))  # type: ignore[misc]
-@deal.post(lambda result: result is not None)  # type: ignore[misc]
+@deal.pre(lambda _r, title, _p, _c: len(title) > 0)
+@deal.pre(lambda _r, _t, post_body, _c: len(post_body) > 0)
+@deal.pre(lambda _r, _t, _p, config: isinstance(config, dict))
+@deal.post(lambda result: result is not None)
 @beartype
 def post_new_release(
     reddit: "praw.Reddit", title: str, post_body: str, config: dict[str, Any]

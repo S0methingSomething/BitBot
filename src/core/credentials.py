@@ -10,8 +10,8 @@ class Credentials:
     """Centralized credential management with type safety and error handling."""
 
     @staticmethod
-    @deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
-    @beartype  # type: ignore[misc]
+    @deal.post(lambda result: len(result) > 0)
+    @beartype
     def get_github_token() -> str:
         """Get GitHub token from environment."""
         token = os.getenv("GITHUB_TOKEN", "")
@@ -21,43 +21,43 @@ class Credentials:
         return token
 
     @staticmethod
-    @deal.post(lambda result: isinstance(result, str))  # type: ignore[misc]
-    @beartype  # type: ignore[misc]
+    @deal.post(lambda result: isinstance(result, str))
+    @beartype
     def get_github_output() -> str:
         """Get GitHub Actions output file path."""
         return os.getenv("GITHUB_OUTPUT", "")
 
     @staticmethod
-    @deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
-    @beartype  # type: ignore[misc]
+    @deal.post(lambda result: len(result) > 0)
+    @beartype
     def get_reddit_client_id() -> str:
         """Get Reddit client ID from environment."""
         return os.environ["REDDIT_CLIENT_ID"]
 
     @staticmethod
-    @deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
-    @beartype  # type: ignore[misc]
+    @deal.post(lambda result: len(result) > 0)
+    @beartype
     def get_reddit_client_secret() -> str:
         """Get Reddit client secret from environment."""
         return os.environ["REDDIT_CLIENT_SECRET"]
 
     @staticmethod
-    @deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
-    @beartype  # type: ignore[misc]
+    @deal.post(lambda result: len(result) > 0)
+    @beartype
     def get_reddit_user_agent() -> str:
         """Get Reddit user agent from environment."""
         return os.environ["REDDIT_USER_AGENT"]
 
     @staticmethod
-    @deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
-    @beartype  # type: ignore[misc]
+    @deal.post(lambda result: len(result) > 0)
+    @beartype
     def get_reddit_username() -> str:
         """Get Reddit username from environment."""
         return os.environ["REDDIT_USERNAME"]
 
     @staticmethod
-    @deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
-    @beartype  # type: ignore[misc]
+    @deal.post(lambda result: len(result) > 0)
+    @beartype
     def get_reddit_password() -> str:
         """Get Reddit password from environment."""
         return os.environ["REDDIT_PASSWORD"]

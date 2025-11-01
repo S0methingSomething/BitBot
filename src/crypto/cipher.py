@@ -7,10 +7,10 @@ from crypto.constants import B64_NET_BOOLEAN_FALSE, B64_NET_BOOLEAN_TRUE
 from crypto.encoding import b64_decode_and_xor, xor_and_b64_encode
 
 
-@deal.pre(lambda encrypted_content, obfuscated_key: len(encrypted_content) > 0)  # type: ignore[misc]
-@deal.pre(lambda encrypted_content, obfuscated_key: len(obfuscated_key) > 0)  # type: ignore[misc]
-@deal.post(lambda result: isinstance(result, dict))  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda encrypted_content, obfuscated_key: len(encrypted_content) > 0)
+@deal.pre(lambda encrypted_content, obfuscated_key: len(obfuscated_key) > 0)
+@deal.post(lambda result: isinstance(result, dict))
+@beartype
 def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, str | bool]:
     """Decrypts the content of the asset file into a Python dictionary."""
     item_map: dict[str, str | bool] = {}
@@ -33,10 +33,10 @@ def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, str | bool
     return item_map
 
 
-@deal.pre(lambda data_object, obfuscated_key: isinstance(data_object, dict))  # type: ignore[misc]
-@deal.pre(lambda data_object, obfuscated_key: len(obfuscated_key) > 0)  # type: ignore[misc]
-@deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda data_object, obfuscated_key: isinstance(data_object, dict))
+@deal.pre(lambda data_object, obfuscated_key: len(obfuscated_key) > 0)
+@deal.post(lambda result: len(result) > 0)
+@beartype
 def encrypt(data_object: dict[str, str | bool], obfuscated_key: str) -> str:
     """Re-encrypts the modified data object back into the file format."""
     output_lines = []

@@ -8,10 +8,10 @@ import praw.models
 from beartype import beartype
 
 
-@deal.pre(lambda post, config: post is not None)  # type: ignore[misc]
-@deal.pre(lambda post, config: isinstance(config, dict))  # type: ignore[misc]
-@deal.post(lambda result: isinstance(result, dict))  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda post, config: post is not None)
+@deal.pre(lambda post, config: isinstance(config, dict))
+@deal.post(lambda result: isinstance(result, dict))
+@beartype
 def parse_versions_from_post(
     post: praw.models.Submission, config: dict[str, Any]
 ) -> dict[str, str]:

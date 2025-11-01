@@ -7,10 +7,10 @@ import deal
 from beartype import beartype
 
 
-@deal.pre(lambda body, tag_name, title, config: body is not None)  # type: ignore[misc]
-@deal.pre(lambda body, tag_name, title, config: isinstance(config, dict))  # type: ignore[misc]
-@deal.post(lambda result: result is None or isinstance(result, dict))  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda body, tag_name, title, config: body is not None)
+@deal.pre(lambda body, tag_name, title, config: isinstance(config, dict))
+@deal.post(lambda result: result is None or isinstance(result, dict))
+@beartype
 def parse_release_notes(
     body: str, tag_name: str, title: str, config: dict[str, Any]
 ) -> dict[str, Any] | None:

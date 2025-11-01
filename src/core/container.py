@@ -49,12 +49,12 @@ class Container:
         """Initialize container."""
         self._services: dict[str, Any] = {}
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def register(self, name: str, service: Any) -> None:
         """Register a service."""
         self._services[name] = service
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def get(self, name: str) -> Any:
         """Get a service."""
         if name not in self._services:
@@ -62,7 +62,7 @@ class Container:
             raise KeyError(msg)
         return self._services[name]
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def has(self, name: str) -> bool:
         """Check if service is registered."""
         return name in self._services
@@ -72,7 +72,7 @@ class Container:
 _container: Container | None = None
 
 
-@beartype  # type: ignore[misc]
+@beartype
 def get_container() -> Container:
     """Get the global container instance."""
     global _container
@@ -81,7 +81,7 @@ def get_container() -> Container:
     return _container
 
 
-@beartype  # type: ignore[misc]
+@beartype
 def reset_container() -> None:
     """Reset the global container (for testing)."""
     global _container

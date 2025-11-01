@@ -10,7 +10,7 @@ from beartype import beartype
 _context_stack: threading.local = threading.local()
 
 
-@beartype  # type: ignore[misc]
+@beartype
 def get_error_context() -> dict[str, Any]:
     """Get current error context."""
     if not hasattr(_context_stack, "stack"):
@@ -23,7 +23,7 @@ def get_error_context() -> dict[str, Any]:
 
 
 @contextmanager
-@beartype  # type: ignore[misc]
+@beartype
 def error_context(**context: Any) -> Generator[None, None, None]:
     """Context manager for adding error context."""
     if not hasattr(_context_stack, "stack"):

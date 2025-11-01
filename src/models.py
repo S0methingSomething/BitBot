@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class GitHubConfig(BaseModel):  # type: ignore[misc]
+class GitHubConfig(BaseModel):
     """GitHub configuration."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -15,7 +15,7 @@ class GitHubConfig(BaseModel):  # type: ignore[misc]
     asset_file_name: str = Field(default="MonetizationVars.json", alias="assetFileName")
 
 
-class RedditTemplates(BaseModel):  # type: ignore[misc]
+class RedditTemplates(BaseModel):
     """Reddit template configuration."""
 
     direct_link: str | None = None
@@ -24,21 +24,21 @@ class RedditTemplates(BaseModel):  # type: ignore[misc]
     outdated_banner: str | None = None
 
 
-class RedditFormats(BaseModel):  # type: ignore[misc]
+class RedditFormats(BaseModel):
     """Reddit post format configuration."""
 
     titles: dict[str, str] = Field(default_factory=dict)
     changelog: dict[str, str] = Field(default_factory=dict)
 
 
-class RedditRollingConfig(BaseModel):  # type: ignore[misc]
+class RedditRollingConfig(BaseModel):
     """Rolling update mode configuration."""
 
     days_before_new_post: int = Field(default=7, alias="daysBeforeNewPost")
     update_existing: bool = Field(default=True, alias="updateExisting")
 
 
-class RedditConfig(BaseModel):  # type: ignore[misc]
+class RedditConfig(BaseModel):
     """Reddit configuration."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -51,7 +51,7 @@ class RedditConfig(BaseModel):  # type: ignore[misc]
     formats: RedditFormats = Field(default_factory=RedditFormats)
 
 
-class AppConfig(BaseModel):  # type: ignore[misc]
+class AppConfig(BaseModel):
     """Individual app configuration."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -61,7 +61,7 @@ class AppConfig(BaseModel):  # type: ignore[misc]
     asset_name: str | None = Field(default=None, alias="assetName")
 
 
-class Config(BaseModel):  # type: ignore[misc]
+class Config(BaseModel):
     """Main BitBot configuration."""
 
     github: GitHubConfig
@@ -72,7 +72,7 @@ class Config(BaseModel):  # type: ignore[misc]
     parsing: dict[str, Any] = Field(default_factory=dict)
 
 
-class BotState(BaseModel):  # type: ignore[misc]
+class BotState(BaseModel):
     """Bot state structure."""
 
     model_config = ConfigDict(populate_by_name=True)

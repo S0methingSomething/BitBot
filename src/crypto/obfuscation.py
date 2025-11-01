@@ -6,9 +6,9 @@ from beartype import beartype
 from crypto.constants import OBF_CHAR_MAP
 
 
-@deal.pre(lambda key: len(key) > 0)  # type: ignore[misc]
-@deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda key: len(key) > 0)
+@deal.post(lambda result: len(result) > 0)
+@beartype
 def get_obfuscated_key(key: str) -> str:
     """Applies a simple character substitution obfuscation to the cipher key."""
     o_key = ""

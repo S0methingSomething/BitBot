@@ -26,8 +26,8 @@ class LogLevel(Enum):
 class ErrorLogger:
     """Structured error logger."""
 
-    @beartype  # type: ignore[misc]
-    @beartype  # type: ignore[misc]
+    @beartype
+    @beartype
     def __init__(
         self,
         console: Console | None = None,
@@ -37,7 +37,7 @@ class ErrorLogger:
         self.console = console or Console()
         self.log_file = log_file
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def log_error(
         self,
         error: BitBotError,
@@ -65,8 +65,8 @@ class ErrorLogger:
             with self.log_file.open("a") as f:
                 f.write(json.dumps(error_dict) + "\n")
 
-    @deal.post(lambda result: len(result) > 0, message="Color string must be non-empty")  # type: ignore[misc]
-    @beartype  # type: ignore[misc]
+    @deal.post(lambda result: len(result) > 0, message="Color string must be non-empty")
+    @beartype
     def _get_color(self, level: LogLevel) -> str:
         """Get color for log level."""
         colors = {
@@ -83,7 +83,7 @@ class ErrorLogger:
 _logger: ErrorLogger | None = None
 
 
-@beartype  # type: ignore[misc]
+@beartype
 def get_logger(
     console: Console | None = None,
     log_file: Path | None = None,

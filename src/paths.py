@@ -22,9 +22,9 @@ TEMPLATES_DIR: str = str(Path(ROOT_DIR) / "templates")
 DEFAULT_LANDING_PAGE: str = str(Path(TEMPLATES_DIR) / "default_landing_page.html")
 
 
-@deal.pre(lambda template_name: len(template_name) > 0)  # type: ignore[misc]
-@deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda template_name: len(template_name) > 0)
+@deal.post(lambda result: len(result) > 0)
+@beartype
 def get_template_path(template_name: str) -> str:
     """Return the absolute path for a given template name.
 

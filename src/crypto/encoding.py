@@ -6,9 +6,9 @@ import deal
 from beartype import beartype
 
 
-@deal.pre(lambda text, key: len(key) > 0)  # type: ignore[misc]
-@deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda text, key: len(key) > 0)
+@deal.post(lambda result: len(result) > 0)
+@beartype
 def xor_and_b64_encode(text: str, key: str) -> str:
     """Performs an XOR operation and then Base64 encodes the result."""
     key_bytes = key.encode("latin-1")
@@ -17,10 +17,10 @@ def xor_and_b64_encode(text: str, key: str) -> str:
     return base64.b64encode(xor_result).decode("utf-8")
 
 
-@deal.pre(lambda b64, key: len(b64) > 0)  # type: ignore[misc]
-@deal.pre(lambda b64, key: len(key) > 0)  # type: ignore[misc]
-@deal.post(lambda result: len(result) >= 0)  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda b64, key: len(b64) > 0)
+@deal.pre(lambda b64, key: len(key) > 0)
+@deal.post(lambda result: len(result) >= 0)
+@beartype
 def b64_decode_and_xor(b64: str, key: str) -> str:
     """Decodes a Base64 string and then performs an XOR operation."""
     key_bytes = key.encode("latin-1")

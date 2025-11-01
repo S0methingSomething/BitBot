@@ -6,9 +6,9 @@ import deal
 from beartype import beartype
 
 
-@deal.pre(lambda description, apps_config: isinstance(apps_config, list))  # type: ignore[misc]
-@deal.post(lambda result: isinstance(result, list))  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda description, apps_config: isinstance(apps_config, list))
+@deal.post(lambda result: isinstance(result, list))
+@beartype
 def parse_release_description(
     description: str, apps_config: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:

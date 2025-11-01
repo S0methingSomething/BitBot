@@ -11,9 +11,9 @@ from gh.releases.fetcher import run_command
 DOWNLOAD_DIR = paths.DIST_DIR
 
 
-@deal.pre(lambda original_path, _a: len(original_path) > 0)  # type: ignore[misc]
-@deal.pre(lambda _o, asset_name: len(asset_name) > 0)  # type: ignore[misc]
-@deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
+@deal.pre(lambda original_path, _a: len(original_path) > 0)
+@deal.pre(lambda _o, asset_name: len(asset_name) > 0)
+@deal.post(lambda result: len(result) > 0)
 @beartype
 def patch_file(original_path: str, asset_name: str) -> str:
     """Patches the downloaded file using the Python script."""

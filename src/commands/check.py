@@ -19,7 +19,7 @@ console = Console()
 logger = get_logger(console=console)
 
 
-@beartype  # type: ignore[misc]
+@beartype
 @app.command()
 def run() -> None:
     """Check Reddit comments for feedback."""

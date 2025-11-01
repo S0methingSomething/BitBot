@@ -13,8 +13,8 @@ from core.result import Err, Ok, Result
 from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 
 
-@deal.pre(lambda _config: _config is None or isinstance(_config, dict))  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda _config: _config is None or isinstance(_config, dict))
+@beartype
 @retry(
     retry=retry_if_result(should_retry_api_error),
     stop=stop_after_attempt(3),

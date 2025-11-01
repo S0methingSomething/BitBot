@@ -15,7 +15,7 @@ app = typer.Typer()
 console = Console()
 
 
-@beartype  # type: ignore[misc]
+@beartype
 @app.command()
 def run(
     input_file: Path = typer.Argument(..., help="Input file to patch"),

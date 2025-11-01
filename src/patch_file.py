@@ -13,7 +13,7 @@ from crypto.modifier import modify
 from crypto.obfuscation import get_obfuscated_key
 
 
-@beartype  # type: ignore[misc]
+@beartype
 def process_file(input_path: Path, output_path: Path) -> Result[None, str]:
     """Process file with encryption/decryption."""
     if not input_path.exists():
@@ -40,8 +40,8 @@ def process_file(input_path: Path, output_path: Path) -> Result[None, str]:
     return Ok(None)
 
 
-@deal.post(lambda result: result is None)  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.post(lambda result: result is None)
+@beartype
 def main() -> None:
     """Main function to orchestrate the file processing."""
     if len(sys.argv) != 3:

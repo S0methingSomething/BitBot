@@ -10,15 +10,15 @@ from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 from gh.releases.fetcher import run_command
 
 
-@deal.pre(  # type: ignore[misc]
+@deal.pre(
     lambda bot_repo, tag, title, notes, file_path: len(tag) > 0,
     message="Tag cannot be empty",
 )
 @deal.pre(
     lambda bot_repo, tag, title, notes, file_path: len(file_path) > 0,
     message="File path cannot be empty",
-)  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+)
+@beartype
 @retry(
     retry=retry_if_result(should_retry_api_error),
     stop=stop_after_attempt(3),

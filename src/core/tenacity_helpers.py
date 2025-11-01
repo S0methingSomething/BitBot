@@ -11,8 +11,8 @@ from core.errors import BitBotError, GitHubAPIError, RedditAPIError
 from core.result import Err, Result
 
 
-@deal.pre(lambda result: result is not None, message="Result cannot be None")  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda result: result is not None, message="Result cannot be None")
+@beartype
 def should_retry_api_error(result: Any) -> bool:
     """Check if Result contains retryable API error."""
     if not isinstance(result, Result):
@@ -25,7 +25,7 @@ def should_retry_api_error(result: Any) -> bool:
     return isinstance(result.error, GitHubAPIError | RedditAPIError)
 
 
-@beartype  # type: ignore[misc]
+@beartype
 def log_retry_attempt(retry_state: RetryCallState) -> None:
     """Log retry attempts with context."""
     logger = get_logger()

@@ -16,9 +16,9 @@ from core.result import Err, Ok, Result
 from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 
 
-@deal.pre(lambda reddit, config: reddit is not None)  # type: ignore[misc]
-@deal.pre(lambda reddit, config: isinstance(config, dict))  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+@deal.pre(lambda reddit, config: reddit is not None)
+@deal.pre(lambda reddit, config: isinstance(config, dict))
+@beartype
 @retry(
     retry=retry_if_result(should_retry_api_error),
     stop=stop_after_attempt(3),
@@ -47,12 +47,12 @@ def get_bot_posts(
         return Err(RedditAPIError(f"Failed to fetch bot posts: {e}"))
 
 
-@deal.pre(lambda older_posts, latest_release_details, config: isinstance(older_posts, list))  # type: ignore[misc]
+@deal.pre(lambda older_posts, latest_release_details, config: isinstance(older_posts, list))
 @deal.pre(
     lambda older_posts, latest_release_details, config: isinstance(latest_release_details, dict)
-)  # type: ignore[misc]
-@deal.pre(lambda older_posts, latest_release_details, config: isinstance(config, dict))  # type: ignore[misc]
-@beartype  # type: ignore[misc]
+)
+@deal.pre(lambda older_posts, latest_release_details, config: isinstance(config, dict))
+@beartype
 @retry(
     retry=retry_if_result(should_retry_api_error),
     stop=stop_after_attempt(3),

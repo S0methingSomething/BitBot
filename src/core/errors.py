@@ -9,7 +9,7 @@ from beartype import beartype
 class BitBotError(Exception):
     """Base error for all BitBot errors."""
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def __init__(self, message: str, context: dict[str, Any] | None = None) -> None:
         """Initialize error with message and optional context."""
         super().__init__(message)
@@ -17,7 +17,7 @@ class BitBotError(Exception):
         self.context = context or {}
         self.timestamp = datetime.now()
 
-    @beartype  # type: ignore[misc]
+    @beartype
     def to_dict(self) -> dict[str, Any]:
         """Convert error to dict for serialization."""
         return {
