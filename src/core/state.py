@@ -8,19 +8,22 @@ import deal
 from beartype import beartype
 
 import paths
+from core.errors import StateError
+from core.result import Err, Ok, Result
 
 
-@deal.post(lambda result: isinstance(result, dict))  # type: ignore[misc]
-@deal.post(lambda result: "online" in result)  # type: ignore[misc]
-@deal.post(lambda result: "offline" in result)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
-def load_bot_state() -> dict[str, Any]:
+def load_bot_state() -> Result[dict[str, Any], StateError]:
     """Loads the bot's monitoring state from JSON."""
     try:
         with Path(paths.BOT_STATE_FILE).open() as f:
             state = cast("dict[str, Any]", json.load(f))
-    except (FileNotFoundError, json.JSONDecodeError):
+    except FileNotFoundError:
         state = {}
+    except json.JSONDecodeError as e:
+        return Err(StateError(f"Invalid JSON in bot state file: {e}"))
+    except Exception as e:
+        return Err(StateError(f"Failed to load bot state: {e}"))
 
     # Ensure nested structure
     if "online" not in state:
@@ -32,33 +35,46 @@ def load_bot_state() -> dict[str, Any]:
     if "last_generated_versions" not in state["offline"]:
         state["offline"]["last_generated_versions"] = {}
 
-    return state
+    return Ok(state)
 
 
 @deal.pre(lambda data: isinstance(data, dict))  # type: ignore[misc]
 @deal.pre(lambda data: "online" in data or "offline" in data)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
-def save_bot_state(data: dict[str, Any]) -> None:
+def save_bot_state(data: dict[str, Any]) -> Result[None, StateError]:
     """Saves the bot's monitoring state."""
-    with Path(paths.BOT_STATE_FILE).open("w") as f:
-        json.dump(data, f, indent=2)
+    try:
+        with Path(paths.BOT_STATE_FILE).open("w") as f:
+            json.dump(data, f, indent=2)
+        return Ok(None)
+    except Exception as e:
+        return Err(StateError(f"Failed to save bot state: {e}"))
 
 
-@deal.post(lambda result: isinstance(result, list))  # type: ignore[misc]
-@deal.post(lambda result: all(isinstance(x, int) for x in result))  # type: ignore[misc]
 @beartype  # type: ignore[misc]
-def load_release_state() -> list[int]:
+def load_release_state() -> Result[list[int], StateError]:
     """Loads the list of processed source release IDs."""
     try:
         with Path(paths.RELEASE_STATE_FILE).open() as f:
-            return cast("list[int]", json.load(f))
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
+            data = json.load(f)
+            if not isinstance(data, list) or not all(isinstance(x, int) for x in data):
+                return Err(StateError("Release state must be a list of integers"))
+            return Ok(cast("list[int]", data))
+    except FileNotFoundError:
+        return Ok([])
+    except json.JSONDecodeError as e:
+        return Err(StateError(f"Invalid JSON in release state file: {e}"))
+    except Exception as e:
+        return Err(StateError(f"Failed to load release state: {e}"))
 
 
 @deal.pre(lambda data: isinstance(data, list))  # type: ignore[misc]
 @beartype  # type: ignore[misc]
-def save_release_state(data: list[int]) -> None:
+def save_release_state(data: list[int]) -> Result[None, StateError]:
     """Saves the list of processed source release IDs."""
-    with Path(paths.RELEASE_STATE_FILE).open("w") as f:
-        json.dump(data, f, indent=2)
+    try:
+        with Path(paths.RELEASE_STATE_FILE).open("w") as f:
+            json.dump(data, f, indent=2)
+        return Ok(None)
+    except Exception as e:
+        return Err(StateError(f"Failed to save release state: {e}"))

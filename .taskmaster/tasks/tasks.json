@@ -183,7 +183,7 @@
             "id": 6,
             "title": "Add Error Handling to Reddit Client",
             "description": "Refactor reddit/client.py and reddit/posts.py with error handling, retry logic, and Result types",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               "12.1",
               "12.2",
@@ -196,7 +196,7 @@
             "id": 7,
             "title": "Add Error Handling to GitHub Operations",
             "description": "Refactor gh/releases/ modules with error handling, retry logic, and Result types",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               "12.1",
               "12.2",
@@ -209,7 +209,7 @@
             "id": 8,
             "title": "Add Error Handling to File Operations",
             "description": "Add error handling to file operations in patch_file.py, core/config.py, core/state.py",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               "12.1",
               "12.4",
@@ -272,7 +272,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-01T02:06:35.481Z",
+      "updated": "2025-11-01T02:10:47.301Z",
       "description": "Tasks for master context"
     }
   }
