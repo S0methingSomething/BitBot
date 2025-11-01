@@ -50,6 +50,9 @@ ignore = [
     "BLE001",  # CLI boundary catches all exceptions
     "TRY301",  # NotImplementedError placeholders
     "B008",    # Typer argument defaults
+    "PLR0915", # CLI commands can have many statements
+    "C901",    # CLI commands can be complex
+    "PLR0912", # CLI commands can have many branches
 ]
 "src/core/config.py" = ["PLR0911", "BLE001"]  # Multiple validation returns, file I/O
 "src/core/errors.py" = ["DTZ005"]  # Timestamp without timezone is intentional
