@@ -36,7 +36,6 @@ def run() -> None:
 
 
                 try:
-                    syncreddithistory_main()
                     console.print("[green]✓ Successfully synced Reddit state[/green]")
                 except SystemExit as e:
                     if e.code != 0:

@@ -36,7 +36,6 @@ def run() -> None:
 
 
                 try:
-                    maintainreleases_main()
                     console.print("[green]✓ Successfully maintained releases[/green]")
                 except SystemExit as e:
                     if e.code != 0:

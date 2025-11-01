@@ -32,15 +32,7 @@ def run() -> None:
             ) as progress:
                 progress.add_task(description="Checking comments...", total=None)
                 raise NotImplementedError("Legacy script moved - needs refactoring")
-
-
-                result = check_main()
-                if result.is_err():
-                    logger.log_error(result.error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {result.error.message}")
-                    raise typer.Exit(code=1)
-
-                console.print("[green]✓ Successfully checked comments[/green]")
+                
 
         except BitBotError as e:
             logger.log_error(e, LogLevel.ERROR)

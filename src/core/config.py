@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Any
 
-import toml
+import toml  # type: ignore[import-untyped]
 from beartype import BeartypeConf, BeartypeStrategy, beartype
 
 import paths

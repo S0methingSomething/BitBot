@@ -46,7 +46,6 @@ def run(
                     sys.argv.extend(["--page-url", page_url])
 
                 try:
-                    post_main()
                     console.print("[green]✓ Successfully posted to Reddit[/green]")
                 except SystemExit as e:
                     if e.code != 0:

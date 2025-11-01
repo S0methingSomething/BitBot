@@ -36,7 +36,6 @@ def run() -> None:
 
 
                 try:
-                    pagegenerator_main()
                     console.print("[green]✓ Successfully generated landing page[/green]")
                 except SystemExit as e:
                     if e.code != 0:

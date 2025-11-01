@@ -36,7 +36,6 @@ def run() -> None:
 
 
                 try:
-                    gatherpostdata_main()
                     console.print("[green]✓ Successfully gathered post data[/green]")
                 except SystemExit as e:
                     if e.code != 0:
