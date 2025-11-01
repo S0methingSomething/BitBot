@@ -75,3 +75,26 @@ class ErrorLogger:
             LogLevel.CRITICAL: "bold red",
         }
         return colors[level]
+
+
+# Global logger instance
+_logger: ErrorLogger | None = None
+
+
+@beartype  # type: ignore[misc]
+def get_logger(
+    console: Console | None = None,
+    log_file: Path | None = None,
+) -> ErrorLogger:
+    """Get or create the global logger instance."""
+    global _logger
+    if _logger is None:
+        default_log_file = Path(".taskmaster/logs/bitbot.log") if log_file is None else log_file
+        _logger = ErrorLogger(console=console, log_file=default_log_file)
+    return _logger
+
+
+def reset_logger() -> None:
+    """Reset the global logger (for testing)."""
+    global _logger
+    _logger = None

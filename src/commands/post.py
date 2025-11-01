@@ -12,12 +12,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.error_context import error_context
-from core.error_logger import ErrorLogger, LogLevel
+from core.error_logger import LogLevel, get_logger
 from core.errors import BitBotError
 
 app = typer.Typer()
 console = Console()
-logger = ErrorLogger(console=console)
+logger = get_logger(console=console)
 
 
 @beartype  # type: ignore[misc]
