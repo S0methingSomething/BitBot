@@ -32,8 +32,8 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Gathering post data...", total=None)
+                raise NotImplementedError("Legacy script moved - needs refactoring")
 
-                # LEGACY: from gather_post_data import main as gatherpostdata_main
 
                 try:
                     gatherpostdata_main()

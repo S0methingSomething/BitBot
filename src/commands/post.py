@@ -35,9 +35,9 @@ def run(
                 console=console,
             ) as progress:
                 progress.add_task(description="Posting to Reddit...", total=None)
+                raise NotImplementedError("Legacy script moved - needs refactoring")
 
                 # Import here to avoid circular imports
-                # LEGACY: from post_to_reddit import main as post_main
 
                 # Temporarily override sys.argv for the old script
                 old_argv = sys.argv

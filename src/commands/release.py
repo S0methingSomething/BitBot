@@ -32,8 +32,8 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Managing releases...", total=None)
+                raise NotImplementedError("Legacy script moved - needs refactoring")
 
-                # LEGACY: from release_manager import main as release_main
 
                 try:
                     release_main()

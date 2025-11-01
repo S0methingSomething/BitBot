@@ -31,8 +31,8 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Checking comments...", total=None)
+                raise NotImplementedError("Legacy script moved - needs refactoring")
 
-                # LEGACY: from check_comments import main as check_main
 
                 result = check_main()
                 if result.is_err():

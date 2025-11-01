@@ -32,8 +32,8 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Syncing Reddit state...", total=None)
+                raise NotImplementedError("Legacy script moved - needs refactoring")
 
-                # LEGACY: from sync_reddit_history import main as syncreddithistory_main
 
                 try:
                     syncreddithistory_main()

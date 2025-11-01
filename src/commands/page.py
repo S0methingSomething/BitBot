@@ -32,8 +32,8 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Generating landing page...", total=None)
+                raise NotImplementedError("Legacy script moved - needs refactoring")
 
-                # LEGACY: from page_generator import main as pagegenerator_main
 
                 try:
                     pagegenerator_main()
