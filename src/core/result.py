@@ -33,6 +33,16 @@ class Ok(Generic[T]):
     def unwrap_or(self, default: T) -> T:
         """Get value or default."""
         return self.value
+    
+    @beartype  # type: ignore[misc]
+    def map(self, func: callable) -> "Ok":  # type: ignore[misc]
+        """Transform Ok value."""
+        return Ok(func(self.value))
+    
+    @beartype  # type: ignore[misc]
+    def and_then(self, func: callable) -> "Result":  # type: ignore[misc]
+        """Chain Result-returning operations."""
+        return func(self.value)
 
 
 @dataclass
@@ -59,6 +69,21 @@ class Err(Generic[E]):
     def unwrap_or(self, default: E) -> E:
         """Get default value."""
         return default
+    
+    @beartype  # type: ignore[misc]
+    def map(self, func: callable) -> "Err":  # type: ignore[misc]
+        """Transform does nothing on Err."""
+        return self
+    
+    @beartype  # type: ignore[misc]
+    def and_then(self, func: callable) -> "Err":  # type: ignore[misc]
+        """Chain does nothing on Err."""
+        return self
+    
+    @beartype  # type: ignore[misc]
+    def map_err(self, func: callable) -> "Err":  # type: ignore[misc]
+        """Transform error value."""
+        return Err(func(self.error))
 
 
 # Type alias for Result

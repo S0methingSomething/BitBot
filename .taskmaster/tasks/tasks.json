@@ -123,15 +123,129 @@
       {
         "id": 12,
         "title": "Add Error Handling Framework",
-        "description": "Implement proper error handling framework to replace sys.exit() and silent exception handling with structured error management.",
-        "details": "Current issues:\n- 21 sys.exit() calls (not testable, no context)\n- 6 silent exception handlers (except: pass)\n- No structured logging\n- Mix of print statements and exits\n- No error recovery strategy\n\nImplementation:\n1. Create custom exception hierarchy\n2. Add structured logging (loguru or structlog)\n3. Replace sys.exit() with exceptions\n4. Add error context and recovery\n5. Implement retry logic for external APIs\n6. Add error reporting/monitoring hooks\n\nError types needed:\n- ConfigError\n- StateError\n- RedditAPIError\n- GitHubAPIError\n- ValidationError (already have from Pydantic)\n\nDependencies: Task #11 (DI) must be done first\n\nBenefits:\n- Testable error paths\n- Better debugging\n- Graceful degradation\n- Error monitoring",
+        "description": "Implement comprehensive error handling framework with typed errors, retry logic, structured logging, and Result type integration. Build on existing Result type and DI infrastructure.",
+        "details": "CURRENT STATE:\n- Result type exists (core/result.py) with Ok/Err pattern\n- DI container exists (core/container.py) with service protocols\n- CLI with Rich tracebacks (src/cli.py)\n- Partial Result usage in patch_file.py\n- CLI commands wrap exceptions and convert to typer.Exit\n\nWHAT'S MISSING:\n- Error type hierarchy (TransientError, PermanentError, etc.)\n- Retry mechanism with exponential backoff\n- Centralized error logger with structured logging\n- Error context propagation (thread-local context stack)\n- Integration with Reddit/GitHub clients\n- Integration with all 8 CLI commands\n- Error recovery strategies\n- Comprehensive tests\n\nTECHNICAL DESIGN:\n- Error hierarchy: BitBotError base with TransientError, PermanentError, ConfigurationError, StateError, ExternalAPIError\n- Retry decorator: @retry(max_attempts=3, backoff=exponential, on=[TransientError])\n- Error context: with error_context(operation=\"post_to_reddit\", release_id=123)\n- Integration with Result: functions return Result[T, BitBotError]\n- CLI layer converts Result to exit codes and Rich output\n- Complements existing @beartype + @deal validation\n\nESTIMATED COMPLEXITY: ~920 LOC across 10 subtasks\n\nBenefits:\n- Testable error paths\n- Better debugging with context\n- Graceful degradation\n- Retry logic for transient failures\n- Structured error logging",
         "testStrategy": "",
         "status": "pending",
-        "dependencies": [
-          11
-        ],
+        "dependencies": [],
         "priority": "high",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Error Type Hierarchy",
+            "description": "Create core/errors.py with BitBotError base class and specialized error types: TransientError, PermanentError, ConfigurationError, StateError, ExternalAPIError (RedditAPIError, GitHubAPIError)",
+            "status": "done",
+            "dependencies": [],
+            "details": "Implement error hierarchy:\n- BitBotError(Exception): Base class with message, context dict\n- TransientError(BitBotError): Retry-able errors (network, rate limits)\n- PermanentError(BitBotError): Not retry-able (404, validation)\n- ConfigurationError(BitBotError): Config/setup issues\n- StateError(BitBotError): State corruption/inconsistency\n- ExternalAPIError(BitBotError): Base for API errors\n  - RedditAPIError(ExternalAPIError): Reddit-specific\n  - GitHubAPIError(ExternalAPIError): GitHub-specific\n\nEach error should:\n- Accept message and optional context dict\n- Support error chaining (from original exception)\n- Be serializable for logging\n- Include timestamp\n\n~50 LOC, fully typed with @beartype"
+          },
+          {
+            "id": 2,
+            "title": "Implement Retry Decorator",
+            "description": "Create core/retry.py with @retry decorator supporting exponential backoff, max attempts, and error type filtering",
+            "status": "done",
+            "dependencies": [
+              "12.1"
+            ],
+            "details": "Implement retry mechanism:\n- @retry(max_attempts=3, backoff='exponential', on=[TransientError])\n- Exponential backoff: 1s, 2s, 4s, 8s...\n- Linear backoff option: 1s, 2s, 3s...\n- Configurable base delay and max delay\n- Only retry specified error types\n- Log each retry attempt with context\n- Raise last exception if all attempts fail\n\nUsage:\n@retry(max_attempts=3, on=[RedditAPIError])\ndef post_to_reddit(): ...\n\n~80 LOC with @beartype validation"
+          },
+          {
+            "id": 3,
+            "title": "Create Error Context Manager",
+            "description": "Create core/error_context.py with thread-local context stack for error propagation",
+            "status": "done",
+            "dependencies": [
+              "12.1"
+            ],
+            "details": "Implement error context:\n- Thread-local context stack\n- with error_context(operation='post', release_id=123): ...\n- Automatically adds context to raised BitBotErrors\n- get_error_context() returns current context dict\n- Nested contexts merge (inner overrides outer)\n\nUsage:\nwith error_context(operation='post_to_reddit', release_id=123):\n    # errors here include context\n    post_release()\n\n~40 LOC with thread-local storage"
+          },
+          {
+            "id": 4,
+            "title": "Implement Structured Error Logger",
+            "description": "Create core/error_logger.py with Rich integration for structured error logging",
+            "status": "done",
+            "dependencies": [
+              "12.1",
+              "12.3"
+            ],
+            "details": "Implement error logger:\n- ErrorLogger class with log_error(error, context)\n- Structured logging with timestamp, error type, message, stack trace, context\n- Rich console output with colors and formatting\n- Optional JSON file output for CI/monitoring\n- Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL\n- Integration with error_context for automatic context\n\nOutput formats:\n- Console: Rich formatted with colors\n- File: JSON lines for parsing\n\n~100 LOC with Rich integration"
+          },
+          {
+            "id": 5,
+            "title": "Enhance Result Type",
+            "description": "Enhance core/result.py to work seamlessly with error type hierarchy",
+            "status": "done",
+            "dependencies": [
+              "12.1"
+            ],
+            "details": "Add to Result type:\n- map() method for transforming Ok values\n- map_err() method for transforming Err values\n- and_then() for chaining Result-returning operations\n- unwrap_or_else() for lazy default computation\n- expect() for custom panic messages\n- Type alias: Result[T, E] where E extends BitBotError\n\nExample:\nresult = fetch_release(url)\n    .map(lambda r: r.version)\n    .unwrap_or('unknown')\n\n~30 LOC additions to existing file"
+          },
+          {
+            "id": 6,
+            "title": "Add Error Handling to Reddit Client",
+            "description": "Refactor reddit/client.py and reddit/posts.py with error handling, retry logic, and Result types",
+            "status": "pending",
+            "dependencies": [
+              "12.1",
+              "12.2",
+              "12.4",
+              "12.5"
+            ],
+            "details": "Refactor Reddit operations:\n- Wrap PRAW calls in try/except\n- Convert exceptions to RedditAPIError\n- Use @retry for transient failures (429, 503)\n- Return Result[T, RedditAPIError] instead of raising\n- Add error logging with context\n- Handle rate limits gracefully\n\nFunctions to update:\n- init_reddit() → Result[Reddit, RedditAPIError]\n- get_bot_posts() → Result[list[Post], RedditAPIError]\n- update_older_posts() → Result[None, RedditAPIError]\n\n~100 LOC changes"
+          },
+          {
+            "id": 7,
+            "title": "Add Error Handling to GitHub Operations",
+            "description": "Refactor gh/releases/ modules with error handling, retry logic, and Result types",
+            "status": "pending",
+            "dependencies": [
+              "12.1",
+              "12.2",
+              "12.4",
+              "12.5"
+            ],
+            "details": "Refactor GitHub operations:\n- Wrap requests calls in try/except\n- Convert exceptions to GitHubAPIError\n- Use @retry for transient failures (rate limits, network)\n- Return Result[T, GitHubAPIError] instead of raising\n- Add error logging with context\n- Handle 404, 403, 429 specifically\n\nFunctions to update:\n- get_github_data() → Result[dict, GitHubAPIError]\n- get_source_releases() → Result[list, GitHubAPIError]\n- download_asset() → Result[Path, GitHubAPIError]\n- create_bot_release() → Result[None, GitHubAPIError]\n\n~120 LOC changes"
+          },
+          {
+            "id": 8,
+            "title": "Add Error Handling to File Operations",
+            "description": "Add error handling to file operations in patch_file.py, core/config.py, core/state.py",
+            "status": "pending",
+            "dependencies": [
+              "12.1",
+              "12.4",
+              "12.5"
+            ],
+            "details": "Refactor file operations:\n- Wrap file I/O in try/except\n- Convert to ConfigurationError, StateError as appropriate\n- Return Result types (already done for patch_file.py)\n- Add error logging\n- Handle FileNotFoundError, PermissionError, JSONDecodeError\n\nFunctions to update:\n- load_config() → Result[dict, ConfigurationError]\n- load_bot_state() → Result[dict, StateError]\n- save_bot_state() → Result[None, StateError]\n- load_release_state() → Result[list[int], StateError]\n- save_release_state() → Result[None, StateError]\n\n~80 LOC changes"
+          },
+          {
+            "id": 9,
+            "title": "Update CLI Commands with Error Framework",
+            "description": "Update all 8 CLI commands to use error framework, Result types, and Rich error display",
+            "status": "pending",
+            "dependencies": [
+              "12.4",
+              "12.5",
+              "12.6",
+              "12.7",
+              "12.8"
+            ],
+            "details": "Update CLI commands:\n- Use error_context for operation tracking\n- Handle Result types from business logic\n- Display errors with Rich formatting\n- Convert errors to appropriate exit codes\n- Log errors with ErrorLogger\n- Show user-friendly error messages\n\nCommands to update:\n- post.py\n- check.py\n- release.py\n- sync.py\n- patch.py (already uses Result)\n- page.py\n- gather.py\n- maintain.py\n\nPattern:\nwith error_context(operation='post'):\n    result = post_to_reddit()\n    if result.is_err():\n        logger.log_error(result.error)\n        console.print(f'[red]Error: {result.error.message}[/red]')\n        raise typer.Exit(1)\n\n~150 LOC changes"
+          },
+          {
+            "id": 10,
+            "title": "Add Error Handling Tests",
+            "description": "Add comprehensive tests for error handling framework: error types, retry logic, context propagation, logging, Result integration",
+            "status": "pending",
+            "dependencies": [
+              "12.1",
+              "12.2",
+              "12.3",
+              "12.4",
+              "12.5"
+            ],
+            "details": "Test coverage:\n- Error type hierarchy (instantiation, serialization, chaining)\n- Retry decorator (success after retry, max attempts, backoff timing)\n- Error context (nesting, propagation, thread safety)\n- Error logger (output formats, log levels, Rich integration)\n- Result type enhancements (map, and_then, unwrap_or_else)\n- Integration tests (end-to-end error flows)\n\nTest files:\n- tests/core/test_errors.py\n- tests/core/test_retry.py\n- tests/core/test_error_context.py\n- tests/core/test_error_logger.py\n- tests/core/test_result.py\n- tests/integration/test_error_handling.py\n\n~300 LOC tests with pytest"
+          }
+        ]
       },
       {
         "id": 13,
@@ -150,7 +264,7 @@
         "description": "Create unified CLI using Typer + Rich to replace 8 separate script files with a single professional command-line interface. Implements DI and error handling naturally.",
         "details": "Current state:\n- 8 separate scripts: check_comments.py, post_to_reddit.py, release_manager.py, sync_reddit_history.py, patch_file.py, page_generator.py, gather_post_data.py, maintain_releases.py\n- Each has own main() with sys.exit()\n- No unified interface\n- Poor error messages\n\nProposed CLI:\n```\nbitbot post [--page-url URL]           # Post to Reddit\nbitbot check-comments                   # Check Reddit comments  \nbitbot release                          # Manage GitHub releases\nbitbot sync                             # Sync Reddit state\nbitbot patch <input> <output>          # Patch files\nbitbot page                             # Generate landing page\nbitbot gather                           # Gather post data\nbitbot maintain                         # Maintain releases\n```\n\nImplementation:\n1. Add typer + rich to pyproject.toml\n2. Create src/cli.py as main entry point\n3. Create src/commands/ directory:\n   - post.py\n   - check.py\n   - release.py\n   - sync.py\n   - patch.py\n   - page.py\n   - gather.py\n   - maintain.py\n4. Initialize DI container in CLI\n5. Use Rich for:\n   - Progress bars\n   - Colored output\n   - Tables\n   - Error formatting\n6. Centralized error handling\n7. Update pyproject.toml with entry point\n\nBenefits:\n- Single entry point\n- Professional UX\n- Natural DI injection\n- Centralized error handling\n- Better for CI/CD\n- Solves Task #11 and #12 together\n\nDependencies: Replaces Task #11 and #12",
         "testStrategy": "",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": []
@@ -158,7 +272,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-01T01:49:12.578Z",
+      "updated": "2025-11-01T02:06:35.481Z",
       "description": "Tasks for master context"
     }
   }

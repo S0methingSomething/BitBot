@@ -1,0 +1,35 @@
+"""Error context manager for propagating context through call stack."""
+
+import threading
+from contextlib import contextmanager
+from typing import Any, Generator
+
+from beartype import beartype
+
+_context_stack: threading.local = threading.local()
+
+
+@beartype  # type: ignore[misc]
+def get_error_context() -> dict[str, Any]:
+    """Get current error context."""
+    if not hasattr(_context_stack, "stack"):
+        _context_stack.stack = []
+    
+    merged: dict[str, Any] = {}
+    for ctx in _context_stack.stack:
+        merged.update(ctx)
+    return merged
+
+
+@contextmanager
+@beartype  # type: ignore[misc]
+def error_context(**context: Any) -> Generator[None, None, None]:
+    """Context manager for adding error context."""
+    if not hasattr(_context_stack, "stack"):
+        _context_stack.stack = []
+    
+    _context_stack.stack.append(context)
+    try:
+        yield
+    finally:
+        _context_stack.stack.pop()
