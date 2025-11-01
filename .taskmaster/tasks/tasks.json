@@ -275,7 +275,7 @@
         "description": "Refactor all 8 main scripts to fully use Result types instead of sys.exit() and exceptions. Remove hybrid CLI wrapper pattern and make scripts return Result types directly.",
         "details": "Current state:\n- CLI commands wrap old scripts with sys.exit()\n- Scripts use exceptions and print statements\n- Hybrid pattern is transitional, not production-ready\n\nScripts to refactor:\n1. post_to_reddit.py - Main posting logic\n2. release_manager.py - Release management\n3. check_comments.py - Comment checking\n4. sync_reddit_history.py - State syncing\n5. gather_post_data.py - Data gathering\n6. page_generator.py - Landing page generation\n7. maintain_releases.py - Release maintenance\n8. legacy_release_migrator.py - Migration script\n\nFor each script:\n- Remove sys.exit() calls\n- Return Result[None, BitBotError] from main()\n- Use error_context for operation tracking\n- Convert exceptions to typed errors\n- Remove print statements, use logger\n- Update CLI command to handle Result\n\nPattern:\n```python\ndef main() -> Result[None, BitBotError]:\n    config_result = load_config()\n    if config_result.is_err():\n        return config_result\n    \n    reddit_result = init_reddit()\n    if reddit_result.is_err():\n        return reddit_result\n    \n    # ... business logic\n    return Ok(None)\n```\n\nBenefits:\n- Testable (no sys.exit)\n- Type-safe error handling\n- Consistent error patterns\n- Better debugging",
         "testStrategy": "",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": []
@@ -369,11 +369,22 @@
         "dependencies": [],
         "priority": "high",
         "subtasks": []
+      },
+      {
+        "id": 24,
+        "title": "Improve Function Decorator Patterns",
+        "description": "Review and improve all @deal.pre/@beartype/@retry decorator patterns across the codebase for clarity, consistency, and better validation",
+        "details": "## Objective\nSystematically improve decorator patterns in all functions using @deal.pre, @beartype, and @retry decorators to make contracts self-documenting, add missing validations, and ensure consistency.\n\n## Improvement Rules\n\n### 1. Explicit Parameter Names in Deal Contracts\nBEFORE: @deal.pre(lambda _r, tag, _t: len(tag) > 0)\nAFTER: @deal.pre(lambda repo, tag, title: len(tag) > 0, message=\"Tag cannot be empty\")\n\nRule: Use actual parameter names in lambda, not underscores. Makes contracts self-documenting.\n\n### 2. Add Repository Format Validation\nFor any function taking a 'repo' parameter that calls GitHub API:\n@deal.pre(lambda repo, **kwargs: \"/\" in repo, message=\"Repository must be in owner/name format\")\n\nCatches \"myrepo\" vs \"owner/myrepo\" errors early.\n\n### 3. Validate All String Parameters Are Non-Empty\nAdd contracts for all string parameters:\n- Tags: @deal.pre(lambda tag, **kwargs: len(tag) > 0, message=\"Tag cannot be empty\")\n- Paths: @deal.pre(lambda path, **kwargs: len(path) > 0, message=\"Path cannot be empty\")\n- Names: @deal.pre(lambda name, **kwargs: len(name) > 0, message=\"Name cannot be empty\")\n- URLs: @deal.pre(lambda url, **kwargs: len(url) > 0, message=\"URL cannot be empty\")\n\n### 4. Add Format Validation Where Appropriate\n- URLs: @deal.pre(lambda url, **kwargs: url.startswith(\"http\"), message=\"URL must start with http\")\n- Paths: @deal.pre(lambda path, **kwargs: not path.startswith(\" \"), message=\"Path cannot start with whitespace\")\n\n### 5. Order Decorators Consistently\nStandard order (top to bottom):\n1. @deal.pre(...) - All preconditions\n2. @deal.post(...) - All postconditions\n3. @beartype - Type checking\n4. @retry(...) - Retry logic (if needed)\n\n### 6. Ensure All Messages Are Clear\nEvery deal contract needs message= parameter explaining:\n- WHAT is wrong\n- WHY it matters\n- WHAT the caller should do\n\nGOOD: message=\"Tag cannot be empty - GitHub API requires a version tag\"\nBAD: message=\"Invalid tag\"\n\n## Files to Review\n\nPriority files (most critical):\n- src/gh/releases/fetcher.py\n- src/gh/releases/creator.py\n- src/gh/releases/downloader.py\n- src/gh/releases/patcher.py\n- src/gh/releases/updater.py\n- src/gh/releases/parser.py\n- src/reddit/posts.py\n- src/reddit/posting/*.py\n- src/crypto/*.py\n- src/core/release_queue.py\n- src/core/state.py\n\n## Expected Changes\n\nEstimate 20-30 functions will need updates:\n- Add repo format validation: ~10 functions\n- Make lambda parameters explicit: ~15 functions\n- Add missing string non-empty checks: ~5 functions\n- Improve error messages: ~20 functions\n- Reorder decorators: ~5 functions\n\n## Validation\n\nAfter changes:\n- Run: uv run ruff check src/\n- Run: uv run mypy src/\n- Run: git commit (all pre-commit hooks must pass)\n\n## Deliverables\n\nSummary report including:\n- Total functions reviewed\n- Contracts added\n- Messages improved\n- Decorator order fixes\n- Any patterns that don't fit guidance (with explanation WHY)",
+        "testStrategy": "",
+        "status": "in-progress",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-01T04:44:24.219Z",
+      "updated": "2025-11-01T05:00:03.348Z",
       "description": "Tasks for master context"
     }
   }

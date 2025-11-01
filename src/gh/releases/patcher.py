@@ -11,9 +11,18 @@ from gh.releases.fetcher import run_command
 DOWNLOAD_DIR = paths.DIST_DIR
 
 
-@deal.pre(lambda original_path, _a: len(original_path) > 0)
-@deal.pre(lambda _o, asset_name: len(asset_name) > 0)
-@deal.post(lambda result: len(result) > 0)
+@deal.pre(
+    lambda original_path, asset_name: len(original_path) > 0,
+    message="Original path cannot be empty - must specify source file to patch",
+)
+@deal.pre(
+    lambda original_path, asset_name: len(asset_name) > 0,
+    message="Asset name cannot be empty - must specify output filename",
+)
+@deal.post(
+    lambda result: len(result) > 0,
+    message="Patched path must not be empty",
+)
 @beartype
 def patch_file(original_path: str, asset_name: str) -> str:
     """Patches the downloaded file using the Python script."""

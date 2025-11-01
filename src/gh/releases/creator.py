@@ -11,12 +11,20 @@ from gh.releases.fetcher import run_command
 
 
 @deal.pre(
+    lambda bot_repo, tag, title, notes, file_path: "/" in bot_repo,
+    message="Repository must be in owner/name format",
+)
+@deal.pre(
     lambda bot_repo, tag, title, notes, file_path: len(tag) > 0,
-    message="Tag cannot be empty",
+    message="Tag cannot be empty - GitHub requires a version tag for releases",
+)
+@deal.pre(
+    lambda bot_repo, tag, title, notes, file_path: len(title) > 0,
+    message="Title cannot be empty - release must have a title",
 )
 @deal.pre(
     lambda bot_repo, tag, title, notes, file_path: len(file_path) > 0,
-    message="File path cannot be empty",
+    message="File path cannot be empty - release must include an asset file",
 )
 @beartype
 @retry(

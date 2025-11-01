@@ -13,7 +13,10 @@ from core.result import Err, Ok, Result
 from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 
 
-@deal.pre(lambda command, check: isinstance(command, list) and len(command) > 0)
+@deal.pre(
+    lambda command, check: isinstance(command, list) and len(command) > 0,
+    message="Command must be a non-empty list",
+)
 @beartype
 def run_command(
     command: list[str], check: bool = True
@@ -26,7 +29,14 @@ def run_command(
         return Err(GitHubAPIError(f"Command failed: {' '.join(command)}: {e.stderr}"))
 
 
-@deal.pre(lambda url: url.startswith("/"), message="GitHub API URLs must start with /")
+@deal.pre(
+    lambda url: len(url) > 0,
+    message="URL cannot be empty",
+)
+@deal.pre(
+    lambda url: url.startswith("/"),
+    message="GitHub API URLs must start with / for relative paths",
+)
 @beartype
 @retry(
     retry=retry_if_result(should_retry_api_error),
@@ -49,7 +59,10 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
         return Err(GitHubAPIError(f"Failed to parse GitHub API response: {e}"))
 
 
-@deal.pre(lambda repo: "/" in repo)
+@deal.pre(
+    lambda repo: "/" in repo,
+    message="Repository must be in owner/name format",
+)
 @beartype
 @retry(
     retry=retry_if_result(should_retry_api_error),
@@ -71,8 +84,14 @@ def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIErro
     return Ok(cast("list[dict[str, Any]]", data))
 
 
-@deal.pre(lambda bot_repo, tag: "/" in bot_repo)
-@deal.pre(lambda bot_repo, tag: len(tag) > 0)
+@deal.pre(
+    lambda bot_repo, tag: "/" in bot_repo,
+    message="Repository must be in owner/name format",
+)
+@deal.pre(
+    lambda bot_repo, tag: len(tag) > 0,
+    message="Tag cannot be empty - required to check release existence",
+)
 @beartype
 def check_if_bot_release_exists(bot_repo: str, tag: str) -> Result[bool, GitHubAPIError]:
     """Checks if a release with the given tag exists in the bot repo."""

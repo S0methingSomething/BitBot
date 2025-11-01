@@ -12,9 +12,18 @@ from core.errors import PageGeneratorError
 from core.result import Err, Ok, Result
 
 
-@deal.pre(lambda releases_data, _o, _t: isinstance(releases_data, dict))
-@deal.pre(lambda _r, output_path, _t: len(output_path) > 0)
-@deal.pre(lambda _r, _o, template_name: len(template_name) > 0)
+@deal.pre(
+    lambda releases_data, **_kwargs: isinstance(releases_data, dict),
+    message="Releases data must be a dictionary",
+)
+@deal.pre(
+    lambda output_path, **_kwargs: len(output_path) > 0,
+    message="Output path cannot be empty - must specify where to save HTML file",
+)
+@deal.pre(
+    lambda template_name, **_kwargs: len(template_name) > 0,
+    message="Template name cannot be empty - must specify which template to use",
+)
 @beartype
 def generate_landing_page(
     releases_data: dict[str, Any],

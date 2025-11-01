@@ -10,8 +10,18 @@ from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 from gh.releases.fetcher import run_command
 
 
-@deal.pre(lambda _r, tag, _t: len(tag) > 0, message="Tag cannot be empty")
-@deal.pre(lambda _r, _t, title: len(title) > 0, message="Title cannot be empty")
+@deal.pre(
+    lambda repo, tag, title: "/" in repo,
+    message="Repository must be in owner/name format",
+)
+@deal.pre(
+    lambda repo, tag, title: len(tag) > 0,
+    message="Tag cannot be empty - GitHub API requires a version tag",
+)
+@deal.pre(
+    lambda repo, tag, title: len(title) > 0,
+    message="Title cannot be empty - release must have a title",
+)
 @beartype
 @retry(
     retry=retry_if_result(should_retry_api_error),
