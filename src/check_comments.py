@@ -1,7 +1,6 @@
 """Monitor Reddit comments and update post status based on feedback."""
 
 import re
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -10,25 +9,31 @@ from beartype import beartype
 
 from core.config import load_config
 from core.credentials import Credentials
+from core.errors import BitBotError, RedditAPIError
+from core.result import Err, Ok, Result
 from core.state import load_bot_state, save_bot_state
 from reddit.client import init_reddit
 
 
-@deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
-def main() -> None:  # noqa: C901, PLR0912, PLR0915
-    """Check comments on the active Reddit post and analyze feedback.
-
-    Updates the post status using an adaptive timer to check comments at
-    increasing intervals.
-    """
-    config = load_config()
-    state = load_bot_state()
+def main() -> Result[None, BitBotError]:  # noqa: C901, PLR0912, PLR0915
+    """Check comments on the active Reddit post and analyze feedback."""
+    config_result = load_config()
+    if config_result.is_err():
+        return config_result
+    config = config_result.unwrap()
+    
+    state_result = load_bot_state()
+    if state_result.is_err():
+        return state_result
+    state = state_result.unwrap()
+    
     state_was_meaningfully_updated = False
 
     active_post_id = state.get("activePostId")
     if not active_post_id:
-        sys.exit(0)
+        _write_github_output(False)
+        return Ok(None)
 
     now = datetime.now(timezone.utc)
     last_check_str = state.get("lastCheckTimestamp", "2000-01-01T00:00:00Z")
@@ -36,12 +41,15 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     current_interval = state.get("currentIntervalSeconds", config["timing"]["firstCheck"])
     if now < (last_check + timedelta(seconds=current_interval)):
-        with Path(Credentials.get_github_output() or "/dev/null").open("a") as f:
-            print("state_changed=false", file=f)
-        sys.exit(0)
+        _write_github_output(False)
+        return Ok(None)
 
+    reddit_result = init_reddit(config)
+    if reddit_result.is_err():
+        return reddit_result
+    reddit = reddit_result.unwrap()
+    
     try:
-        reddit = init_reddit(config)
         submission = reddit.submission(id=active_post_id)
         submission.comments.replace_more(limit=0)
         comments = submission.comments.list()
@@ -67,13 +75,9 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         )
 
         status_regex = re.compile(config["feedback"]["statusLineRegex"], re.MULTILINE)
-        if not status_regex.search(submission.selftext):
-            pass
-        elif new_status_line not in submission.selftext:
+        if status_regex.search(submission.selftext) and new_status_line not in submission.selftext:
             updated_body = status_regex.sub(new_status_line, submission.selftext)
             submission.edit(body=updated_body)
-        else:
-            pass
 
         last_comment_count = state.get("lastCommentCount", 0)
         if len(comments) > last_comment_count:
@@ -89,18 +93,30 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
             state["lastCommentCount"] = len(comments)
             state_was_meaningfully_updated = True
 
-    except Exception:  # noqa: BLE001, S110
-        pass
+    except Exception as e:  # noqa: BLE001
+        return Err(RedditAPIError(f"Failed to check comments: {e}"))
     finally:
         state["lastCheckTimestamp"] = now.isoformat().replace("+00:00", "Z")
         if state_was_meaningfully_updated:
-            save_bot_state(state)
-        else:
-            pass
+            save_result = save_bot_state(state)
+            if save_result.is_err():
+                return save_result
+        _write_github_output(state_was_meaningfully_updated)
 
-        with Path(Credentials.get_github_output() or "/dev/null").open("a") as f:
-            print(f"state_changed={str(state_was_meaningfully_updated).lower()}", file=f)
+    return Ok(None)
+
+
+@beartype  # type: ignore[misc]
+def _write_github_output(state_changed: bool) -> None:
+    """Write state_changed to GitHub Actions output."""
+    output_file = Credentials.get_github_output()
+    if output_file:
+        with Path(output_file).open("a") as f:
+            f.write(f"state_changed={str(state_changed).lower()}\n")
 
 
 if __name__ == "__main__":
-    main()
+    result = main()
+    if result.is_err():
+        print(f"Error: {result.error.message}")  # noqa: T201
+        raise SystemExit(1)

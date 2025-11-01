@@ -36,12 +36,12 @@ class Ok(Generic[T]):
         return self.value
 
     @beartype  # type: ignore[misc]
-    def map(self, func: Callable  # noqa: ARG002[[T], T]) -> "Ok[T]":
+    def map(self, func: Callable[[T], T]) -> "Ok[T]":
         """Transform Ok value."""
         return Ok(func(self.value))
 
     @beartype  # type: ignore[misc]
-    def and_then(self, func: Callable  # noqa: ARG002[[T], "Result[T, E]"]) -> "Result[T, E]":
+    def and_then(self, func: Callable[[T], "Result[T, E]"]) -> "Result[T, E]":
         """Chain Result-returning operations."""
         return func(self.value)
 
@@ -73,12 +73,12 @@ class Err(Generic[E]):
         return default
 
     @beartype  # type: ignore[misc]
-    def map(self, func: Callable  # noqa: ARG002[[T], T]) -> "Err[E]":
+    def map(self, func: Callable[[T], T]) -> "Err[E]":
         """Transform does nothing on Err."""
         return self
 
     @beartype  # type: ignore[misc]
-    def and_then(self, func: Callable  # noqa: ARG002[[T], "Result[T, E]"]) -> "Err[E]":
+    def and_then(self, func: Callable[[T], "Result[T, E]"]) -> "Err[E]":
         """Chain does nothing on Err."""
         return self
 

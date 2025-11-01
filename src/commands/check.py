@@ -1,11 +1,10 @@
-from beartype import beartype
-
 """Check command for BitBot CLI."""
 
 import sys
 from pathlib import Path
 
 import typer
+from beartype import beartype
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -32,20 +31,18 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Checking comments...", total=None)
-
-                from check_comments import main as checkcomments_main  # noqa: PLC0415
-
-                try:
-                    checkcomments_main()
-                    console.print("[green]✓ Successfully checked comments[/green]")
-                except SystemExit as e:
-                    if e.code != 0:
-                        error = BitBotError("Check comments failed")
-                        logger.log_error(error, LogLevel.ERROR)
-                        console.print("[red]✗ Failed to check comments[/red]")
-                        raise typer.Exit(code=e.code)
-
-        except BitBotError as e:
+                
+                from check_comments import main as check_main
+                
+                result = check_main()
+                if result.is_err():
+                    logger.log_error(result.error, LogLevel.ERROR)
+                    console.print(f"[red]✗ Error:[/red] {result.error.message}")
+                    raise typer.Exit(code=1)
+                
+                console.print("[green]✓ Successfully checked comments[/green]")
+                    
+        except BitBotError as e:  # noqa: BLE001
             logger.log_error(e, LogLevel.ERROR)
             console.print(f"[red]✗ Error:[/red] {e.message}")
             raise typer.Exit(code=1)
