@@ -303,11 +303,22 @@
         "dependencies": [],
         "priority": "high",
         "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "Replace Custom Retry Logic with Tenacity Library",
+        "description": "Replace LLM-generated custom retry logic with battle-tested Tenacity library. Current retry decorator doesn't work with Result types and is risky for production.",
+        "details": "Current Issues:\n- Custom retry.py only catches exceptions, not Result[T, E] types\n- Retry is NOT working for 7 API call sites (critical bug!)\n- LLM-generated retry logic is risky for production\n- No logging, jitter, or statistics\n\nWhy Tenacity:\n- Battle-tested (OpenStack, AWS SDK)\n- Works with Result types via retry_if_result()\n- Built-in logging, jitter, statistics\n- Human-reviewed, production-proven\n- Less maintenance burden\n\nImplementation:\n1. Add tenacity to pyproject.toml dependencies\n2. Create helper function for Result-aware retry pattern\n3. Update 7 existing @retry usages:\n   - src/gh/releases/fetcher.py (2 usages)\n   - src/gh/releases/creator.py (1 usage)\n   - src/gh/releases/downloader.py (1 usage)\n   - src/reddit/posts.py (2 usages)\n   - src/reddit/client.py (1 usage)\n4. Add logging callbacks for retry attempts\n5. Deprecate/remove src/core/retry.py\n6. Test all retry scenarios\n\nPattern:\n```python\nfrom tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential\n\ndef should_retry_api_error(result):\n    return result.is_err() and isinstance(\n        result.unwrap_err(), \n        (GitHubAPIError, RedditAPIError)\n    )\n\n@retry(\n    retry=retry_if_result(should_retry_api_error),\n    stop=stop_after_attempt(3),\n    wait=wait_exponential(multiplier=1, min=1, max=60),\n    before_sleep=log_retry_attempt\n)\ndef fetch() -> Result[Data, Error]:\n    ...\n```\n\nBenefits:\n- Fixes critical bug (retry actually works)\n- Production-ready reliability\n- Better observability (logging)\n- Jitter prevents thundering herd\n- Less code to maintain",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-01T02:54:05.453Z",
+      "updated": "2025-11-01T03:11:53.259Z",
       "description": "Tasks for master context"
     }
   }
