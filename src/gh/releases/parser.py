@@ -1,9 +1,18 @@
 """GitHub release description parsing."""
 
-from typing import Any
+from typing import Any, TypedDict, cast
 
 import deal
 from beartype import beartype
+
+
+class ParsedRelease(TypedDict):
+    """Parsed release information."""
+
+    app_id: str
+    display_name: str
+    version: str
+    asset_name: str
 
 
 @deal.pre(lambda description, apps_config: isinstance(apps_config, list))
@@ -11,9 +20,9 @@ from beartype import beartype
 @beartype
 def parse_release_description(
     description: str, apps_config: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+) -> list[ParsedRelease]:
     """Parses a release description with a structured key-value format."""
-    found_releases = []
+    found_releases: list[ParsedRelease] = []
     current_release: dict[str, Any] = {}
     app_id_map = {app["displayName"].lower(): app["id"] for app in apps_config}
 
@@ -21,7 +30,7 @@ def parse_release_description(
         line = raw_line.strip()
         if not line:
             if current_release:
-                found_releases.append(current_release)
+                found_releases.append(cast(ParsedRelease, current_release))
             current_release = {}
             continue
 
@@ -32,7 +41,7 @@ def parse_release_description(
 
             if key == "app":
                 if current_release:
-                    found_releases.append(current_release)
+                    found_releases.append(cast(ParsedRelease, current_release))
                 app_id = app_id_map.get(value.lower())
                 current_release = {"app_id": app_id, "display_name": value} if app_id else {}
             elif current_release:
@@ -44,6 +53,6 @@ def parse_release_description(
             continue
 
     if current_release:
-        found_releases.append(current_release)
+        found_releases.append(cast(ParsedRelease, current_release))
 
     return found_releases

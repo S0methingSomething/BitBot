@@ -1,10 +1,19 @@
 """GitHub release note parsing."""
 
 import re
-from typing import Any
+from typing import Any, TypedDict
 
 import deal
 from beartype import beartype
+
+
+class ParsedRelease(TypedDict):
+    """Parsed release information."""
+
+    app_id: str
+    display_name: str
+    version: str
+    asset_name: str
 
 
 @deal.pre(lambda body, tag_name, title, config: body is not None)
@@ -13,7 +22,7 @@ from beartype import beartype
 @beartype
 def parse_release_notes(
     body: str, tag_name: str, title: str, config: dict[str, Any]
-) -> dict[str, Any] | None:
+) -> ParsedRelease | None:
     """Parses release information from its body, tag, or title to support all legacy formats."""
     app_map_by_id = {app["id"]: app["displayName"] for app in config.get("apps", [])}
 
