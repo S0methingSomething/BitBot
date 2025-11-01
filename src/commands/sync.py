@@ -33,7 +33,7 @@ def run() -> None:
             ) as progress:
                 progress.add_task(description="Syncing Reddit state...", total=None)
 
-                from sync_reddit_history import main as syncreddithistory_main  # noqa: PLC0415
+                # LEGACY: from sync_reddit_history import main as syncreddithistory_main  # noqa: PLC0415
 
                 try:
                     syncreddithistory_main()

@@ -33,7 +33,7 @@ def run() -> None:
             ) as progress:
                 progress.add_task(description="Generating landing page...", total=None)
 
-                from page_generator import main as pagegenerator_main  # noqa: PLC0415
+                # LEGACY: from page_generator import main as pagegenerator_main  # noqa: PLC0415
 
                 try:
                     pagegenerator_main()

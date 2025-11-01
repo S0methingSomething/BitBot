@@ -32,7 +32,7 @@ def run() -> None:
             ) as progress:
                 progress.add_task(description="Checking comments...", total=None)
                 
-                from check_comments import main as check_main
+                # LEGACY: from check_comments import main as check_main
                 
                 result = check_main()
                 if result.is_err():

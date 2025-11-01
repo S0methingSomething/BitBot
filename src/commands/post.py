@@ -37,7 +37,7 @@ def run(
                 progress.add_task(description="Posting to Reddit...", total=None)
 
                 # Import here to avoid circular imports
-                from post_to_reddit import main as post_main  # noqa: PLC0415
+                # LEGACY: from post_to_reddit import main as post_main  # noqa: PLC0415
 
                 # Temporarily override sys.argv for the old script
                 old_argv = sys.argv

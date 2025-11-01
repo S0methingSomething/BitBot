@@ -33,7 +33,7 @@ def run() -> None:
             ) as progress:
                 progress.add_task(description="Managing releases...", total=None)
 
-                from release_manager import main as release_main  # noqa: PLC0415
+                # LEGACY: from release_manager import main as release_main  # noqa: PLC0415
 
                 try:
                     release_main()

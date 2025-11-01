@@ -33,7 +33,7 @@ def run() -> None:
             ) as progress:
                 progress.add_task(description="Gathering post data...", total=None)
 
-                from gather_post_data import main as gatherpostdata_main  # noqa: PLC0415
+                # LEGACY: from gather_post_data import main as gatherpostdata_main  # noqa: PLC0415
 
                 try:
                     gatherpostdata_main()
