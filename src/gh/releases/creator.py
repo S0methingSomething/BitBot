@@ -12,6 +12,7 @@ from gh.releases.fetcher import run_command
 
 @deal.pre(lambda bot_repo, tag, title, notes, file_path: len(tag) > 0)  # type: ignore[misc]
 @deal.pre(lambda bot_repo, tag, title, notes, file_path: len(file_path) > 0)  # type: ignore[misc]
+@deal.post(lambda result: result.is_ok() or result.is_err())  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 @retry(
     retry=retry_if_result(should_retry_api_error),

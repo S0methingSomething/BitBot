@@ -5,6 +5,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+import deal
 from beartype import beartype
 from rich.console import Console
 
@@ -36,6 +37,8 @@ class ErrorLogger:
         self.console = console or Console()
         self.log_file = log_file
 
+    @deal.pre(lambda _, error, _l, _e: isinstance(error, BitBotError))  # type: ignore[misc]
+    @deal.pre(lambda _, _e, level, _ec: isinstance(level, LogLevel))  # type: ignore[misc]
     @beartype  # type: ignore[misc]
     def log_error(
         self,
@@ -64,6 +67,8 @@ class ErrorLogger:
             with self.log_file.open("a") as f:
                 f.write(json.dumps(error_dict) + "\n")
 
+    @deal.pre(lambda _, level: isinstance(level, LogLevel))  # type: ignore[misc]
+    @deal.post(lambda result: len(result) > 0)  # type: ignore[misc]
     @beartype  # type: ignore[misc]
     def _get_color(self, level: LogLevel) -> str:
         """Get color for log level."""
@@ -81,6 +86,7 @@ class ErrorLogger:
 _logger: ErrorLogger | None = None
 
 
+@deal.post(lambda result: isinstance(result, ErrorLogger))  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def get_logger(
     console: Console | None = None,

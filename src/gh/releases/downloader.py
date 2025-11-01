@@ -19,6 +19,7 @@ DOWNLOAD_DIR = paths.DIST_DIR
 
 @deal.pre(lambda _s, _r, asset_name: len(asset_name) > 0)  # type: ignore[misc]
 @deal.pre(lambda _s, release_id, _a: release_id > 0)  # type: ignore[misc]
+@deal.post(lambda result: result.is_ok() or result.is_err())  # type: ignore[misc]
 @beartype
 @retry(
     retry=retry_if_result(should_retry_api_error),

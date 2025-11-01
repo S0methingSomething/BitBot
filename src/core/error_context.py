@@ -5,11 +5,13 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 
+import deal
 from beartype import beartype
 
 _context_stack: threading.local = threading.local()
 
 
+@deal.post(lambda result: isinstance(result, dict))  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 def get_error_context() -> dict[str, Any]:
     """Get current error context."""
@@ -22,6 +24,7 @@ def get_error_context() -> dict[str, Any]:
     return merged
 
 
+@deal.pre(lambda **context: context is not None)  # type: ignore[misc]
 @contextmanager
 @beartype  # type: ignore[misc]
 def error_context(**context: Any) -> Generator[None, None, None]:
