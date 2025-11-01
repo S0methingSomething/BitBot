@@ -50,11 +50,13 @@ class Container:
         self._services: dict[str, Any] = {}
 
     @beartype
+    # Any: Generic container accepts any service type
     def register(self, name: str, service: Any) -> None:
         """Register a service."""
         self._services[name] = service
 
     @beartype
+    # Any: Returns service of unknown type, caller must cast
     def get(self, name: str) -> Any:
         """Get a service."""
         if name not in self._services:

@@ -13,6 +13,7 @@ from core.result import Err, Result
 
 @deal.pre(lambda result: result is not None, message="Result cannot be None")
 @beartype
+# Any: Accepts any Result type for generic retry logic
 def should_retry_api_error(result: Any) -> bool:
     """Check if Result contains retryable API error."""
     if not isinstance(result, Result):

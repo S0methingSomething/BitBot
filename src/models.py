@@ -67,6 +67,7 @@ class Config(BaseModel):
     github: GitHubConfig
     reddit: RedditConfig
     apps: list[AppConfig] = Field(default_factory=list)
+    # Any: Optional config sections with dynamic structure, rarely used
     safety: dict[str, Any] = Field(default_factory=dict)
     timing: dict[str, Any] = Field(default_factory=dict)
     parsing: dict[str, Any] = Field(default_factory=dict)
@@ -77,6 +78,7 @@ class BotState(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
+    # Any: Dynamic state tracking for apps, structure varies by app
     online: dict[str, Any] = Field(default_factory=dict)
     offline: dict[str, Any] = Field(default_factory=dict)
     active_post_id: str | None = Field(default=None, alias="activePostId")
