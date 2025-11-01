@@ -35,6 +35,16 @@ class FunctionValidation:
     loc: int  # Lines of code
     param_count: int  # Number of parameters
     cyclomatic_complexity: int  # Estimated complexity
+    # NEW: Architecture-aware features
+    function_type: str  # api_call, file_io, cli_command, parser, service
+    has_retry: bool  # Has @retry decorator
+    returns_result: bool  # Returns Result[T, E]
+    uses_error_context: bool  # Uses error_context()
+    uses_logger: bool  # Uses get_logger()
+    has_repo_validation: bool  # Validates repo with "/" check
+    is_thin: bool  # CLI command <50 LOC
+    architectural_violations: list[str]  # Pattern violations
+    architectural_score: float  # Architecture-aware score
 
 
 @dataclass
@@ -65,13 +75,20 @@ class FileStats:
     total_code_smells: int  # Total code smells detected
     total_escape_hatches: int  # Total cast() usage
     god_functions: list[str]  # Functions >50 LOC or >10 branches
+    # NEW: Architecture-aware features
+    api_call_count: int
+    file_io_count: int
+    cli_command_count: int
+    parser_count: int
+    service_count: int
 
 
 class ValidationAnalyzer(ast.NodeVisitor):
     """AST visitor for analyzing validation tool usage."""
 
-    def __init__(self, content: str):
+    def __init__(self, content: str, filepath: Path):
         self.content = content
+        self.filepath = filepath
         self.functions: list[FunctionValidation] = []
         self.classes = 0
         self.pydantic_models = 0
@@ -317,6 +334,186 @@ class ValidationAnalyzer(ast.NodeVisitor):
         count += func_body.count("cast(")
         return count
 
+    def _detect_function_type(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+        """Detect function type based on context and content."""
+        func_body = ast.unparse(node)
+        path_str = str(self.filepath)
+
+        # CLI command
+        if "src/commands/" in path_str or any(
+            "@app.command" in ast.unparse(d) for d in node.decorator_list
+        ):
+            return "cli_command"
+
+        # API call
+        if any(x in func_body for x in ["gh api", "requests.", "praw.", "reddit.", "github."]):
+            return "api_call"
+
+        # File I/O
+        if any(
+            x in func_body
+            for x in ["open(", "Path(", ".read(", ".write(", ".read_text", ".write_text"]
+        ):
+            return "file_io"
+
+        # Parser
+        if "parse" in node.name.lower() and not any(
+            x in func_body for x in ["open(", "requests.", "praw."]
+        ):
+            return "parser"
+
+        return "service"
+
+    def _has_retry_decorator(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Check if function has @retry decorator."""
+        return any("retry" in ast.unparse(d).lower() for d in node.decorator_list)
+
+    def _returns_result_type(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Check if function returns Result[T, E]."""
+        if node.returns:
+            return_str = ast.unparse(node.returns)
+            return "Result[" in return_str
+        return False
+
+    def _uses_error_context(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Check if function uses error_context()."""
+        func_body = ast.unparse(node)
+        return "error_context(" in func_body
+
+    def _uses_get_logger(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Check if function uses get_logger()."""
+        func_body = ast.unparse(node)
+        return "get_logger(" in func_body or "logger." in func_body
+
+    def _has_repo_validation(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Check if repo parameter validated with '/' check."""
+        for dec in node.decorator_list:
+            dec_str = ast.unparse(dec)
+            if "deal.pre" in dec_str and '"/" in repo' in dec_str:
+                return True
+        return False
+
+    def _is_thin_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Check if function is thin (<50 LOC)."""
+        loc = (node.end_lineno or node.lineno) - node.lineno
+        return loc < 50
+
+    def _validate_api_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        has_retry: bool,
+        returns_result: bool,
+        has_repo_validation: bool,
+    ) -> list[str]:
+        """Validate API call function patterns."""
+        violations = []
+        if not has_retry:
+            violations.append("missing_retry: API call without @retry decorator")
+        if not returns_result:
+            violations.append("missing_result: API call should return Result[T, E]")
+        # Check for repo parameter
+        has_repo_param = any(arg.arg == "repo" for arg in node.args.args)
+        if has_repo_param and not has_repo_validation:
+            violations.append(
+                "missing_repo_validation: repo parameter not validated with '/' check"
+            )
+        return violations
+
+    def _validate_file_io_function(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef, returns_result: bool
+    ) -> list[str]:
+        """Validate file I/O function patterns."""
+        violations = []
+        if not returns_result:
+            violations.append("missing_result: File I/O should return Result[T, E]")
+        return violations
+
+    def _validate_cli_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        uses_error_context: bool,
+        uses_logger: bool,
+        is_thin: bool,
+    ) -> list[str]:
+        """Validate CLI command function patterns."""
+        violations = []
+        if not uses_error_context:
+            violations.append("missing_error_context: CLI command should use error_context()")
+        if not uses_logger:
+            violations.append("missing_logger: CLI command should use get_logger()")
+        if not is_thin:
+            violations.append("not_thin: CLI command should be <50 LOC (orchestration only)")
+        return violations
+
+    def _validate_parser_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        has_deal_pre: bool,
+        weak_types: list[str],
+    ) -> list[str]:
+        """Validate parser function patterns."""
+        violations = []
+        if not has_deal_pre:
+            violations.append(
+                "missing_contracts: Parser should have @deal.pre for input validation"
+            )
+        if weak_types:
+            violations.append("weak_types: Parser should use specific types, not Any")
+        return violations
+
+    def _calculate_architectural_score(
+        self,
+        func_type: str,
+        has_retry: bool,
+        returns_result: bool,
+        uses_error_context: bool,
+        uses_logger: bool,
+        is_thin: bool,
+        has_deal_pre: bool,
+        weak_types: list[str],
+    ) -> float:
+        """Calculate architecture-aware score based on function type."""
+        score = 0.0
+
+        if func_type == "api_call":
+            # API: 40% retry + 30% Result + 30% contracts
+            if has_retry:
+                score += 40
+            if returns_result:
+                score += 30
+            if has_deal_pre:
+                score += 30
+        elif func_type == "file_io":
+            # File I/O: 50% Result + 30% error handling + 20% contracts
+            if returns_result:
+                score += 50
+            if has_deal_pre:
+                score += 50
+        elif func_type == "cli_command":
+            # CLI: 40% thin + 30% error_context + 30% logger
+            if is_thin:
+                score += 40
+            if uses_error_context:
+                score += 30
+            if uses_logger:
+                score += 30
+        elif func_type == "parser":
+            # Parser: 50% contracts + 50% no Any
+            if has_deal_pre:
+                score += 50
+            if not weak_types:
+                score += 50
+        else:  # service
+            # Service: balanced
+            if returns_result:
+                score += 30
+            if has_deal_pre:
+                score += 35
+            if not weak_types:
+                score += 35
+
+        return min(score, 100.0)
+
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Visit class definition."""
         self.classes += 1
@@ -423,6 +620,44 @@ class ValidationAnalyzer(ast.NodeVisitor):
         param_count = len(node.args.args)
         cyclomatic_complexity = self._calculate_cyclomatic_complexity(node)
 
+        # NEW: Architecture-aware detection
+        function_type = self._detect_function_type(node)
+        has_retry = self._has_retry_decorator(node)
+        returns_result = self._returns_result_type(node)
+        uses_error_context = self._uses_error_context(node)
+        uses_logger = self._uses_get_logger(node)
+        has_repo_validation = self._has_repo_validation(node)
+        is_thin = self._is_thin_function(node)
+
+        # Validate based on function type
+        architectural_violations = []
+        if function_type == "api_call":
+            architectural_violations = self._validate_api_function(
+                node, has_retry, returns_result, has_repo_validation
+            )
+        elif function_type == "file_io":
+            architectural_violations = self._validate_file_io_function(node, returns_result)
+        elif function_type == "cli_command":
+            architectural_violations = self._validate_cli_function(
+                node, uses_error_context, uses_logger, is_thin
+            )
+        elif function_type == "parser":
+            architectural_violations = self._validate_parser_function(
+                node, has_deal_pre, weak_types
+            )
+
+        # Calculate architectural score
+        architectural_score = self._calculate_architectural_score(
+            function_type,
+            has_retry,
+            returns_result,
+            uses_error_context,
+            uses_logger,
+            is_thin,
+            has_deal_pre,
+            weak_types,
+        )
+
         func_val = FunctionValidation(
             name=node.name,
             line=node.lineno,
@@ -445,6 +680,15 @@ class ValidationAnalyzer(ast.NodeVisitor):
             loc=loc,
             param_count=param_count,
             cyclomatic_complexity=cyclomatic_complexity,
+            function_type=function_type,
+            has_retry=has_retry,
+            returns_result=returns_result,
+            uses_error_context=uses_error_context,
+            uses_logger=uses_logger,
+            has_repo_validation=has_repo_validation,
+            is_thin=is_thin,
+            architectural_violations=architectural_violations,
+            architectural_score=architectural_score,
         )
 
         self.functions.append(func_val)
@@ -496,7 +740,7 @@ def analyze_file(filepath: Path) -> FileStats | None:
             content = f.read()
 
         tree = ast.parse(content, filename=str(filepath))
-        analyzer = ValidationAnalyzer(content)
+        analyzer = ValidationAnalyzer(content, filepath)
         analyzer.visit(tree)
 
         # Calculate aggregates
@@ -553,6 +797,13 @@ def analyze_file(filepath: Path) -> FileStats | None:
             f.name for f in analyzer.functions if any("god_function" in s for s in f.code_smells)
         ]
 
+        # Calculate architecture stats
+        api_call_count = sum(1 for f in analyzer.functions if f.function_type == "api_call")
+        file_io_count = sum(1 for f in analyzer.functions if f.function_type == "file_io")
+        cli_command_count = sum(1 for f in analyzer.functions if f.function_type == "cli_command")
+        parser_count = sum(1 for f in analyzer.functions if f.function_type == "parser")
+        service_count = sum(1 for f in analyzer.functions if f.function_type == "service")
+
         return FileStats(
             path=str(filepath.relative_to("src")),
             functions=len(analyzer.functions),
@@ -577,6 +828,11 @@ def analyze_file(filepath: Path) -> FileStats | None:
             total_code_smells=total_code_smells,
             total_escape_hatches=total_escape_hatches,
             god_functions=god_functions,
+            api_call_count=api_call_count,
+            file_io_count=file_io_count,
+            cli_command_count=cli_command_count,
+            parser_count=parser_count,
+            service_count=service_count,
         )
 
     except SyntaxError as e:
@@ -763,6 +1019,118 @@ def main() -> None:
         print(f"  ⚠️  {total_casts} cast() usages bypass type checking")
 
     print()
+
+    # NEW: Architectural compliance report
+    print("🏗️  ARCHITECTURAL COMPLIANCE\n")
+
+    # Function type distribution
+    total_api = sum(s.api_call_count for s in all_stats)
+    total_file_io = sum(s.file_io_count for s in all_stats)
+    total_cli = sum(s.cli_command_count for s in all_stats)
+    total_parser = sum(s.parser_count for s in all_stats)
+    total_service = sum(s.service_count for s in all_stats)
+
+    print("Function Type Distribution:")
+    print(f"  API Calls: {total_api}")
+    print(f"  File I/O: {total_file_io}")
+    print(f"  CLI Commands: {total_cli}")
+    print(f"  Parsers: {total_parser}")
+    print(f"  Services: {total_service}\n")
+
+    # Pattern compliance
+    all_funcs_list = [f for s in all_stats for f in s.validation_details]
+
+    # Retry compliance (API calls)
+    api_funcs = [f for f in all_funcs_list if f.function_type == "api_call"]
+    if api_funcs:
+        retry_compliance = sum(1 for f in api_funcs if f.has_retry) / len(api_funcs) * 100
+        print(
+            f"Retry Pattern Compliance: {retry_compliance:.1f}% ({sum(1 for f in api_funcs if f.has_retry)}/{len(api_funcs)} API calls)"
+        )
+        if retry_compliance < 100:
+            print(
+                f"  ⚠️  {len(api_funcs) - sum(1 for f in api_funcs if f.has_retry)} API calls missing @retry"
+            )
+
+    # Result type compliance
+    result_funcs = sum(1 for f in all_funcs_list if f.returns_result)
+    result_compliance = result_funcs / len(all_funcs_list) * 100 if all_funcs_list else 0
+    print(
+        f"Result Type Usage: {result_compliance:.1f}% ({result_funcs}/{len(all_funcs_list)} functions)"
+    )
+
+    # Error context compliance (CLI commands)
+    cli_funcs = [f for f in all_funcs_list if f.function_type == "cli_command"]
+    if cli_funcs:
+        error_ctx_compliance = (
+            sum(1 for f in cli_funcs if f.uses_error_context) / len(cli_funcs) * 100
+        )
+        print(
+            f"Error Context Usage: {error_ctx_compliance:.1f}% ({sum(1 for f in cli_funcs if f.uses_error_context)}/{len(cli_funcs)} CLI commands)"
+        )
+        if error_ctx_compliance < 100:
+            print(
+                f"  ⚠️  {len(cli_funcs) - sum(1 for f in cli_funcs if f.uses_error_context)} CLI commands missing error_context()"
+            )
+
+    # Logger compliance (CLI commands)
+    if cli_funcs:
+        logger_compliance = sum(1 for f in cli_funcs if f.uses_logger) / len(cli_funcs) * 100
+        print(
+            f"Logger Usage: {logger_compliance:.1f}% ({sum(1 for f in cli_funcs if f.uses_logger)}/{len(cli_funcs)} CLI commands)"
+        )
+
+    # Thin CLI compliance
+    if cli_funcs:
+        thin_compliance = sum(1 for f in cli_funcs if f.is_thin) / len(cli_funcs) * 100
+        print(
+            f"Thin CLI Commands: {thin_compliance:.1f}% ({sum(1 for f in cli_funcs if f.is_thin)}/{len(cli_funcs)} <50 LOC)"
+        )
+
+    print()
+
+    # NEW: Architectural violations report
+    all_violations = [
+        (s.path, f.name, f.line, f.architectural_violations)
+        for s in all_stats
+        for f in s.validation_details
+        if f.architectural_violations
+    ]
+
+    if all_violations:
+        print("❌ ARCHITECTURAL VIOLATIONS\n")
+
+        # Group by violation type
+        violation_groups: dict[str, list[tuple[str, str, int]]] = {}
+        for path, name, line, violations in all_violations:
+            for v in violations:
+                v_type = v.split(":")[0]
+                if v_type not in violation_groups:
+                    violation_groups[v_type] = []
+                violation_groups[v_type].append((path, name, line))
+
+        # Violation fix guidance
+        fix_guidance = {
+            "missing_retry": "Add @retry(retry=retry_if_result(should_retry_api_error), stop=stop_after_attempt(3), wait=wait_exponential())",
+            "missing_result": "Change return type to Result[T, ErrorType] and wrap returns in Ok()/Err()",
+            "missing_repo_validation": 'Add @deal.pre(lambda repo, **_: "/" in repo, message="Repository must be in owner/name format")',
+            "missing_error_context": "Wrap main logic in: with error_context('operation description', ...): ...",
+            "missing_logger": "Add: logger = get_logger(__name__) and use logger.info/error instead of print()",
+            "not_thin": "Move business logic to service layer (gh/, reddit/, core/), keep CLI as orchestration only",
+            "missing_contracts": "Add @deal.pre for input validation and @deal.post for output validation",
+            "weak_types": "Replace Any with specific types (TypedDict, dataclass, or concrete types)",
+        }
+
+        for v_type, occurrences in sorted(
+            violation_groups.items(), key=lambda x: len(x[1]), reverse=True
+        ):
+            print(f"{v_type.upper().replace('_', ' ')} ({len(occurrences)} occurrences)")
+            print(f"  Fix: {fix_guidance.get(v_type, 'Review function implementation')}")
+            for path, name, line in occurrences[:5]:  # Show first 5
+                print(f"    • {path}:{line} - {name}()")
+            if len(occurrences) > 5:
+                print(f"    ... and {len(occurrences) - 5} more")
+            print()
 
     # File-by-file analysis
     print("📁 FILE INTEGRATION SCORES\n")
