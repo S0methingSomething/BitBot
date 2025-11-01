@@ -8,7 +8,7 @@ from beartype import beartype
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # noqa: E402
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.error_context import error_context
 from core.error_logger import ErrorLogger, LogLevel
@@ -31,18 +31,18 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Checking comments...", total=None)
-                
+
                 # LEGACY: from check_comments import main as check_main
-                
+
                 result = check_main()
                 if result.is_err():
                     logger.log_error(result.error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {result.error.message}")
                     raise typer.Exit(code=1)
-                
+
                 console.print("[green]✓ Successfully checked comments[/green]")
-                    
-        except BitBotError as e:  # noqa: BLE001
+
+        except BitBotError as e:
             logger.log_error(e, LogLevel.ERROR)
             console.print(f"[red]✗ Error:[/red] {e.message}")
             raise typer.Exit(code=1)

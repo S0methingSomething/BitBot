@@ -4,7 +4,7 @@
 import ast
 import json
 import sys
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +12,7 @@ from typing import Any
 @dataclass
 class FunctionValidation:
     """Validation status for a single function."""
+
     name: str
     line: int
     has_beartype: bool
@@ -31,6 +32,7 @@ class FunctionValidation:
 @dataclass
 class FileStats:
     """Statistics for a single file."""
+
     path: str
     functions: int
     classes: int
@@ -53,80 +55,81 @@ class FileStats:
 
 class ValidationAnalyzer(ast.NodeVisitor):
     """AST visitor for analyzing validation tool usage."""
-    
+
     def __init__(self, content: str):
         self.content = content
         self.functions: list[FunctionValidation] = []
         self.classes = 0
         self.pydantic_models = 0
         self.current_function: dict[str, Any] | None = None
-    
+
     def _is_any_justified(self, node: ast.FunctionDef, weak_types: list[str]) -> tuple[bool, str]:
         """Determine if Any usage is justified based on context."""
         if not weak_types:
             return True, "No Any usage"
-        
+
         func_name = node.name.lower()
-        
+
         # Check function body for justification clues
         func_body = ast.unparse(node)
-        
+
         # Justified patterns
         justifications = []
-        
+
         # 1. Loads from JSON/TOML/external files
-        if any(x in func_body for x in ['json.load', 'toml.load', '.open(', 'json.loads']):
+        if any(x in func_body for x in ["json.load", "toml.load", ".open(", "json.loads"]):
             justifications.append("loads dynamic data from file")
-        
+
         # 2. External API calls
-        if any(x in func_body for x in ['requests.', 'praw.', 'github.', 'gh api', 'run_command']):
+        if any(x in func_body for x in ["requests.", "praw.", "github.", "gh api", "run_command"]):
             justifications.append("interfaces with external API")
-        
+
         # 3. Config/state management
-        if any(x in func_name for x in ['load', 'config', 'state', 'parse']):
+        if any(x in func_name for x in ["load", "config", "state", "parse"]):
             justifications.append("config/state management")
-        
+
         # 4. Has runtime validation
-        has_validation = any([
-            any('beartype' in ast.unparse(d) for d in node.decorator_list),
-            any('deal' in ast.unparse(d) for d in node.decorator_list),
-        ])
+        has_validation = any(
+            [
+                any("beartype" in ast.unparse(d) for d in node.decorator_list),
+                any("deal" in ast.unparse(d) for d in node.decorator_list),
+            ]
+        )
         if has_validation:
             justifications.append("has runtime validation")
-        
+
         # 5. Pydantic model usage
-        if 'BaseModel' in func_body or 'pydantic' in func_body:
+        if "BaseModel" in func_body or "pydantic" in func_body:
             justifications.append("uses Pydantic validation")
-        
+
         # 6. Data transformation/aggregation
-        if any(x in func_name for x in ['transform', 'aggregate', 'collect', 'gather']):
+        if any(x in func_name for x in ["transform", "aggregate", "collect", "gather"]):
             justifications.append("data transformation")
-        
+
         # Unjustified patterns
         unjustifications = []
-        
+
         # 1. Simple helper functions
-        if func_name.startswith('_') and len(node.body) < 10:
+        if func_name.startswith("_") and len(node.body) < 10:
             unjustifications.append("simple internal helper")
-        
+
         # 2. No external dependencies
-        if not any(x in func_body for x in ['json', 'toml', 'requests', 'praw', 'github', 'open']):
+        if not any(x in func_body for x in ["json", "toml", "requests", "praw", "github", "open"]):
             unjustifications.append("no external data sources")
-        
+
         # 3. Could use TypedDict
-        if 'dict[str, Any]' in str(weak_types) and len(weak_types) == 1:
+        if "dict[str, Any]" in str(weak_types) and len(weak_types) == 1:
             unjustifications.append("could use TypedDict")
-        
+
         # Decision logic
         if len(justifications) >= 2:
             return True, f"Justified: {', '.join(justifications[:2])}"
-        elif len(justifications) == 1 and not unjustifications:
+        if len(justifications) == 1 and not unjustifications:
             return True, f"Likely justified: {justifications[0]}"
-        elif unjustifications:
+        if unjustifications:
             return False, f"Unjustified: {', '.join(unjustifications[:2])}"
-        else:
-            return False, "Unclear justification"
-    
+        return False, "Unclear justification"
+
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Visit class definition."""
         self.classes += 1
@@ -136,92 +139,94 @@ class ValidationAnalyzer(ast.NodeVisitor):
                 self.pydantic_models += 1
                 break
         self.generic_visit(node)
-    
+
     def visit_FunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         """Visit function definition."""
         # Skip private functions
-        if node.name.startswith('_') and node.name != '__init__':
+        if node.name.startswith("_") and node.name != "__init__":
             return
-        
+
         # Analyze decorators
         has_beartype = False
         has_deal_pre = False
         has_deal_post = False
         has_deal_ensure = False
         has_deal_raises = False
-        
+
         for dec in node.decorator_list:
             try:
                 dec_str = ast.unparse(dec)
-                if 'beartype' in dec_str:
+                if "beartype" in dec_str:
                     has_beartype = True
-                if 'deal.pre' in dec_str or '@pre' in dec_str:
+                if "deal.pre" in dec_str or "@pre" in dec_str:
                     has_deal_pre = True
-                if 'deal.post' in dec_str or '@post' in dec_str:
+                if "deal.post" in dec_str or "@post" in dec_str:
                     has_deal_post = True
-                if 'deal.ensure' in dec_str or '@ensure' in dec_str:
+                if "deal.ensure" in dec_str or "@ensure" in dec_str:
                     has_deal_ensure = True
-                if 'deal.raises' in dec_str or '@raises' in dec_str:
+                if "deal.raises" in dec_str or "@raises" in dec_str:
                     has_deal_raises = True
             except Exception:
                 continue
-        
+
         # Check type hints and detect weak typing (Any usage)
-        has_type_hints = bool(node.returns) or any(
-            arg.annotation for arg in node.args.args
-        )
-        
+        has_type_hints = bool(node.returns) or any(arg.annotation for arg in node.args.args)
+
         weak_types = []
         if has_type_hints:
             # Check return type for Any
             if node.returns:
                 return_str = ast.unparse(node.returns)
-                if 'Any' in return_str:
+                if "Any" in return_str:
                     weak_types.append(f"return: {return_str}")
-            
+
             # Check parameter types for Any
             for arg in node.args.args:
                 if arg.annotation:
                     arg_str = ast.unparse(arg.annotation)
-                    if 'Any' in arg_str:
+                    if "Any" in arg_str:
                         weak_types.append(f"{arg.arg}: {arg_str}")
-        
+
         # Calculate type strength (0-100)
         # Penalize for Any usage, but less if justified
         type_strength = 100.0
         any_justified = True
         justification_reason = "No Any usage"
-        
+
         if has_type_hints:
             if weak_types:
                 any_justified, justification_reason = self._is_any_justified(node, weak_types)
-                
+
                 if any_justified:
                     # Justified Any: lose only 10 points per usage
                     penalty = min(len(weak_types) * 10, 40)
                 else:
                     # Unjustified Any: lose 20 points per usage
                     penalty = min(len(weak_types) * 20, 80)
-                
+
                 type_strength -= penalty
         else:
             type_strength = 0.0
             justification_reason = "No type hints"
-        
+
         # Count type: ignore in function
         func_start = node.lineno
         func_end = node.end_lineno or func_start
-        func_lines = self.content.split('\n')[func_start-1:func_end]
-        type_ignores = sum(line.count('# type: ignore') for line in func_lines)
-        
+        func_lines = self.content.split("\n")[func_start - 1 : func_end]
+        type_ignores = sum(line.count("# type: ignore") for line in func_lines)
+
         # Calculate validation score for this function
         # Now includes type strength penalty
         score = self._calculate_function_score(
-            has_beartype, has_deal_pre, has_deal_post, 
-            has_deal_ensure, has_deal_raises, has_type_hints,
-            type_strength
+            has_beartype,
+            has_deal_pre,
+            has_deal_post,
+            has_deal_ensure,
+            has_deal_raises,
+            has_type_hints,
+            type_strength,
         )
-        
+
         func_val = FunctionValidation(
             name=node.name,
             line=node.lineno,
@@ -236,32 +241,38 @@ class ValidationAnalyzer(ast.NodeVisitor):
             weak_types=weak_types,
             type_strength=type_strength,
             any_justified=any_justified,
-            justification_reason=justification_reason
+            justification_reason=justification_reason,
         )
-        
+
         self.functions.append(func_val)
         self.generic_visit(node)
-    
+
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         """Visit async function definition."""
         self.visit_FunctionDef(node)
-    
+
     def _calculate_function_score(
-        self, beartype: bool, pre: bool, post: bool, 
-        ensure: bool, raises: bool, hints: bool, type_strength: float
+        self,
+        beartype: bool,
+        pre: bool,
+        post: bool,
+        ensure: bool,
+        raises: bool,
+        hints: bool,
+        type_strength: float,
     ) -> float:
         """Calculate validation strength score (0-100)."""
         score = 0.0
-        
+
         # Type hints are baseline, but penalized for Any usage
         if hints:
             # Base 20 points, but scaled by type strength
             score += 20 * (type_strength / 100.0)
-        
+
         # Beartype provides runtime validation (30 points)
         if beartype:
             score += 30
-        
+
         # Deal contracts provide business logic validation
         if pre:
             score += 15  # Preconditions
@@ -271,20 +282,20 @@ class ValidationAnalyzer(ast.NodeVisitor):
             score += 10  # Invariants
         if raises:
             score += 10  # Exception contracts
-        
+
         return min(score, 100.0)
 
 
 def analyze_file(filepath: Path) -> FileStats | None:
     """Analyze a single file for validation tool usage."""
     try:
-        with open(filepath, encoding='utf-8') as f:
+        with open(filepath, encoding="utf-8") as f:
             content = f.read()
-        
+
         tree = ast.parse(content, filename=str(filepath))
         analyzer = ValidationAnalyzer(content)
         analyzer.visit(tree)
-        
+
         # Calculate aggregates
         beartype_count = sum(1 for f in analyzer.functions if f.has_beartype)
         deal_pre_count = sum(1 for f in analyzer.functions if f.has_deal_pre)
@@ -292,36 +303,38 @@ def analyze_file(filepath: Path) -> FileStats | None:
         deal_ensure_count = sum(1 for f in analyzer.functions if f.has_deal_ensure)
         deal_raises_count = sum(1 for f in analyzer.functions if f.has_deal_raises)
         type_hints_count = sum(1 for f in analyzer.functions if f.has_type_hints)
-        
+
         # Find unvalidated functions (score < 50)
-        unvalidated = [
-            f"{f.name}:{f.line}" 
-            for f in analyzer.functions 
-            if f.validation_score < 50
-        ]
-        
+        unvalidated = [f"{f.name}:{f.line}" for f in analyzer.functions if f.validation_score < 50]
+
         # Count functions with weak types
         weak_type_count = sum(1 for f in analyzer.functions if f.weak_types)
         justified_any_count = sum(1 for f in analyzer.functions if f.weak_types and f.any_justified)
-        unjustified_any_count = sum(1 for f in analyzer.functions if f.weak_types and not f.any_justified)
-        
+        unjustified_any_count = sum(
+            1 for f in analyzer.functions if f.weak_types and not f.any_justified
+        )
+
         # Calculate average type strength
         if analyzer.functions:
-            type_strength_score = sum(f.type_strength for f in analyzer.functions) / len(analyzer.functions)
+            type_strength_score = sum(f.type_strength for f in analyzer.functions) / len(
+                analyzer.functions
+            )
         else:
             type_strength_score = 100.0
-        
+
         # Calculate file integration score (average of function scores)
         if analyzer.functions:
-            integration_score = sum(f.validation_score for f in analyzer.functions) / len(analyzer.functions)
+            integration_score = sum(f.validation_score for f in analyzer.functions) / len(
+                analyzer.functions
+            )
         else:
             integration_score = 0.0
-        
+
         # Count total type: ignore comments
-        type_ignores = content.count('# type: ignore')
-        
+        type_ignores = content.count("# type: ignore")
+
         return FileStats(
-            path=str(filepath.relative_to('src')),
+            path=str(filepath.relative_to("src")),
             functions=len(analyzer.functions),
             classes=analyzer.classes,
             pydantic_models=analyzer.pydantic_models,
@@ -338,9 +351,9 @@ def analyze_file(filepath: Path) -> FileStats | None:
             weak_type_count=weak_type_count,
             type_strength_score=type_strength_score,
             justified_any_count=justified_any_count,
-            unjustified_any_count=unjustified_any_count
+            unjustified_any_count=unjustified_any_count,
         )
-    
+
     except SyntaxError as e:
         print(f"⚠️  Syntax error in {filepath}: {e}", file=sys.stderr)
         return None
@@ -352,92 +365,94 @@ def analyze_file(filepath: Path) -> FileStats | None:
 def generate_recommendations(stats: FileStats) -> list[str]:
     """Generate actionable recommendations for a file."""
     recommendations = []
-    
+
     if stats.functions == 0:
         return recommendations
-    
+
     # Check for weak typing (Any abuse)
     if stats.weak_type_count > 0:
         weak_funcs = [f.name for f in stats.validation_details if f.weak_types]
         recommendations.append(
             f"Replace Any with specific types in {stats.weak_type_count} functions: {', '.join(weak_funcs[:3])}"
         )
-    
+
     # Check beartype coverage
     beartype_pct = (stats.beartype_count / stats.functions) * 100
     if beartype_pct < 100:
         missing = stats.functions - stats.beartype_count
         recommendations.append(f"Add @beartype to {missing} functions for runtime type checking")
-    
+
     # Check deal contracts
     if stats.deal_pre_count == 0 and stats.functions > 0:
         recommendations.append("Consider adding @deal.pre contracts for input validation")
-    
+
     if stats.deal_post_count == 0 and stats.functions > 0:
         recommendations.append("Consider adding @deal.post contracts for output validation")
-    
+
     # Check type hints
     if stats.type_hints_count < stats.functions:
         missing = stats.functions - stats.type_hints_count
         recommendations.append(f"Add type hints to {missing} functions")
-    
+
     # Check for excessive type: ignore
     if stats.type_ignores > stats.functions * 2:
         recommendations.append(f"Reduce {stats.type_ignores} type: ignore comments")
-    
+
     # Check unvalidated functions
     if stats.unvalidated_functions:
         recommendations.append(
             f"Improve validation for: {', '.join(f.split(':')[0] for f in stats.unvalidated_functions[:3])}"
         )
-    
+
     return recommendations
 
 
 def main() -> None:
     """Run comprehensive validation tool integration analysis."""
     import argparse
-    
-    parser = argparse.ArgumentParser(description='Analyze validation tool integration depth')
-    parser.add_argument('--json', action='store_true', help='Output JSON format')
-    parser.add_argument('--min-score', type=float, default=0, help='Minimum score to display')
+
+    parser = argparse.ArgumentParser(description="Analyze validation tool integration depth")
+    parser.add_argument("--json", action="store_true", help="Output JSON format")
+    parser.add_argument("--min-score", type=float, default=0, help="Minimum score to display")
     args = parser.parse_args()
-    
-    src_dir = Path('src')
+
+    src_dir = Path("src")
     all_stats: list[FileStats] = []
-    
+
     # Analyze all files
-    for filepath in sorted(src_dir.rglob('*.py')):
-        if filepath.name == '__init__.py':
+    for filepath in sorted(src_dir.rglob("*.py")):
+        if filepath.name == "__init__.py":
             continue
-        
+
         stats = analyze_file(filepath)
         if stats and stats.integration_score >= args.min_score:
             all_stats.append(stats)
-    
+
     if args.json:
         # JSON output for CI
         output = {
-            'files': [asdict(s) for s in all_stats],
-            'summary': {
-                'total_files': len(all_stats),
-                'total_functions': sum(s.functions for s in all_stats),
-                'total_classes': sum(s.classes for s in all_stats),
-                'pydantic_models': sum(s.pydantic_models for s in all_stats),
-                'beartype_coverage': sum(s.beartype_count for s in all_stats),
-                'deal_contracts': sum(
+            "files": [asdict(s) for s in all_stats],
+            "summary": {
+                "total_files": len(all_stats),
+                "total_functions": sum(s.functions for s in all_stats),
+                "total_classes": sum(s.classes for s in all_stats),
+                "pydantic_models": sum(s.pydantic_models for s in all_stats),
+                "beartype_coverage": sum(s.beartype_count for s in all_stats),
+                "deal_contracts": sum(
                     s.deal_pre_count + s.deal_post_count + s.deal_ensure_count + s.deal_raises_count
                     for s in all_stats
                 ),
-                'average_score': sum(s.integration_score for s in all_stats) / len(all_stats) if all_stats else 0,
-            }
+                "average_score": sum(s.integration_score for s in all_stats) / len(all_stats)
+                if all_stats
+                else 0,
+            },
         }
         print(json.dumps(output, indent=2))
         return
-    
+
     # Human-readable output
-    print('=== VALIDATION TOOL INTEGRATION DEPTH ANALYSIS ===\n')
-    
+    print("=== VALIDATION TOOL INTEGRATION DEPTH ANALYSIS ===\n")
+
     # Overall metrics
     total_funcs = sum(s.functions for s in all_stats)
     total_beartype = sum(s.beartype_count for s in all_stats)
@@ -447,15 +462,17 @@ def main() -> None:
     )
     total_hints = sum(s.type_hints_count for s in all_stats)
     total_weak_types = sum(s.weak_type_count for s in all_stats)
-    avg_type_strength = sum(s.type_strength_score for s in all_stats) / len(all_stats) if all_stats else 0
-    
-    print('📊 OVERALL METRICS')
+    avg_type_strength = (
+        sum(s.type_strength_score for s in all_stats) / len(all_stats) if all_stats else 0
+    )
+
+    print("📊 OVERALL METRICS")
     print(f"Files Analyzed: {len(all_stats)}")
     print(f"Total Functions: {total_funcs}")
     print(f"Total Classes: {sum(s.classes for s in all_stats)}")
     print(f"Pydantic Models: {sum(s.pydantic_models for s in all_stats)}\n")
-    
-    print('🔧 VALIDATION COVERAGE')
+
+    print("🔧 VALIDATION COVERAGE")
     print(f"@beartype: {total_beartype}/{total_funcs} ({total_beartype/total_funcs*100:.1f}%)")
     print(f"@deal contracts: {total_deal} total")
     print(f"  - @deal.pre: {sum(s.deal_pre_count for s in all_stats)}")
@@ -463,77 +480,81 @@ def main() -> None:
     print(f"  - @deal.ensure: {sum(s.deal_ensure_count for s in all_stats)}")
     print(f"  - @deal.raises: {sum(s.deal_raises_count for s in all_stats)}")
     print(f"Type Hints: {total_hints}/{total_funcs} ({total_hints/total_funcs*100:.1f}%)\n")
-    
-    print('⚠️  TYPE STRENGTH')
-    print(f"Functions with Any: {total_weak_types}/{total_funcs} ({total_weak_types/total_funcs*100:.1f}%)")
-    
+
+    print("⚠️  TYPE STRENGTH")
+    print(
+        f"Functions with Any: {total_weak_types}/{total_funcs} ({total_weak_types/total_funcs*100:.1f}%)"
+    )
+
     total_justified = sum(s.justified_any_count for s in all_stats)
     total_unjustified = sum(s.unjustified_any_count for s in all_stats)
-    
+
     print(f"  - Justified Any: {total_justified} (dynamic data, external APIs)")
     print(f"  - Unjustified Any: {total_unjustified} (should be specific types)")
     print(f"Average Type Strength: {avg_type_strength:.1f}/100")
-    
+
     if total_unjustified > 0:
         print(f"⚠️  WARNING: {total_unjustified} functions have unjustified Any usage!")
     elif total_weak_types > 0:
         print(f"✅ All {total_weak_types} Any usages are justified (dynamic data)\n")
     else:
-        print(f"✅ No Any usage - perfect type safety!\n")
-    
+        print("✅ No Any usage - perfect type safety!\n")
+
     # File-by-file analysis
-    print('📁 FILE INTEGRATION SCORES\n')
-    
+    print("📁 FILE INTEGRATION SCORES\n")
+
     for stats in sorted(all_stats, key=lambda s: s.integration_score, reverse=True):
         if stats.functions == 0:
             continue
-        
+
         score = stats.integration_score
-        status = '🟢' if score >= 80 else '🟡' if score >= 50 else '🔴'
-        
-        print(f'{status} {stats.path} (score: {score:.1f}/100)')
-        print(f'   Functions: {stats.functions} | @beartype: {stats.beartype_count} | '
-              f'@deal: {stats.deal_pre_count + stats.deal_post_count + stats.deal_ensure_count + stats.deal_raises_count} | '
-              f'Type hints: {stats.type_hints_count}')
-        
+        status = "🟢" if score >= 80 else "🟡" if score >= 50 else "🔴"
+
+        print(f"{status} {stats.path} (score: {score:.1f}/100)")
+        print(
+            f"   Functions: {stats.functions} | @beartype: {stats.beartype_count} | "
+            f"@deal: {stats.deal_pre_count + stats.deal_post_count + stats.deal_ensure_count + stats.deal_raises_count} | "
+            f"Type hints: {stats.type_hints_count}"
+        )
+
         # Show weak types warning with justification
         if stats.weak_type_count > 0:
             if stats.unjustified_any_count > 0:
-                print(f'   ⚠️  Unjustified Any: {stats.unjustified_any_count} functions')
+                print(f"   ⚠️  Unjustified Any: {stats.unjustified_any_count} functions")
             if stats.justified_any_count > 0:
-                print(f'   ℹ️  Justified Any: {stats.justified_any_count} functions (dynamic data)')
-        
+                print(f"   ℹ️  Justified Any: {stats.justified_any_count} functions (dynamic data)")
+
         # Show recommendations for low-scoring files
         if score < 80:
             recs = generate_recommendations(stats)
             if recs:
-                print(f'   💡 {recs[0]}')
-        
+                print(f"   💡 {recs[0]}")
+
         if stats.unvalidated_functions:
             print(f'   ⚠️  Unvalidated: {", ".join(stats.unvalidated_functions[:3])}')
-    
+
     # Overall score
     avg_score = sum(s.integration_score for s in all_stats) / len(all_stats) if all_stats else 0
-    
-    print(f'\n🎯 OVERALL INTEGRATION SCORE: {avg_score:.1f}/100')
-    
+
+    print(f"\n🎯 OVERALL INTEGRATION SCORE: {avg_score:.1f}/100")
+
     if avg_score >= 80:
-        print('✅ Excellent integration depth')
+        print("✅ Excellent integration depth")
     elif avg_score >= 50:
-        print('⚠️  Moderate integration depth - improvements recommended')
+        print("⚠️  Moderate integration depth - improvements recommended")
     else:
-        print('❌ Low integration depth - significant improvements needed')
-    
+        print("❌ Low integration depth - significant improvements needed")
+
     # Top recommendations
-    print('\n💡 TOP RECOMMENDATIONS')
+    print("\n💡 TOP RECOMMENDATIONS")
     all_recs: dict[str, int] = {}
     for stats in all_stats:
         for rec in generate_recommendations(stats):
             all_recs[rec] = all_recs.get(rec, 0) + 1
-    
+
     for rec, count in sorted(all_recs.items(), key=lambda x: x[1], reverse=True)[:5]:
-        print(f'  • {rec} ({count} files)')
+        print(f"  • {rec} ({count} files)")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

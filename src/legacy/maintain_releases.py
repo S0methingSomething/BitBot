@@ -1,4 +1,3 @@
-
 """Maintain releases by marking older ones as pre-release."""
 
 import sys

@@ -14,7 +14,9 @@ from core.retry import retry
 
 @deal.pre(lambda command, check: isinstance(command, list) and len(command) > 0)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
-def run_command(command: list[str], check: bool = True) -> Result[subprocess.CompletedProcess[str], GitHubAPIError]:  # noqa: FBT001, FBT002
+def run_command(
+    command: list[str], check: bool = True
+) -> Result[subprocess.CompletedProcess[str], GitHubAPIError]:
     """Runs a shell command and returns its result."""
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=check)  # noqa: S603

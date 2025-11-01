@@ -4,7 +4,6 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import deal
 from beartype import beartype
 
 from core.config import load_config
@@ -22,12 +21,12 @@ def main() -> Result[None, BitBotError]:  # noqa: C901, PLR0912, PLR0915
     if config_result.is_err():
         return config_result
     config = config_result.unwrap()
-    
+
     state_result = load_bot_state()
     if state_result.is_err():
         return state_result
     state = state_result.unwrap()
-    
+
     state_was_meaningfully_updated = False
 
     active_post_id = state.get("activePostId")
@@ -48,7 +47,7 @@ def main() -> Result[None, BitBotError]:  # noqa: C901, PLR0912, PLR0915
     if reddit_result.is_err():
         return reddit_result
     reddit = reddit_result.unwrap()
-    
+
     try:
         submission = reddit.submission(id=active_post_id)
         submission.comments.replace_more(limit=0)

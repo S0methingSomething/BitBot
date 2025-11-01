@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 # Add parent to path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # noqa: E402
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.error_context import error_context
 from core.error_logger import ErrorLogger, LogLevel
@@ -37,7 +37,7 @@ def run(
                 progress.add_task(description="Posting to Reddit...", total=None)
 
                 # Import here to avoid circular imports
-                # LEGACY: from post_to_reddit import main as post_main  # noqa: PLC0415
+                # LEGACY: from post_to_reddit import main as post_main
 
                 # Temporarily override sys.argv for the old script
                 old_argv = sys.argv

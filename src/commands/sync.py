@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # noqa: E402
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.error_context import error_context
 from core.error_logger import ErrorLogger, LogLevel
@@ -33,7 +33,7 @@ def run() -> None:
             ) as progress:
                 progress.add_task(description="Syncing Reddit state...", total=None)
 
-                # LEGACY: from sync_reddit_history import main as syncreddithistory_main  # noqa: PLC0415
+                # LEGACY: from sync_reddit_history import main as syncreddithistory_main
 
                 try:
                     syncreddithistory_main()

@@ -100,7 +100,10 @@ def main() -> None:  # noqa: PLR0915, C901
             if post_age_days < days_limit:
                 title = generate_dynamic_title(config, added_apps, updated_apps)
                 body = generate_post_body(
-                    config, changelog_data, all_available_versions, args.page_url or github_pages_url
+                    config,
+                    changelog_data,
+                    all_available_versions,
+                    args.page_url or github_pages_url,
                 )
 
                 latest_post.edit(body=body)

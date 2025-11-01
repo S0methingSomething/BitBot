@@ -71,9 +71,8 @@ def main() -> None:
                 title_template = config["messages"]["releaseTitle"]
                 notes_template = config["messages"]["releaseDescription"]
 
-                title = (
-                    title_template.replace("{{displayName}}", display_name)
-                    .replace("{{version}}", version)
+                title = title_template.replace("{{displayName}}", display_name).replace(
+                    "{{version}}", version
                 )
                 notes = (
                     notes_template.replace("{{asset_name}}", asset_name)

@@ -13,6 +13,7 @@ E = TypeVar("E")
 @dataclass
 class Ok(Generic[T]):
     """Success result."""
+
     value: T
 
     @beartype  # type: ignore[misc]
@@ -49,6 +50,7 @@ class Ok(Generic[T]):
 @dataclass
 class Err(Generic[E]):
     """Error result."""
+
     error: E
 
     @beartype  # type: ignore[misc]

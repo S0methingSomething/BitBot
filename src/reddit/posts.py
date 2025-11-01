@@ -42,7 +42,9 @@ def get_bot_posts(
 
 
 @deal.pre(lambda older_posts, latest_release_details, config: isinstance(older_posts, list))  # type: ignore[misc]
-@deal.pre(lambda older_posts, latest_release_details, config: isinstance(latest_release_details, dict))  # type: ignore[misc]
+@deal.pre(
+    lambda older_posts, latest_release_details, config: isinstance(latest_release_details, dict)
+)  # type: ignore[misc]
 @deal.pre(lambda older_posts, latest_release_details, config: isinstance(config, dict))  # type: ignore[misc]
 @beartype  # type: ignore[misc]
 @retry(max_attempts=3, on=[RedditAPIError])

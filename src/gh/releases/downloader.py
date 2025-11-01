@@ -20,7 +20,9 @@ DOWNLOAD_DIR = paths.DIST_DIR
 @deal.pre(lambda _s, release_id, _a: release_id > 0)  # type: ignore[misc]
 @beartype
 @retry(max_attempts=3, on=[GitHubAPIError])
-def download_asset(source_repo: str, release_id: int, asset_name: str) -> Result[Path, GitHubAPIError]:
+def download_asset(
+    source_repo: str, release_id: int, asset_name: str
+) -> Result[Path, GitHubAPIError]:
     """Downloads a specific asset from a specific release."""
     try:
         Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)

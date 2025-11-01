@@ -23,7 +23,7 @@ def test_config_validation():
 def test_config_invalid_raises():
     """Test invalid config raises ValidationError."""
     with pytest.raises(Exception):  # pydantic.ValidationError
-        Config(**{"invalid": "data"})
+        Config(invalid="data")
 
 
 def test_bot_state_validation():

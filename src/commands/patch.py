@@ -9,7 +9,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-sys.path.insert(0, str(Path(__file__).parent.parent))  # noqa: E402
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from patch_file import process_file
 

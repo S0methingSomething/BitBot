@@ -53,11 +53,11 @@ def test_encrypt_decrypt_roundtrip():
     """Test encryption and decryption."""
     original = {"test": True, "value": "data"}
     obf_key = get_obfuscated_key("testkey")
-    
+
     encrypted = encrypt(original, obf_key)
     assert isinstance(encrypted, str)
     assert len(encrypted) > 0
-    
+
     decrypted = decrypt(encrypted, obf_key)
     assert decrypted["test"] is True
     assert decrypted["value"] == "data"
