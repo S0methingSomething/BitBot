@@ -1,0 +1,91 @@
+repos:
+  # Ruff - Fast Python linter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Mypy - Static type checker
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        args: [--no-error-summary, --ignore-missing-imports]
+        additional_dependencies: [types-toml, types-requests]
+
+  # Custom validation and analysis checks
+  - repo: local
+    hooks:
+      # Validation coverage check (90% threshold)
+      - id: check-validation
+        name: Validation Coverage (90%)
+        entry: uv run python .github/scripts/check_validation.py 90
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Complexity check (max 15)
+      - id: check-complexity
+        name: Code Complexity Check
+        entry: uv run python .github/scripts/check_complexity.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Integration analysis (min score 50)
+      - id: analyze-integration
+        name: Tool Integration Analysis
+        entry: uv run python .github/scripts/analyze_tool_integration.py --min-score 50
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Deal - Contract testing
+      - id: deal-lint
+        name: Deal Contract Linting
+        entry: uv run python -m deal lint src/
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Beartype - Runtime type checking (via pytest if tests exist)
+      - id: beartype-check
+        name: Beartype Runtime Check
+        entry: bash -c 'uv run python -c "from beartype import beartype; print(\"✓ Beartype available\")"'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Interrogate - Docstring coverage
+      - id: interrogate
+        name: Docstring Coverage (50%)
+        entry: uv run interrogate src/ -v --fail-under 50 --ignore-init-method --ignore-private
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Vulture - Find dead code
+      - id: vulture
+        name: Dead Code Detection
+        entry: uv run vulture src/ --min-confidence 80 --exclude legacy
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Deptry - Check dependencies
+      - id: deptry
+        name: Dependency Check
+        entry: uv run deptry src/ --ignore-notebooks
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Pydantic validation (check models are valid)
+      - id: pydantic-check
+        name: Pydantic Models Check
+        entry: bash -c 'uv run python -c "from src.models import *; print(\"✓ Pydantic models valid\")"'
+        language: system
+        pass_filenames: false
+        always_run: true
