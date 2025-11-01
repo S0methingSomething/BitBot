@@ -1,3 +1,4 @@
+from beartype import beartype
 """Patch command for BitBot CLI."""
 
 from pathlib import Path
@@ -15,6 +16,7 @@ app = typer.Typer()
 console = Console()
 
 
+@beartype  # type: ignore[misc]
 @app.command()
 def run(
     input_file: Path = typer.Argument(..., help="Input file to patch"),

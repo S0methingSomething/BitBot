@@ -22,8 +22,10 @@ def retry(
     """Retry decorator with configurable backoff strategy."""
     retry_on = on or [BitBotError]
 
+    @beartype  # type: ignore[misc]
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
+        @beartype  # type: ignore[misc]
         def wrapper(*args: Any, **kwargs: Any) -> T:
             last_exception: Exception | None = None
 

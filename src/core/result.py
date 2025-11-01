@@ -1,7 +1,7 @@
 """Result type for error handling without exceptions."""
 
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from beartype import beartype
 
@@ -35,12 +35,12 @@ class Ok(Generic[T]):
         return self.value
     
     @beartype  # type: ignore[misc]
-    def map(self, func: callable) -> "Ok":  # type: ignore[misc]
+    def map(self, func: Callable[[T], T]) -> "Ok[T]":
         """Transform Ok value."""
         return Ok(func(self.value))
     
     @beartype  # type: ignore[misc]
-    def and_then(self, func: callable) -> "Result":  # type: ignore[misc]
+    def and_then(self, func: Callable[[T], "Result[T, E]"]) -> "Result[T, E]":
         """Chain Result-returning operations."""
         return func(self.value)
 
@@ -71,17 +71,17 @@ class Err(Generic[E]):
         return default
     
     @beartype  # type: ignore[misc]
-    def map(self, func: callable) -> "Err":  # type: ignore[misc]
+    def map(self, func: Callable[[T], T]) -> "Err[E]":
         """Transform does nothing on Err."""
         return self
     
     @beartype  # type: ignore[misc]
-    def and_then(self, func: callable) -> "Err":  # type: ignore[misc]
+    def and_then(self, func: Callable[[T], "Result[T, E]"]) -> "Err[E]":
         """Chain does nothing on Err."""
         return self
     
     @beartype  # type: ignore[misc]
-    def map_err(self, func: callable) -> "Err":  # type: ignore[misc]
+    def map_err(self, func: Callable[[E], E]) -> "Err[E]":
         """Transform error value."""
         return Err(func(self.error))
 

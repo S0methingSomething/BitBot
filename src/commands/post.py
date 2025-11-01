@@ -1,3 +1,4 @@
+from beartype import beartype
 """Post command for BitBot CLI."""
 
 import sys
@@ -19,6 +20,7 @@ console = Console()
 logger = ErrorLogger(console=console)
 
 
+@beartype  # type: ignore[misc]
 @app.command()
 def run(
     page_url: str = typer.Option(None, "--page-url", help="Custom landing page URL"),

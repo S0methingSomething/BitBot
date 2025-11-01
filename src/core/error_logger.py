@@ -26,6 +26,7 @@ class ErrorLogger:
     """Structured error logger."""
 
     @beartype  # type: ignore[misc]
+    @beartype  # type: ignore[misc]
     def __init__(
         self,
         console: Console | None = None,

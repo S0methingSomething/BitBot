@@ -1,3 +1,4 @@
+from beartype import beartype
 """Release command for BitBot CLI."""
 
 import sys
@@ -18,6 +19,7 @@ console = Console()
 logger = ErrorLogger(console=console)
 
 
+@beartype  # type: ignore[misc]
 @app.command()
 def run() -> None:
     """Manage GitHub releases."""
