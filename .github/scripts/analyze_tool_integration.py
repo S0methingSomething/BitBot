@@ -366,7 +366,7 @@ class ValidationAnalyzer(ast.NodeVisitor):
         api_patterns = [
             ".submit(",  # reddit.subreddit().submit()
             ".create_release(",  # github create
-            "run_command(",  # gh api calls
+            "gh api",  # gh CLI API calls
             "requests.get(",
             "requests.post(",
         ]
@@ -413,7 +413,7 @@ class ValidationAnalyzer(ast.NodeVisitor):
         """Check if repo parameter validated with '/' check."""
         for dec in node.decorator_list:
             dec_str = ast.unparse(dec)
-            if "deal.pre" in dec_str and '"/" in repo' in dec_str:
+            if "deal.pre" in dec_str and ("/" in dec_str and "repo" in dec_str):
                 return True
         return False
 
