@@ -54,3 +54,11 @@ class RedditAPIError(ExternalAPIError):
 
 class GitHubAPIError(ExternalAPIError):
     """GitHub API error."""
+
+
+class ReleaseQueueError(BitBotError):
+    """Release queue operation error."""
+
+
+class PageGeneratorError(BitBotError):
+    """Landing page generation error."""

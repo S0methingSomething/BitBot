@@ -84,3 +84,14 @@ class BotState(BaseModel):
     active_post_id: str | None = Field(default=None, alias="activePostId")
     last_check_timestamp: str | None = Field(default=None, alias="lastCheckTimestamp")
     current_interval_seconds: int | None = Field(default=None, alias="currentIntervalSeconds")
+
+
+class PendingRelease(BaseModel):
+    """Pending release to process."""
+
+    release_id: int
+    tag: str
+    app_id: str
+    display_name: str
+    version: str
+    asset_name: str | None = None
