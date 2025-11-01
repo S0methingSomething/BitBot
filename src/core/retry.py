@@ -1,8 +1,9 @@
 """Retry decorator with exponential backoff."""
 
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from beartype import beartype
 
@@ -26,13 +27,13 @@ def retry(
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         @beartype  # type: ignore[misc]
-        def wrapper(*args: Any, **kwargs: Any) -> T:
+        def wrapper(*args: Any, **kwargs: Any) -> T:  # noqa: ANN401
             last_exception: Exception | None = None
 
             for attempt in range(max_attempts):
                 try:
                     return func(*args, **kwargs)
-                except Exception as e:
+                except Exception as e:  # noqa: PERF203
                     if not any(isinstance(e, error_type) for error_type in retry_on):
                         raise
 
@@ -48,7 +49,8 @@ def retry(
 
             if last_exception:
                 raise last_exception
-            raise RuntimeError("Retry failed without exception")
+            msg = "Retry failed without exception"
+            raise RuntimeError(msg)
 
         return wrapper
 

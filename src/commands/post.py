@@ -1,4 +1,5 @@
 from beartype import beartype
+
 """Post command for BitBot CLI."""
 
 import sys
@@ -9,7 +10,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 # Add parent to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))  # noqa: E402
 
 from core.error_context import error_context
 from core.error_logger import ErrorLogger, LogLevel
@@ -34,16 +35,16 @@ def run(
                 console=console,
             ) as progress:
                 progress.add_task(description="Posting to Reddit...", total=None)
-                
+
                 # Import here to avoid circular imports
-                from post_to_reddit import main as post_main
-                
+                from post_to_reddit import main as post_main  # noqa: PLC0415
+
                 # Temporarily override sys.argv for the old script
                 old_argv = sys.argv
                 sys.argv = ["post_to_reddit"]
                 if page_url:
                     sys.argv.extend(["--page-url", page_url])
-                
+
                 try:
                     post_main()
                     console.print("[green]✓ Successfully posted to Reddit[/green]")
@@ -55,12 +56,12 @@ def run(
                         raise typer.Exit(code=e.code)
                 finally:
                     sys.argv = old_argv
-                    
+
         except BitBotError as e:
             logger.log_error(e, LogLevel.ERROR)
             console.print(f"[red]✗ Error:[/red] {e.message}")
             raise typer.Exit(code=1)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)
             console.print(f"[red]✗ Error:[/red] {e}")

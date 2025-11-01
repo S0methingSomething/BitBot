@@ -8,7 +8,6 @@ import deal
 from beartype import beartype
 
 import paths
-
 from reddit.posting.changelog import generate_changelog
 
 

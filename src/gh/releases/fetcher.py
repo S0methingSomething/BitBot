@@ -30,10 +30,10 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
     """Fetches data from the GitHub API using the gh cli."""
     command = ["gh", "api", url]
     result = run_command(command)
-    
+
     if result.is_err():
         return result
-    
+
     try:
         data = json.loads(result.unwrap().stdout)
         return Ok(cast("dict[str, Any] | list[Any]", data))
@@ -47,14 +47,14 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
 def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIError]:
     """Gets the last 30 releases from the source repository."""
     result = get_github_data(f"/repos/{repo}/releases?per_page=30")
-    
+
     if result.is_err():
         return result
-    
+
     data = result.unwrap()
     if not isinstance(data, list):
         return Err(GitHubAPIError("Expected list of releases"))
-    
+
     return Ok(cast("list[dict[str, Any]]", data))
 
 
@@ -64,8 +64,8 @@ def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIErro
 def check_if_bot_release_exists(bot_repo: str, tag: str) -> Result[bool, GitHubAPIError]:
     """Checks if a release with the given tag exists in the bot repo."""
     result = run_command(["gh", "release", "view", tag, "--repo", bot_repo], check=False)
-    
+
     if result.is_err():
         return Ok(False)
-    
+
     return Ok(result.unwrap().returncode == 0)

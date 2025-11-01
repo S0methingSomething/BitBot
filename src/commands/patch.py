@@ -1,14 +1,15 @@
 from beartype import beartype
+
 """Patch command for BitBot CLI."""
 
+# Import from parent
+import sys
 from pathlib import Path
 
 import typer
 from rich.console import Console
 
-# Import from parent
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))  # noqa: E402
 
 from patch_file import process_file
 
@@ -24,13 +25,13 @@ def run(
 ) -> None:
     """Patch an asset file by decrypting, modifying, and re-encrypting."""
     console.print(f"[cyan]Patching file:[/cyan] {input_file} → {output_file}")
-    
+
     result = process_file(input_file, output_file)
-    
+
     if result.is_err():
         console.print(f"[red]✗ Error:[/red] {result.error}")
         raise typer.Exit(code=1)
-    
+
     console.print("[green]✓ Successfully patched file[/green]")
 
 

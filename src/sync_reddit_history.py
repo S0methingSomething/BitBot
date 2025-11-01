@@ -9,8 +9,8 @@ from beartype import beartype
 from core.config import load_config
 from core.state import load_bot_state, save_bot_state
 from reddit.client import init_reddit
-from reddit.posts import get_bot_posts
 from reddit.parser import parse_versions_from_post
+from reddit.posts import get_bot_posts
 
 
 @deal.post(lambda result: result is None)  # type: ignore[misc]

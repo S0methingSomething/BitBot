@@ -110,7 +110,7 @@ def update_older_posts(  # noqa: C901
                     updated_count += 1
             except Exception:  # noqa: BLE001, S110
                 pass
-        
+
         return Ok(None)
     except Exception as e:
         return Err(RedditAPIError(f"Failed to update older posts: {e}"))

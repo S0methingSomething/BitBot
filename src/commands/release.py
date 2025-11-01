@@ -1,4 +1,5 @@
 from beartype import beartype
+
 """Release command for BitBot CLI."""
 
 import sys
@@ -8,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))  # noqa: E402
 
 from core.error_context import error_context
 from core.error_logger import ErrorLogger, LogLevel
@@ -31,9 +32,9 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Managing releases...", total=None)
-                
-                from release_manager import main as release_main
-                
+
+                from release_manager import main as release_main  # noqa: PLC0415
+
                 try:
                     release_main()
                     console.print("[green]✓ Successfully managed releases[/green]")
@@ -43,12 +44,12 @@ def run() -> None:
                         logger.log_error(error, LogLevel.ERROR)
                         console.print("[red]✗ Failed to manage releases[/red]")
                         raise typer.Exit(code=e.code)
-                    
+
         except BitBotError as e:
             logger.log_error(e, LogLevel.ERROR)
             console.print(f"[red]✗ Error:[/red] {e.message}")
             raise typer.Exit(code=1)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)
             console.print(f"[red]✗ Error:[/red] {e}")

@@ -1,8 +1,9 @@
 """Error context manager for propagating context through call stack."""
 
 import threading
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator
+from typing import Any
 
 from beartype import beartype
 
@@ -14,7 +15,7 @@ def get_error_context() -> dict[str, Any]:
     """Get current error context."""
     if not hasattr(_context_stack, "stack"):
         _context_stack.stack = []
-    
+
     merged: dict[str, Any] = {}
     for ctx in _context_stack.stack:
         merged.update(ctx)
@@ -23,11 +24,11 @@ def get_error_context() -> dict[str, Any]:
 
 @contextmanager
 @beartype  # type: ignore[misc]
-def error_context(**context: Any) -> Generator[None, None, None]:
+def error_context(**context: Any)  # noqa: ANN401 -> Generator[None, None, None]:
     """Context manager for adding error context."""
     if not hasattr(_context_stack, "stack"):
         _context_stack.stack = []
-    
+
     _context_stack.stack.append(context)
     try:
         yield

@@ -8,7 +8,7 @@ from beartype import beartype
 
 class ConfigService(Protocol):
     """Protocol for configuration service."""
-    
+
     def get_config(self) -> dict[str, Any]:
         """Load configuration."""
         ...
@@ -16,19 +16,19 @@ class ConfigService(Protocol):
 
 class StateService(Protocol):
     """Protocol for state management service."""
-    
+
     def load_bot_state(self) -> dict[str, Any]:
         """Load bot state."""
         ...
-    
+
     def save_bot_state(self, data: dict[str, Any]) -> None:
         """Save bot state."""
         ...
-    
+
     def load_release_state(self) -> list[int]:
         """Load release state."""
         ...
-    
+
     def save_release_state(self, data: list[int]) -> None:
         """Save release state."""
         ...
@@ -36,7 +36,7 @@ class StateService(Protocol):
 
 class RedditService(Protocol):
     """Protocol for Reddit service."""
-    
+
     def get_client(self) -> praw.Reddit:
         """Get Reddit client."""
         ...
@@ -44,23 +44,24 @@ class RedditService(Protocol):
 
 class Container:
     """Simple dependency injection container."""
-    
+
     def __init__(self) -> None:
         """Initialize container."""
         self._services: dict[str, Any] = {}
-    
+
     @beartype  # type: ignore[misc]
-    def register(self, name: str, service: Any) -> None:
+    def register(self, name: str, service: Any) -> None:  # noqa: ANN401
         """Register a service."""
         self._services[name] = service
-    
+
     @beartype  # type: ignore[misc]
-    def get(self, name: str) -> Any:
+    def get(self, name: str) -> Any:  # noqa: ANN401
         """Get a service."""
         if name not in self._services:
-            raise KeyError(f"Service '{name}' not registered")
+            msg = f"Service '{name}' not registered"
+            raise KeyError(msg)
         return self._services[name]
-    
+
     @beartype  # type: ignore[misc]
     def has(self, name: str) -> bool:
         """Check if service is registered."""
@@ -74,7 +75,7 @@ _container: Container | None = None
 @beartype  # type: ignore[misc]
 def get_container() -> Container:
     """Get the global container instance."""
-    global _container
+    global _container  # noqa: PLW0603
     if _container is None:
         _container = Container()
     return _container
@@ -83,5 +84,5 @@ def get_container() -> Container:
 @beartype  # type: ignore[misc]
 def reset_container() -> None:
     """Reset the global container (for testing)."""
-    global _container
+    global _container  # noqa: PLW0603
     _container = None

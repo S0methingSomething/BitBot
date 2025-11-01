@@ -15,7 +15,7 @@ from gh.releases.patcher import patch_file
 
 @deal.post(lambda result: result is None)  # type: ignore[misc]
 @beartype  # type: ignore[misc]
-def main() -> None:  # noqa: C901, PLR0915, PLR0912
+def main() -> None:
     """Process source releases and create patched bot releases."""
     config = load_config()
     source_repo = config["github"]["sourceRepo"]

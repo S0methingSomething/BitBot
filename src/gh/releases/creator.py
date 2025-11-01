@@ -30,5 +30,5 @@ def create_bot_release(bot_repo: str, tag: str, title: str, notes: str, file_pat
             file_path,
         ]
     )
-    
+
     return result.map(lambda _: None)

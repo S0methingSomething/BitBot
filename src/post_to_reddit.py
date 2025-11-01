@@ -15,10 +15,10 @@ import paths
 from core.config import load_config
 from core.state import load_bot_state, save_bot_state
 from reddit.client import init_reddit
-from reddit.posts import get_bot_posts, update_older_posts
 from reddit.posting.body_builder import generate_post_body
 from reddit.posting.poster import post_new_release
 from reddit.posting.title_generator import generate_dynamic_title
+from reddit.posts import get_bot_posts, update_older_posts
 
 
 @deal.post(lambda result: result is None)  # type: ignore[misc]

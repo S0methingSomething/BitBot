@@ -268,11 +268,35 @@
         "dependencies": [],
         "priority": "high",
         "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Refactor Scripts to Use Result Types",
+        "description": "Refactor all 8 main scripts to fully use Result types instead of sys.exit() and exceptions. Remove hybrid CLI wrapper pattern and make scripts return Result types directly.",
+        "details": "Current state:\n- CLI commands wrap old scripts with sys.exit()\n- Scripts use exceptions and print statements\n- Hybrid pattern is transitional, not production-ready\n\nScripts to refactor:\n1. post_to_reddit.py - Main posting logic\n2. release_manager.py - Release management\n3. check_comments.py - Comment checking\n4. sync_reddit_history.py - State syncing\n5. gather_post_data.py - Data gathering\n6. page_generator.py - Landing page generation\n7. maintain_releases.py - Release maintenance\n8. legacy_release_migrator.py - Migration script\n\nFor each script:\n- Remove sys.exit() calls\n- Return Result[None, BitBotError] from main()\n- Use error_context for operation tracking\n- Convert exceptions to typed errors\n- Remove print statements, use logger\n- Update CLI command to handle Result\n\nPattern:\n```python\ndef main() -> Result[None, BitBotError]:\n    config_result = load_config()\n    if config_result.is_err():\n        return config_result\n    \n    reddit_result = init_reddit()\n    if reddit_result.is_err():\n        return reddit_result\n    \n    # ... business logic\n    return Ok(None)\n```\n\nBenefits:\n- Testable (no sys.exit)\n- Type-safe error handling\n- Consistent error patterns\n- Better debugging",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Fix Linting, Validation, and Analysis Errors",
+        "description": "Fix all remaining linting, validation, and analysis errors to achieve clean codebase: ruff (158 errors), mypy (60 errors), improve integration score from 58.1 to 80+",
+        "details": "Current state:\n- Validation: 92.7% (89/96) ✅\n- Integration score: 58.1/100 ⚠️\n- Ruff: 158 errors\n- Mypy: 60 errors (mostly missing stubs)\n\nRuff errors to fix:\n- 103 ARG005: Unused lambda arguments in @deal contracts\n- 7 BLE001: Blind except (add noqa where legitimate)\n- 5 E501: Line too long (>100 chars)\n- 5 invalid-syntax: Fix syntax errors from noqa additions\n- Others: B904, FBT003, PLR0911, S112\n\nMypy errors:\n- Missing stubs for typer, rich (external libs - ignore)\n- Untyped decorators (add type: ignore where needed)\n- Fix remaining type issues in new code\n\nIntegration score improvements:\n- Add @deal.pre contracts to CLI commands (27 files)\n- Add @deal.post contracts where missing (24 files)\n- Reduce type: ignore comments where possible\n\nStrategy:\n1. Fix syntax errors first\n2. Add noqa comments for legitimate warnings\n3. Fix line length issues\n4. Add @deal contracts to improve integration score\n5. Run all checks and verify clean state\n\nTarget:\n- Ruff: <50 errors (mostly style)\n- Mypy: <20 errors (only external stubs)\n- Integration score: 80+/100\n- Validation: maintain 90%+",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          15
+        ],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-01T02:13:32.148Z",
+      "updated": "2025-11-01T02:23:29.162Z",
       "description": "Tasks for master context"
     }
   }
