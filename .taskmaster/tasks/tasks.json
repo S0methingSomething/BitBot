@@ -398,7 +398,7 @@
         "description": "Fix 29 architectural violations to raise rating from 58.3/100 to 75+/100",
         "details": "## Current State\n- Overall score: 58.3/100 (moderate)\n- 29 architectural violations detected\n- Key issues: missing @retry (7), missing Result types (15), fat CLI commands (4), weak types (2), missing error_context (1)\n\n## Violations to Fix\n\n### High Priority (Quick Wins)\n1. **Add @retry to reddit poster** (1 function)\n   - reddit/posting/poster.py:post_new_release() makes API call without @retry\n   - Add: @retry(retry=retry_if_result(should_retry_api_error), stop=stop_after_attempt(3), wait=wait_exponential())\n\n2. **Fix patch.py** (1 function)\n   - commands/patch.py:run() missing error_context() and get_logger()\n   - Wrap logic in error_context()\n   - Add logger = get_logger(__name__)\n\n3. **Add Result types to file I/O** (focus on core/)\n   - core/error_logger.py:log_error() - return Result\n   - core/error_logger.py:get_logger() - return Result\n   - Other file I/O functions\n\n### Medium Priority\n4. **Refactor fat CLI commands** (4 functions)\n   - commands/gather.py:run() - 130 LOC\n   - commands/maintain.py:run() - 110 LOC\n   - commands/post.py:run() - 120 LOC\n   - commands/release.py:run() - 130 LOC\n   - Move business logic to service layer\n   - Keep CLI as thin orchestration\n\n5. **Fix weak types in parsers** (2 functions)\n   - gh/parser.py:parse_release_notes() - replace Any with TypedDict\n   - gh/releases/parser.py:parse_release_description() - replace Any with TypedDict\n\n### Lower Priority\n6. **Add @retry to legacy scripts** (2 functions)\n   - legacy/check_comments.py:main()\n   - legacy/maintain_releases.py:main()\n\n## Expected Impact\n- Score increase: 58.3 → 75+ (target)\n- Retry compliance: 36.4% → 80%+\n- Result type usage: 21.5% → 40%+\n- CLI thin compliance: 50% → 100%\n\n## Implementation Order\n1. Reddit poster @retry (5 min)\n2. Fix patch.py (5 min)\n3. Add Result to core file I/O (15 min)\n4. Refactor fat CLI commands (60 min)\n5. Fix parser weak types (20 min)",
         "testStrategy": "Run analysis script after each fix to verify score improvement. Target: 75+/100 overall score.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": []
@@ -406,7 +406,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-01T05:49:52.109Z",
+      "updated": "2025-11-01T06:15:11.236Z",
       "description": "Tasks for master context"
     }
   }
