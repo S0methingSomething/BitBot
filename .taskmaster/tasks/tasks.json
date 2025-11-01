@@ -126,7 +126,7 @@
         "description": "Implement comprehensive error handling framework with typed errors, retry logic, structured logging, and Result type integration. Build on existing Result type and DI infrastructure.",
         "details": "CURRENT STATE:\n- Result type exists (core/result.py) with Ok/Err pattern\n- DI container exists (core/container.py) with service protocols\n- CLI with Rich tracebacks (src/cli.py)\n- Partial Result usage in patch_file.py\n- CLI commands wrap exceptions and convert to typer.Exit\n\nWHAT'S MISSING:\n- Error type hierarchy (TransientError, PermanentError, etc.)\n- Retry mechanism with exponential backoff\n- Centralized error logger with structured logging\n- Error context propagation (thread-local context stack)\n- Integration with Reddit/GitHub clients\n- Integration with all 8 CLI commands\n- Error recovery strategies\n- Comprehensive tests\n\nTECHNICAL DESIGN:\n- Error hierarchy: BitBotError base with TransientError, PermanentError, ConfigurationError, StateError, ExternalAPIError\n- Retry decorator: @retry(max_attempts=3, backoff=exponential, on=[TransientError])\n- Error context: with error_context(operation=\"post_to_reddit\", release_id=123)\n- Integration with Result: functions return Result[T, BitBotError]\n- CLI layer converts Result to exit codes and Rich output\n- Complements existing @beartype + @deal validation\n\nESTIMATED COMPLEXITY: ~920 LOC across 10 subtasks\n\nBenefits:\n- Testable error paths\n- Better debugging with context\n- Graceful degradation\n- Retry logic for transient failures\n- Structured error logging",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": [
@@ -221,7 +221,7 @@
             "id": 9,
             "title": "Update CLI Commands with Error Framework",
             "description": "Update all 8 CLI commands to use error framework, Result types, and Rich error display",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               "12.4",
               "12.5",
@@ -235,7 +235,7 @@
             "id": 10,
             "title": "Add Error Handling Tests",
             "description": "Add comprehensive tests for error handling framework: error types, retry logic, context propagation, logging, Result integration",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               "12.1",
               "12.2",
@@ -272,7 +272,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-01T02:10:47.301Z",
+      "updated": "2025-11-01T02:13:32.148Z",
       "description": "Tasks for master context"
     }
   }
