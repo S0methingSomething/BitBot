@@ -286,7 +286,7 @@
         "description": "Fix all remaining linting, validation, and analysis errors to achieve clean codebase: ruff (158 errors), mypy (60 errors), improve integration score from 58.1 to 80+",
         "details": "Current state:\n- Validation: 92.7% (89/96) ✅\n- Integration score: 58.1/100 ⚠️\n- Ruff: 158 errors\n- Mypy: 60 errors (mostly missing stubs)\n\nRuff errors to fix:\n- 103 ARG005: Unused lambda arguments in @deal contracts\n- 7 BLE001: Blind except (add noqa where legitimate)\n- 5 E501: Line too long (>100 chars)\n- 5 invalid-syntax: Fix syntax errors from noqa additions\n- Others: B904, FBT003, PLR0911, S112\n\nMypy errors:\n- Missing stubs for typer, rich (external libs - ignore)\n- Untyped decorators (add type: ignore where needed)\n- Fix remaining type issues in new code\n\nIntegration score improvements:\n- Add @deal.pre contracts to CLI commands (27 files)\n- Add @deal.post contracts where missing (24 files)\n- Reduce type: ignore comments where possible\n\nStrategy:\n1. Fix syntax errors first\n2. Add noqa comments for legitimate warnings\n3. Fix line length issues\n4. Add @deal contracts to improve integration score\n5. Run all checks and verify clean state\n\nTarget:\n- Ruff: <50 errors (mostly style)\n- Mypy: <20 errors (only external stubs)\n- Integration score: 80+/100\n- Validation: maintain 90%+",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           15
         ],
@@ -299,7 +299,7 @@
         "description": "Remove all lazy noqa comments and actually fix the underlying ruff errors instead of suppressing them. Currently ~150+ errors are suppressed with noqa, defeating the purpose of linting.",
         "details": "Current state:\n- Added noqa comments to suppress errors instead of fixing them\n- Ruff is now useless because everything is suppressed\n- Need to actually fix the root causes\n\nErrors to fix properly:\n\n1. ARG005 (103 errors): Unused lambda arguments in @deal contracts\n   - Fix: Rewrite @deal.pre lambdas to only include params being validated\n   - Example: @deal.pre(lambda x, y: len(x) > 0) where y is unused\n   - Should be: @deal.pre(lambda x, _: len(x) > 0) or split into separate contracts\n\n2. BLE001 (7 errors): Blind exception catching\n   - Fix: Catch specific exceptions instead of Exception\n   - Example: except Exception as e → except (ValueError, KeyError) as e\n   - Only use except Exception where truly necessary (error framework)\n\n3. E501 (5 errors): Line too long (>100 chars)\n   - Fix: Break long lines properly\n   - Use parentheses for line continuation\n   - Split long function signatures\n\n4. ARG002 (3 errors): Unused method arguments\n   - Fix: Rename unused args to _ or remove if not needed\n   - Example: def unwrap_or(self, default: T) where default unused\n   - Should be: def unwrap_or(self, _: T) or remove parameter\n\n5. FBT003 (2 errors): Boolean positional values\n   - Fix: Use named arguments or constants\n   - Example: return Ok(False) → return Ok(RELEASE_NOT_FOUND)\n\n6. PLR0911 (2 errors): Too many return statements\n   - Fix: Refactor to reduce branches or mark as acceptable\n\n7. Others: B904, S112, PLW0603, etc.\n   - Fix each properly based on context\n\nStrategy:\n1. Remove all noqa comments\n2. Run ruff to see real error count\n3. Fix errors by category (ARG005 first, then BLE001, etc.)\n4. Only add noqa for truly legitimate cases (not laziness)\n\nTarget: <20 ruff errors (only legitimate suppressions)\n\nBenefits:\n- Ruff becomes useful again\n- Code quality actually improves\n- Catches real issues\n- No false sense of cleanliness",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": []
@@ -406,7 +406,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-02T12:08:25.949Z",
+      "updated": "2025-11-02T12:11:19.540Z",
       "description": "Tasks for master context"
     }
   }

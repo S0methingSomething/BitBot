@@ -1,6 +1,7 @@
 """Reddit post body generation."""
 
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -70,6 +71,11 @@ def generate_post_body(
         "{{status}}", config["feedback"]["labels"]["unknown"]
     )
 
+    # Generate timestamp and app count
+    now = datetime.now(timezone.utc)
+    update_timestamp = now.strftime("%b %d, %Y - %I:%M %p UTC")
+    app_count = sum(1 for data in all_releases_data.values() if data.get("latest_release"))
+
     placeholders = {
         "{{changelog}}": changelog,
         "{{available_list}}": available_list,
@@ -79,6 +85,8 @@ def generate_post_body(
         "{{creator_username}}": config["reddit"]["creator"],
         "{{initial_status}}": initial_status_line,
         "{{download_portal_url}}": page_url,
+        "{{update_timestamp}}": update_timestamp,
+        "{{app_count}}": str(app_count),
     }
 
     post_body = post_body_template
