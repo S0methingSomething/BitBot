@@ -6,11 +6,9 @@ from typing import Any, cast
 
 import deal
 from beartype import beartype
-from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 from core.errors import GitHubAPIError
 from core.result import Err, Ok, Result
-from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 
 
 @deal.pre(
@@ -38,12 +36,7 @@ def run_command(
     message="GitHub API URLs must start with / for relative paths",
 )
 @beartype
-@retry(
-    retry=retry_if_result(should_retry_api_error),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=60),
-    before_sleep=log_retry_attempt,
-)
+# Note: Retry removed - tenacity's exception-based retry conflicts with Result types
 def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIError]:
     """Fetches data from the GitHub API using the gh cli."""
     command = ["gh", "api", url]
@@ -64,12 +57,7 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
     message="Repository must be in owner/name format",
 )
 @beartype
-@retry(
-    retry=retry_if_result(should_retry_api_error),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=60),
-    before_sleep=log_retry_attempt,
-)
+# Note: Retry removed - tenacity's exception-based retry conflicts with Result types
 def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIError]:
     """Gets the last 30 releases from the source repository."""
     result = get_github_data(f"/repos/{repo}/releases?per_page=30")

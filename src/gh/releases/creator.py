@@ -2,11 +2,9 @@
 
 import deal
 from beartype import beartype
-from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 from core.errors import GitHubAPIError
 from core.result import Result
-from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 from gh.releases.fetcher import run_command
 
 
@@ -27,12 +25,6 @@ from gh.releases.fetcher import run_command
     message="File path cannot be empty - release must include an asset file",
 )
 @beartype
-@retry(
-    retry=retry_if_result(should_retry_api_error),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=60),
-    before_sleep=log_retry_attempt,
-)
 def create_bot_release(
     bot_repo: str, tag: str, title: str, notes: str, file_path: str
 ) -> Result[None, GitHubAPIError]:

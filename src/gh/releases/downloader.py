@@ -5,13 +5,11 @@ from typing import Any, cast
 
 import deal
 from beartype import beartype
-from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 import paths
 from core.credentials import Credentials
 from core.errors import GitHubAPIError
 from core.result import Err, Ok, Result
-from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 from gh.releases.fetcher import get_github_data, run_command
 
 DOWNLOAD_DIR = paths.DIST_DIR
@@ -30,12 +28,6 @@ DOWNLOAD_DIR = paths.DIST_DIR
     message="Asset name cannot be empty - must specify which file to download",
 )
 @beartype
-@retry(
-    retry=retry_if_result(should_retry_api_error),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=60),
-    before_sleep=log_retry_attempt,
-)
 def download_asset(
     source_repo: str, release_id: int, asset_name: str
 ) -> Result[Path, GitHubAPIError]:

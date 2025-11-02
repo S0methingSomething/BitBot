@@ -61,7 +61,7 @@ def save_pending_releases(releases: list[PendingRelease]) -> Result[None, Releas
 
 
 @deal.pre(
-    lambda release: isinstance(release, PendingRelease),
+    lambda release: hasattr(release, "release_id"),
     message="Release must be a PendingRelease object",
 )
 @beartype

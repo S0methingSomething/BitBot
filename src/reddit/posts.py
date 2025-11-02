@@ -8,14 +8,12 @@ import deal
 import praw
 import praw.models
 from beartype import beartype
-from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 import paths
 from core.error_logger import get_logger
 from core.errors import RedditAPIError
 from core.result import Err, Ok, Result
 from core.state import load_bot_state, save_bot_state
-from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 
 logger = get_logger()
 
@@ -23,12 +21,6 @@ logger = get_logger()
 @deal.pre(lambda reddit, config: reddit is not None)
 @deal.pre(lambda reddit, config: isinstance(config, dict))
 @beartype
-@retry(
-    retry=retry_if_result(should_retry_api_error),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=60),
-    before_sleep=log_retry_attempt,
-)
 def get_bot_posts(
     reddit: praw.Reddit, config: dict[str, Any]
 ) -> Result[list[praw.models.Submission], RedditAPIError]:
@@ -82,12 +74,6 @@ def get_bot_posts(
 )
 @deal.pre(lambda older_posts, latest_release_details, config: isinstance(config, dict))
 @beartype
-@retry(
-    retry=retry_if_result(should_retry_api_error),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=60),
-    before_sleep=log_retry_attempt,
-)
 def update_older_posts(
     older_posts: list[praw.models.Submission],
     latest_release_details: dict[str, Any],

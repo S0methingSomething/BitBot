@@ -119,6 +119,9 @@ def run() -> None:
             console.print(f"[red]✗ Error:[/red] {e.message}")
             raise typer.Exit(code=1) from None
         except Exception as e:
+            import traceback
+
+            traceback.print_exc()
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)
             console.print(f"[red]✗ Error:[/red] {e}")

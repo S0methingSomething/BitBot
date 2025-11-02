@@ -5,22 +5,14 @@ from typing import Any
 import deal
 import praw
 from beartype import beartype
-from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 from core.credentials import Credentials
 from core.errors import RedditAPIError
 from core.result import Err, Ok, Result
-from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 
 
 @deal.pre(lambda _config: _config is None or isinstance(_config, dict))
 @beartype
-@retry(
-    retry=retry_if_result(should_retry_api_error),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=60),
-    before_sleep=log_retry_attempt,
-)
 def init_reddit(_config: dict[str, Any] | None = None) -> Result[praw.Reddit, RedditAPIError]:
     """Initializes and returns a PRAW Reddit instance."""
     try:
