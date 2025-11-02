@@ -21,28 +21,20 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.13'
       
       - name: Install Dependencies with uv
         run: |
           pip install uv
-          uv pip install --system -e ./..
+          uv sync
       
-      - name: Run Release Manager
-        working-directory: ./src
+      - name: Gather Releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python release_manager.py
+        run: uv run python -m src.commands.gather
 
-      - name: Gather All Bot Releases
-        working-directory: ./src
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python gather_post_data.py
-
-      - name: Generate Static Page
-        working-directory: ./src
-        run: python page_generator.py
+      - name: Generate Landing Page
+        run: uv run python -m src.commands.page
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
