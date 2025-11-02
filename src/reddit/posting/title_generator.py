@@ -22,8 +22,8 @@ def create_app_list(app_dict: dict[str, Any]) -> str:
     return ", ".join(parts)
 
 
-@deal.pre(lambda config, **_kwargs: isinstance(config, dict))
-@deal.pre(lambda config, added, **_kwargs: isinstance(added, dict))
+@deal.pre(lambda config, added, updated: isinstance(config, dict))
+@deal.pre(lambda config, added, updated: isinstance(added, dict))
 @deal.pre(lambda config, added, updated: isinstance(updated, dict))
 @deal.post(lambda result: len(result) > 0)
 @beartype

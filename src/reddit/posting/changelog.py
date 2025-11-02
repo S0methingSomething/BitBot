@@ -51,9 +51,9 @@ def create_section(
     return "\n".join(lines) if len(lines) > 1 else None
 
 
-@deal.pre(lambda config, **_kwargs: isinstance(config, dict))
-@deal.pre(lambda config, added, **_kwargs: isinstance(added, dict))
-@deal.pre(lambda config, added, updated, **_kwargs: isinstance(updated, dict))
+@deal.pre(lambda config, added, updated, removed: isinstance(config, dict))
+@deal.pre(lambda config, added, updated, removed: isinstance(added, dict))
+@deal.pre(lambda config, added, updated, removed: isinstance(updated, dict))
 @deal.pre(lambda config, added, updated, removed: isinstance(removed, dict))
 @deal.post(lambda result: len(result) > 0)
 @beartype
