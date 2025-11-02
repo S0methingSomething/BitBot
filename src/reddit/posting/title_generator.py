@@ -22,9 +22,9 @@ def create_app_list(app_dict: dict[str, Any]) -> str:
     return ", ".join(parts)
 
 
-@deal.pre(lambda config, _a, _u: isinstance(config, dict))
-@deal.pre(lambda _c, added, _u: isinstance(added, dict))
-@deal.pre(lambda _c, _a, updated: isinstance(updated, dict))
+@deal.pre(lambda config, **_kwargs: isinstance(config, dict))
+@deal.pre(lambda config, added, **_kwargs: isinstance(added, dict))
+@deal.pre(lambda config, added, updated: isinstance(updated, dict))
 @deal.post(lambda result: len(result) > 0)
 @beartype
 def generate_dynamic_title(
