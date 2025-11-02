@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import deal
 from beartype import beartype
@@ -10,42 +10,33 @@ from beartype import beartype
 import paths
 from core.errors import StateError
 from core.result import Err, Ok, Result
+from models import BotState
 
 
 @beartype
-def load_bot_state() -> Result[dict[str, Any], StateError]:
+def load_bot_state() -> Result[BotState, StateError]:
     """Loads the bot's monitoring state from JSON."""
     try:
         with Path(paths.BOT_STATE_FILE).open() as f:
-            state = cast("dict[str, Any]", json.load(f))
+            data = json.load(f)
+            state = BotState(**data)
     except FileNotFoundError:
-        state = {}
+        state = BotState()
     except json.JSONDecodeError as e:
         return Err(StateError(f"Invalid JSON in bot state file: {e}"))
     except Exception as e:
         return Err(StateError(f"Failed to load bot state: {e}"))
 
-    # Ensure nested structure
-    if "online" not in state:
-        state["online"] = {}
-    if "last_posted_versions" not in state["online"]:
-        state["online"]["last_posted_versions"] = {}
-    if "offline" not in state:
-        state["offline"] = {}
-    if "last_generated_versions" not in state["offline"]:
-        state["offline"]["last_generated_versions"] = {}
-
     return Ok(state)
 
 
-@deal.pre(lambda data: isinstance(data, dict))
-@deal.pre(lambda data: "online" in data or "offline" in data)
+@deal.pre(lambda state: hasattr(state, "model_dump"))
 @beartype
-def save_bot_state(data: dict[str, Any]) -> Result[None, StateError]:
+def save_bot_state(state: BotState) -> Result[None, StateError]:
     """Saves the bot's monitoring state."""
     try:
         with Path(paths.BOT_STATE_FILE).open("w") as f:
-            json.dump(data, f, indent=2)
+            json.dump(state.model_dump(by_alias=True), f, indent=2)
         return Ok(None)
     except Exception as e:
         return Err(StateError(f"Failed to save bot state: {e}"))

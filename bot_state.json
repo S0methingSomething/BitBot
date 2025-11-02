@@ -1,3 +1,10 @@
 {
-  "invalid": "data"
+  "online": {},
+  "offline": {},
+  "activePostId": "1omikfj",
+  "lastCheckTimestamp": null,
+  "currentIntervalSeconds": null,
+  "allPostIds": [
+    "1omikfj"
+  ]
 }
