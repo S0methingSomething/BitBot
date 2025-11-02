@@ -30,7 +30,7 @@ def parse_release_description(
         line = raw_line.strip()
         if not line:
             if current_release:
-                found_releases.append(cast(ParsedRelease, current_release))
+                found_releases.append(cast("ParsedRelease", current_release))
             current_release = {}
             continue
 
@@ -41,7 +41,7 @@ def parse_release_description(
 
             if key == "app":
                 if current_release:
-                    found_releases.append(cast(ParsedRelease, current_release))
+                    found_releases.append(cast("ParsedRelease", current_release))
                 app_id = app_id_map.get(value.lower())
                 current_release = {"app_id": app_id, "display_name": value} if app_id else {}
             elif current_release:
@@ -53,6 +53,6 @@ def parse_release_description(
             continue
 
     if current_release:
-        found_releases.append(cast(ParsedRelease, current_release))
+        found_releases.append(cast("ParsedRelease", current_release))
 
     return found_releases

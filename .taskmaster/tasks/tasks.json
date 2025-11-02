@@ -27,7 +27,7 @@
         "description": "Current post detection is fragile - hardcoded \"[BitBot] MonetizationVars\" string that ignores config and breaks if title changes. Need reliable way to identify bot's own posts.",
         "details": "Current Issues:\n- Hardcoded post_identifier = \"[BitBot] MonetizationVars\" in helpers.py\n- Ignores config[\"reddit\"][\"postIdentifier\"] \n- Only uses title.startswith() - fragile\n- No fallback if title format changes\n\nProposed Solution (Hybrid Approach):\n1. Store post IDs in bot_state.json\n   - Add \"allPostIds\": [] to track all bot posts\n   - Save post ID when creating/updating posts\n   \n2. Detection logic:\n   - Primary: Check if post.id in bot_state[\"allPostIds\"]\n   - Fallback: Check author == bot_user AND title.startswith(config identifier)\n   - Self-healing: Add discovered posts to state\n   \n3. Use config postIdentifier instead of hardcoded string\n\nBenefits:\n- Survives title format changes\n- Self-healing if state lost\n- Respects configuration\n- No mod permissions needed\n\nFiles to modify:\n- src/helpers.py: get_bot_posts() function\n- src/models.py: Add allPostIds to BotState\n- src/post_to_reddit.py: Save post IDs after creation",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": []
@@ -406,7 +406,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-01T06:15:11.236Z",
+      "updated": "2025-11-02T12:08:25.949Z",
       "description": "Tasks for master context"
     }
   }
