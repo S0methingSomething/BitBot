@@ -115,7 +115,7 @@
         "description": "Implement dependency injection to remove tight coupling and enable testability. Replace global imports and direct instantiation with DI container pattern.",
         "details": "Current issues:\n- 21 sys.exit() calls blocking testability\n- Tight coupling to Reddit/GitHub clients\n- Direct imports of config/state everywhere\n- No way to mock dependencies in tests\n\nImplementation:\n1. Create DI container (use dependency-injector or simple custom)\n2. Define interfaces/protocols for external services\n3. Inject dependencies into main functions\n4. Replace sys.exit() with proper error returns\n5. Make all scripts testable\n\nBenefits:\n- Enables mocking for tests\n- Loose coupling\n- Easier to swap implementations\n- Better error handling\n\nFiles to refactor:\n- All main scripts (8 files)\n- Reddit client initialization\n- GitHub API calls\n- Config/state loading",
         "testStrategy": "",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": []
@@ -417,7 +417,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-02T17:25:14.947Z",
+      "updated": "2025-11-02T17:34:51.848Z",
       "description": "Tasks for master context"
     }
   }
