@@ -14,7 +14,7 @@ from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 
 
 @deal.pre(
-    lambda command, check: isinstance(command, list) and len(command) > 0,
+    lambda command, check=True: isinstance(command, list) and len(command) > 0,
     message="Command must be a non-empty list",
 )
 @beartype
