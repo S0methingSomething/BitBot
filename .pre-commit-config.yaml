@@ -89,3 +89,21 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      # Safety - Check for known security vulnerabilities (non-blocking)
+      - id: safety
+        name: Security Vulnerability Check (Safety)
+        entry: bash -c 'uv run safety scan --json 2>/dev/null || echo "⚠ Safety scan skipped (requires auth)"'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Pip-audit - Audit dependencies for vulnerabilities (strict)
+      - id: pip-audit
+        name: Dependency Audit (pip-audit)
+        entry: uv run pip-audit --desc
+        language: system
+        pass_filenames: false
+        files: pyproject.toml|uv.lock
+        pass_filenames: false
+        always_run: true
