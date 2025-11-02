@@ -60,3 +60,7 @@ class Config(BaseModel):
     feedback: dict[str, Any] = Field(default_factory=dict)
     safety: dict[str, int] = Field(default_factory=dict)
     skip_content: dict[str, str] = Field(default_factory=dict, alias="skipContent")
+    apps: list[dict[str, str]] = Field(default_factory=list)
+    parsing: dict[str, str] = Field(default_factory=dict)
+    messages: dict[str, str] = Field(default_factory=dict)
+    timing: dict[str, int] = Field(default_factory=dict)

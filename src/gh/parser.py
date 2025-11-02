@@ -1,10 +1,12 @@
 """GitHub release note parsing."""
 
 import re
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import deal
 from beartype import beartype
+
+from config_models import Config
 
 
 class ParsedRelease(TypedDict):
@@ -17,17 +19,17 @@ class ParsedRelease(TypedDict):
 
 
 @deal.pre(lambda body, tag_name, title, config: body is not None)
-@deal.pre(lambda body, tag_name, title, config: isinstance(config, dict))
+@deal.pre(lambda body, tag_name, title, config: isinstance(config, Config))
 @deal.post(lambda result: result is None or isinstance(result, dict))
 @beartype
 def parse_release_notes(
-    body: str, tag_name: str, title: str, config: dict[str, Any]
+    body: str, tag_name: str, title: str, config: Config
 ) -> ParsedRelease | None:
     """Parses release information from its body, tag, or title to support all legacy formats."""
-    app_map_by_id = {app["id"]: app["displayName"] for app in config.get("apps", [])}
+    app_map_by_id = {app["id"]: app["displayName"] for app in config.apps}
 
     # Priority 1: New Structured Format
-    parsing_keys = config.get("parsing", {})
+    parsing_keys = config.parsing
     parsing_keys.get("app_key", "app")
     parsing_keys.get("version_key", "version")
     parsing_keys.get("asset_name_key", "asset_name")

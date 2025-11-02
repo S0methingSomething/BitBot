@@ -1,26 +1,25 @@
 """Reddit post content parsing."""
 
 import re
-from typing import Any
 
 import deal
 import praw.models
 from beartype import beartype
 
+from config_models import Config
+
 
 @deal.pre(lambda post, config: post is not None)
-@deal.pre(lambda post, config: isinstance(config, dict))
+@deal.pre(lambda post, config: isinstance(config, Config))
 @deal.post(lambda result: isinstance(result, dict))
 @beartype
-def parse_versions_from_post(
-    post: praw.models.Submission, config: dict[str, Any]
-) -> dict[str, str]:
+def parse_versions_from_post(post: praw.models.Submission, config: Config) -> dict[str, str]:
     """Parses the versions of all apps from a Reddit post.
 
     Supports both legacy and new post formats.
     """
     versions = {}
-    apps_config = config.get("apps", [])
+    apps_config = config.model_dump().get("apps", [])
     app_map_by_display_name = {app["displayName"].lower(): app["id"] for app in apps_config}
 
     # New Format: Parse Changelog from Body

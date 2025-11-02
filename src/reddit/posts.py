@@ -10,6 +10,7 @@ import praw.models
 from beartype import beartype
 
 import paths
+from config_models import Config
 from core.error_logger import get_logger
 from core.errors import RedditAPIError
 from core.result import Err, Ok, Result
@@ -19,10 +20,10 @@ logger = get_logger()
 
 
 @deal.pre(lambda reddit, config: reddit is not None)
-@deal.pre(lambda reddit, config: isinstance(config, dict))
+@deal.pre(lambda reddit, config: isinstance(config, Config))
 @beartype
 def get_bot_posts(
-    reddit: praw.Reddit, config: dict[str, Any]
+    reddit: praw.Reddit, config: Config
 ) -> Result[list[praw.models.Submission], RedditAPIError]:
     """Fetches all of the bot's release posts from the configured subreddit.
 
@@ -33,8 +34,8 @@ def get_bot_posts(
     """
     try:
         bot_user = reddit.user.me()
-        target_subreddit = config["reddit"]["subreddit"].lower()
-        post_identifier = config["reddit"].get("postIdentifier", "[BitBot]")
+        target_subreddit = config.reddit.subreddit.lower()
+        post_identifier = "[BitBot]"  # Default identifier
 
         # Load state for post ID tracking
         state_result = load_bot_state()
@@ -72,28 +73,27 @@ def get_bot_posts(
 @deal.pre(
     lambda older_posts, latest_release_details, config: isinstance(latest_release_details, dict)
 )
-@deal.pre(lambda older_posts, latest_release_details, config: isinstance(config, dict))
+@deal.pre(lambda older_posts, latest_release_details, config: isinstance(config, Config))
 @beartype
 def update_older_posts(
     older_posts: list[praw.models.Submission],
     latest_release_details: dict[str, Any],
-    config: dict[str, Any],
+    config: Config,
 ) -> Result[None, RedditAPIError]:
     """Updates older posts by injecting an 'outdated' banner."""
     try:
-        handling_config = config.get("outdatedPostHandling", {})
-        mode = handling_config.get("mode", "overwrite")
+        mode = config.outdated_post_handling.get("mode", "overwrite")
 
         placeholders = {
             "{{latest_post_title}}": latest_release_details["title"],
             "{{latest_post_url}}": latest_release_details["url"],
             "{{latest_version}}": latest_release_details["version"],
-            "{{asset_name}}": config["github"]["assetFileName"],
-            "{{bot_name}}": config["reddit"]["botName"],
+            "{{asset_name}}": config.github.asset_file_name,
+            "{{bot_name}}": config.reddit.bot_name,
         }
 
         if mode == "inject":
-            template_name = config["reddit"]["templates"].get("inject_banner")
+            template_name = config.reddit.templates.inject_banner
             if not template_name:
                 return Ok(None)
 
@@ -105,7 +105,7 @@ def update_older_posts(
             except FileNotFoundError:
                 return Ok(None)
 
-        ignore_block = config.get("skipContent", {})
+        ignore_block = config.skip_content
         start_marker, end_marker = ignore_block.get("startTag"), ignore_block.get("endTag")
         if start_marker and end_marker and start_marker in raw_template:
             pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)

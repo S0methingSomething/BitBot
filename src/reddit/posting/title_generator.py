@@ -6,6 +6,8 @@ from typing import Any
 import deal
 from beartype import beartype
 
+from config_models import Config
+
 
 @deal.pre(lambda app_dict: isinstance(app_dict, dict))
 @deal.post(lambda result: len(result) >= 0)
@@ -22,19 +24,17 @@ def create_app_list(app_dict: dict[str, Any]) -> str:
     return ", ".join(parts)
 
 
-@deal.pre(lambda config, added, updated: isinstance(config, dict))
+@deal.pre(lambda config, added, updated: isinstance(config, Config))
 @deal.pre(lambda config, added, updated: isinstance(added, dict))
 @deal.pre(lambda config, added, updated: isinstance(updated, dict))
 @deal.post(lambda result: len(result) > 0)
 @beartype
-def generate_dynamic_title(
-    config: dict[str, Any], added: dict[str, Any], updated: dict[str, Any]
-) -> str:
+def generate_dynamic_title(config: Config, added: dict[str, Any], updated: dict[str, Any]) -> str:
     """Generate dynamic title based on changes."""
     num_added = len(added)
     num_updated = len(updated)
     total_changes = num_added + num_updated
-    formats: dict[str, str] = config["reddit"]["formats"]["titles"]
+    formats: dict[str, str] = config.reddit.formats.model_dump()["titles"]
 
     added_list = create_app_list(added)
     updated_list = create_app_list(updated)
