@@ -17,7 +17,7 @@ from core.result import Err, Ok, Result
 from core.state import load_bot_state, save_bot_state
 from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 
-logger = get_logger(__name__)
+logger = get_logger()
 
 
 @deal.pre(lambda reddit, config: reddit is not None)

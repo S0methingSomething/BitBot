@@ -15,7 +15,6 @@ from patch_file import process_file
 
 app = typer.Typer()
 console = Console()
-logger = get_logger(__name__)
 
 
 @beartype
@@ -25,6 +24,8 @@ def run(
     output_file: Path = typer.Argument(..., help="Output file path"),
 ) -> None:
     """Patch an asset file by decrypting, modifying, and re-encrypting."""
+    logger = get_logger()
+
     with error_context("patch_file", input_file=str(input_file), output_file=str(output_file)):
         logger.info("Patching file: %s → %s", input_file, output_file)
         console.print(f"[cyan]Patching file:[/cyan] {input_file} → {output_file}")
