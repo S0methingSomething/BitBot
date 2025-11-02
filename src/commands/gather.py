@@ -47,8 +47,8 @@ def run() -> None:
                     raise typer.Exit(code=1) from None
                 config = config_result.unwrap()
 
-                source_repo = config["github"]["sourceRepo"]
-                apps_config = config.get("apps", [])
+                source_repo = config.github.source_repo
+                apps_config = config.model_dump().get("apps", [])
 
                 # Load release state
                 state_result = load_release_state()

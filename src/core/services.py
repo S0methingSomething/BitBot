@@ -5,6 +5,7 @@ from typing import Any
 import praw
 from beartype import beartype
 
+from config_models import Config
 from core.config import load_config as _load_config
 from core.state import (
     load_bot_state as _load_bot_state,
@@ -25,9 +26,9 @@ class DefaultConfigService:
     """Default configuration service implementation."""
 
     @beartype
-    def get_config(self) -> dict[str, Any]:
+    def get_config(self) -> Config:
         """Load configuration."""
-        # NOTE: Returns Result type but service interface expects unwrapped dict
+        # NOTE: Returns Result type but service interface expects unwrapped Config
         # This file is unused and should be removed or refactored
         return _load_config()  # type: ignore[no-any-return]
 
@@ -63,7 +64,7 @@ class DefaultStateService:
 class DefaultRedditService:
     """Default Reddit service implementation."""
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
+    def __init__(self, config: Config | None = None) -> None:
         """Initialize with optional config."""
         self._config = config
         self._client: praw.Reddit | None = None

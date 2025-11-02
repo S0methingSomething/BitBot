@@ -5,6 +5,8 @@ from typing import Any
 import deal
 from beartype import beartype
 
+from config_models import Config
+
 
 @deal.pre(lambda title, _d, _k, _f, _a: len(title) > 0)
 @deal.pre(lambda _t, data, _k, _f, _a: isinstance(data, dict))
@@ -51,23 +53,23 @@ def create_section(
     return "\n".join(lines) if len(lines) > 1 else None
 
 
-@deal.pre(lambda config, added, updated, removed: isinstance(config, dict))
+@deal.pre(lambda config, added, updated, removed: isinstance(config, Config))
 @deal.pre(lambda config, added, updated, removed: isinstance(added, dict))
 @deal.pre(lambda config, added, updated, removed: isinstance(updated, dict))
 @deal.pre(lambda config, added, updated, removed: isinstance(removed, dict))
 @deal.post(lambda result: len(result) > 0)
 @beartype
 def generate_changelog(
-    config: dict[str, Any],
+    config: Config,
     added: dict[str, Any],
     updated: dict[str, Any],
     removed: dict[str, Any],
 ) -> str:
     """Generate changelog section."""
-    download_mode = config["reddit"].get("downloadMode", "landing_page")
+    download_mode = config.reddit.download_mode
     key_suffix = "landing" if download_mode == "landing_page" else "direct"
-    asset_name: str = config["github"].get("assetFileName", "asset")
-    formats: dict[str, str] = config["reddit"]["formats"]["changelog"]
+    asset_name: str = config.github.asset_file_name
+    formats: dict[str, str] = config.reddit.formats.changelog
     sections = []
 
     if added:

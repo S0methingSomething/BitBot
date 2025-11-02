@@ -15,6 +15,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import paths
+from config_models import Config
 from core.config import load_config
 from core.error_context import error_context
 from core.error_logger import LogLevel, get_logger
@@ -34,7 +35,7 @@ def post_or_update(
     reddit: praw.Reddit,
     title: str,
     body: str,
-    config: dict[str, Any],
+    config: Config,
     existing_post_id: str | None,
 ) -> praw.models.Submission:
     """Post new or update existing Reddit post."""
@@ -121,14 +122,14 @@ def run(
                     }
 
                 # Get landing page URL from config or use default
-                bot_repo = config["github"]["botRepo"]
+                bot_repo = config.github.bot_repo
                 page_url = (
                     page_url
                     or f"https://{bot_repo.split('/')[0]}.github.io/{bot_repo.split('/')[1]}/"
                 )
 
                 # Generate title
-                post_identifier = config["reddit"].get("postIdentifier", "[BitBot]")
+                post_identifier = "[BitBot]"  # Default identifier
                 date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 title = f"{post_identifier} New Updates - {date_str}"
 
@@ -145,7 +146,7 @@ def run(
                 reddit = reddit_result.unwrap()
 
                 # Check if rolling update mode and existing post
-                post_mode = config["reddit"].get("postMode", "rolling_update")
+                post_mode = config.reddit.post_mode
                 state_result = load_bot_state()
                 existing_post_id = None
                 if post_mode == "rolling_update" and state_result.is_ok():

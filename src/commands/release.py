@@ -46,9 +46,9 @@ def run() -> None:
                     raise typer.Exit(code=1) from None
                 config = config_result.unwrap()
 
-                source_repo = config["github"]["sourceRepo"]
-                bot_repo = config["github"]["botRepo"]
-                default_asset = config["github"].get("assetFileName", "MonetizationVars.json")
+                source_repo = config.github.source_repo
+                bot_repo = config.github.bot_repo
+                default_asset = config.github.asset_file_name
 
                 # Load pending releases
                 queue_result = load_pending_releases()

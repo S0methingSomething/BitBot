@@ -47,7 +47,7 @@ def run(
 
                 # Prepare data (minimal for now)
                 releases_data = {
-                    "bot_repo": config["github"]["botRepo"],
+                    "bot_repo": config.github.bot_repo,
                     "apps": [],
                 }
 

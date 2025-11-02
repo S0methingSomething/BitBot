@@ -5,11 +5,13 @@ from typing import Any, Protocol
 import praw
 from beartype import beartype
 
+from config_models import Config
+
 
 class ConfigService(Protocol):
     """Protocol for configuration service."""
 
-    def get_config(self) -> dict[str, Any]:
+    def get_config(self) -> Config:
         """Load configuration."""
         ...
 

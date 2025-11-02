@@ -10,21 +10,22 @@ from beartype import beartype
 from jinja2 import Environment, FileSystemLoader
 
 import paths
+from config_models import Config
 from reddit.posting.changelog import generate_changelog
 
 
-@deal.pre(lambda config, _a: isinstance(config, dict))
+@deal.pre(lambda config, _a: isinstance(config, Config))
 @deal.pre(lambda _c, all_releases_data: isinstance(all_releases_data, dict))
 @deal.post(lambda result: len(result) > 0)
 @beartype
-def generate_available_list(config: dict[str, Any], all_releases_data: dict[str, Any]) -> str:
+def generate_available_list(config: Config, all_releases_data: dict[str, Any]) -> str:
     """Generate available apps table."""
-    formats: dict[str, str] = config["reddit"]["formats"]["table"]
+    formats: dict[str, str] = config.reddit.formats.table
     header = formats.get("header", "| App | Asset | Version |")
     divider = formats.get("divider", "|---|---|---:|")
     line_format = formats.get("line", "| {{display_name}} | {{asset_name}} | v{{version}} |")
     table_lines = [header, divider]
-    asset_name: str = config["github"].get("assetFileName", "asset")
+    asset_name: str = config.github.asset_file_name
     sorted_apps = sorted(all_releases_data.items(), key=lambda item: item[1]["display_name"])
 
     for _, release_info in sorted_apps:
@@ -45,13 +46,13 @@ def generate_available_list(config: dict[str, Any], all_releases_data: dict[str,
 @deal.post(lambda result: len(result) > 0)
 @beartype
 def generate_post_body(
-    config: dict[str, Any],
+    config: Config,
     changelog_data: dict[str, Any],
     all_releases_data: dict[str, Any],
     page_url: str,
 ) -> str:
     """Generate complete post body."""
-    template_name = Path(config["reddit"]["templates"]["post"]).name
+    template_name = Path(config.reddit.templates.post).name
     template_path = Path(paths.TEMPLATES_DIR) / template_name
 
     # Load template content
@@ -59,7 +60,7 @@ def generate_post_body(
         template_content = f.read()
 
     # Remove tutorial block if present
-    ignore_block: dict[str, str] = config.get("skipContent", {})
+    ignore_block: dict[str, str] = config.skip_content
     start_marker = ignore_block.get("startTag")
     end_marker = ignore_block.get("endTag")
     if start_marker and end_marker and start_marker in template_content:

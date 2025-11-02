@@ -1,19 +1,18 @@
 """Reddit client initialization."""
 
-from typing import Any
-
 import deal
 import praw
 from beartype import beartype
 
+from config_models import Config
 from core.credentials import Credentials
 from core.errors import RedditAPIError
 from core.result import Err, Ok, Result
 
 
-@deal.pre(lambda _config: _config is None or isinstance(_config, dict))
+@deal.pre(lambda _config: _config is None or isinstance(_config, Config))
 @beartype
-def init_reddit(_config: dict[str, Any] | None = None) -> Result[praw.Reddit, RedditAPIError]:
+def init_reddit(_config: Config | None = None) -> Result[praw.Reddit, RedditAPIError]:
     """Initializes and returns a PRAW Reddit instance."""
     try:
         reddit = praw.Reddit(

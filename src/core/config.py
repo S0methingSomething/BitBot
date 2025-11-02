@@ -17,24 +17,23 @@ BEARTYPE_STRICT = BeartypeConf(strategy=BeartypeStrategy.On)
 
 
 @deal.post(
-    lambda result: result.is_err() or "github" in result.unwrap(),
+    lambda result: result.is_err() or hasattr(result.unwrap(), "github"),
     message="Config must contain 'github' section",
 )
 @deal.post(
-    lambda result: result.is_err() or "reddit" in result.unwrap(),
+    lambda result: result.is_err() or hasattr(result.unwrap(), "reddit"),
     message="Config must contain 'reddit' section",
 )
 @beartype(conf=BEARTYPE_STRICT)
-def load_config() -> Result[dict[str, dict], ConfigurationError]:
+def load_config() -> Result[Config, ConfigurationError]:
     """Loads the main configuration file (config.toml)."""
     try:
         with Path(paths.CONFIG_FILE).open() as f:
             data = toml.load(f)
 
-        # Validate with Pydantic
-        Config(**data)
-        # Convert back to dict for backward compatibility
-        return Ok(data)
+        # Validate with Pydantic and return model
+        config = Config(**data)
+        return Ok(config)
     except FileNotFoundError:
         return Err(ConfigurationError(f"Config file not found: {paths.CONFIG_FILE}"))
     except toml.TomlDecodeError as e:
