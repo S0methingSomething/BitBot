@@ -64,8 +64,8 @@ def generate_changelog(
     removed: dict[str, Any],
 ) -> str:
     """Generate changelog section."""
-    post_mode = config["reddit"].get("postMode", "landing_page")
-    key_suffix = "landing" if post_mode == "landing_page" else "direct"
+    download_mode = config["reddit"].get("downloadMode", "landing_page")
+    key_suffix = "landing" if download_mode == "landing_page" else "direct"
     asset_name: str = config["github"].get("assetFileName", "asset")
     formats: dict[str, str] = config["reddit"]["formats"]["changelog"]
     sections = []

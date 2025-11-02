@@ -13,7 +13,8 @@ subreddit = "BitTest1"
 botName = "BitBot"
 creator = "C1oudyLol"
 userAgent = "BitBot/1.0 by C1oudyLol"
-postMode = "rolling_update" # Can be "direct_link", "landing_page", or "rolling_update"
+postMode = "rolling_update" # How posts are managed: "rolling_update" only
+downloadMode = "landing_page" # Link style: "direct" (individual download links) or "landing_page" (only landing page link)
 post_manually = false # Set to true to generate post files instead of posting
 
 # Rolling update mode settings (only used when postMode = "rolling_update")
