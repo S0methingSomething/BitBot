@@ -14,28 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  manage_releases:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - name: Install Dependencies with uv
-        run: |
-          pip install uv
-          uv pip install --system -e ./..
-      - name: Run Release Manager
-        id: manager
-        working-directory: ./src
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python release_manager.py
-
   gather_releases:
-    needs: manage_releases
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -43,25 +22,55 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.13'
       - name: Install Dependencies with uv
         run: |
           pip install uv
-          uv pip install --system -e ./..
-      - name: Gather All Bot Releases
-        id: gatherer
-        working-directory: ./src
+          uv sync
+      - name: Gather New Releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python gather_post_data.py
+        run: uv run python -m src.commands.gather
       - name: Upload release data artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-data
-          path: dist/
+          path: |
+            dist/
+            bot_state.json
+
+  create_releases:
+    needs: gather_releases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Download release data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-data
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Dependencies
+        run: |
+          pip install uv
+          uv sync
+      - name: Create GitHub Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run python -m src.commands.release
+      - name: Upload updated data
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-data-updated
+          path: |
+            dist/
+            bot_state.json
 
   generate_page:
-    needs: gather_releases
+    needs: create_releases
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -72,24 +81,22 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
       - name: Download release data artifact
         uses: actions/download-artifact@v4
         with:
-          name: release-data
-          path: dist/
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+          name: release-data-updated
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.13'
       - name: Install Dependencies
         run: |
           pip install uv
-          uv pip install --system -e ./..
-      - name: Generate Static Page
-        working-directory: ./src
-        run: python page_generator.py
+          uv sync
+      - name: Generate Landing Page
+        run: uv run python -m src.commands.page
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -99,7 +106,8 @@ jobs:
         uses: actions/deploy-pages@v4
   
   post_to_reddit:
-    needs: [gather_releases, generate_page]
+    needs: [create_releases, generate_page]
+    if: ${{ github.event.inputs.dry_run != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -107,27 +115,25 @@ jobs:
       - name: Download release data artifact
         uses: actions/download-artifact@v4
         with:
-          name: release-data
-          path: dist/
+          name: release-data-updated
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.13'
       - name: Install Dependencies
         run: |
           pip install uv
-          uv pip install --system -e ./..
-      - name: Post / Update Reddit
-        working-directory: ./src
+          uv sync
+      - name: Post to Reddit
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
-          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        run: |
-          GENERATE_ONLY_FLAG=""
-          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-            GENERATE_ONLY_FLAG="--generate-only"
-          fi
-          python post_to_reddit.py --page-url "${{ needs.generate_page.outputs.page_url }}" $GENERATE_ONLY_FLAG
+        run: uv run python -m src.commands.post --page-url "${{ needs.generate_page.outputs.page_url }}"
+      - name: Upload final state
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-state
+          path: bot_state.json
