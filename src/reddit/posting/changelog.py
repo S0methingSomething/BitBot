@@ -51,10 +51,10 @@ def create_section(
     return "\n".join(lines) if len(lines) > 1 else None
 
 
-@deal.pre(lambda config, _a, _u, _r: isinstance(config, dict))
-@deal.pre(lambda _c, added, _u, _r: isinstance(added, dict))
-@deal.pre(lambda _c, _a, updated, _r: isinstance(updated, dict))
-@deal.pre(lambda _c, _a, _u, removed: isinstance(removed, dict))
+@deal.pre(lambda config, **_kwargs: isinstance(config, dict))
+@deal.pre(lambda config, added, **_kwargs: isinstance(added, dict))
+@deal.pre(lambda config, added, updated, **_kwargs: isinstance(updated, dict))
+@deal.pre(lambda config, added, updated, removed: isinstance(removed, dict))
 @deal.post(lambda result: len(result) > 0)
 @beartype
 def generate_changelog(

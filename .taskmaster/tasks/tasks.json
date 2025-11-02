@@ -38,7 +38,7 @@
         "description": "Clarify behavior of changelog vs available list in rolling update mode. Need to decide how to display cumulative changes over 7-day update window.",
         "details": "Current Behavior:\n- Changelog: Shows Added/Updated/Removed in current update\n- Available List: Shows table of all apps with latest versions\n\nQuestion for Rolling Update Mode:\nWhen updating same post for 7 days, what should changelog show?\n\nOption A: Cumulative (all changes over 7 days)\n- Day 0: \"Added BitLife v1.0\"\n- Day 2: Post shows \"Added BitLife v1.0\" + \"Added BitLife Go v2.0\"\n- Day 4: Post shows all 3 changes\n\nOption B: Latest Only\n- Only show most recent change\n- Simpler but loses history\n\nOption C: Keep Both Sections\n- Changelog = recent changes\n- Available List = full inventory\n- Current behavior, just clarify purpose\n\nDecision Needed:\n- Which option fits user workflow?\n- Should changelog accumulate or replace?\n- Is available list redundant with changelog?\n\nFiles affected:\n- src/post_to_reddit.py: _generate_changelog(), _generate_post_body()\n- templates/post_template.md: Post structure",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -406,7 +406,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-02T12:11:19.540Z",
+      "updated": "2025-11-02T13:11:44.292Z",
       "description": "Tasks for master context"
     }
   }
