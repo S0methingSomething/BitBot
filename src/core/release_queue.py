@@ -69,15 +69,21 @@ def add_release(release: PendingRelease) -> Result[None, ReleaseQueueError]:
     """Add a release to the queue."""
     load_result = load_pending_releases()
     if load_result.is_err():
-        return load_result.map(lambda _: None)
+        return Err(load_result.error)
 
     releases = load_result.unwrap()
     releases.append(release)
 
-    return save_pending_releases(releases)
+    save_result = save_pending_releases(releases)
+    if save_result.is_err():
+        return Err(save_result.error)
+    return Ok(None)
 
 
 @beartype
 def clear_pending_releases() -> Result[None, ReleaseQueueError]:
     """Clear all pending releases from queue."""
-    return save_pending_releases([])
+    save_result = save_pending_releases([])
+    if save_result.is_err():
+        return Err(save_result.error)
+    return Ok(None)

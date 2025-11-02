@@ -43,7 +43,7 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
     result = run_command(command)
 
     if result.is_err():
-        return result
+        return Err(GitHubAPIError(f"Command failed: {result.error}"))
 
     try:
         data: dict[str, Any] | list[Any] = json.loads(result.unwrap().stdout)
@@ -63,7 +63,7 @@ def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIErro
     result = get_github_data(f"/repos/{repo}/releases?per_page=30")
 
     if result.is_err():
-        return result
+        return Err(result.error)
 
     data = result.unwrap()
     if not isinstance(data, list):

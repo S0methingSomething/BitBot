@@ -7,7 +7,7 @@ from beartype import beartype
 
 import paths
 from core.errors import GitHubAPIError
-from core.result import Result
+from core.result import Err, Ok, Result
 from gh.releases.fetcher import run_command
 
 DOWNLOAD_DIR = paths.DIST_DIR
@@ -26,4 +26,6 @@ def patch_file(original_path: str, asset_name: str) -> Result[str, GitHubAPIErro
     """Patches the downloaded file using the Python script."""
     patched_path = Path(DOWNLOAD_DIR) / asset_name
     result = run_command(["python", "patch_file.py", original_path, str(patched_path)])
-    return result.map(lambda _: str(patched_path))
+    if result.is_err():
+        return Err(GitHubAPIError(f"Failed to patch file: {result.error}"))
+    return Ok(str(patched_path))

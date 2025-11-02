@@ -4,7 +4,7 @@ import deal
 from beartype import beartype
 
 from core.errors import GitHubAPIError
-from core.result import Result
+from core.result import Err, Ok, Result
 from gh.releases.fetcher import run_command
 
 
@@ -24,4 +24,6 @@ from gh.releases.fetcher import run_command
 def update_release_title(repo: str, tag: str, title: str) -> Result[None, GitHubAPIError]:
     """Update a release title."""
     result = run_command(["gh", "release", "edit", tag, "--repo", repo, "--title", title])
-    return result.map(lambda _: None)
+    if result.is_err():
+        return Err(GitHubAPIError(f"Failed to update release title: {result.error}"))
+    return Ok(None)
