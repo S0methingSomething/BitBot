@@ -1,65 +1,163 @@
-# Guide: GitHub Actions Workflows
+# GitHub Actions Workflows
 
-This project uses several GitHub Actions workflows to automate the entire release and maintenance process. They are located in the `.github/workflows/` directory.
+BitBot uses GitHub Actions to automate the release process. All workflows are in `.github/workflows/`.
 
 ---
 
-### `main.yml` - The Core Workflow
+## Main Workflow (`main.yml`)
 
-**Trigger:** Runs on a schedule (twice a day) or can be triggered manually (`workflow_dispatch`).
+**Name:** `[Multi-App Release] Check, Patch, and Manage Reddit`
 
-This is the primary workflow that orchestrates the entire release process.
+**Triggers:**
+- Schedule: Runs at 1 AM and 4 PM UTC daily
+- Manual: Can be triggered via workflow_dispatch
 
 **Jobs:**
 
-1.  **`manage_releases`**
-    -   Runs `src/release_manager.py`.
-    -   Checks the source repository for new releases.
-    -   If new releases are found, it patches the asset file using `src/patch_file.py` and creates new releases in the bot's repository.
-    -   Saves the data for all new releases to a `releases.json` file.
-    -   Uploads the `dist/` directory (containing `releases.json`) as an artifact named `release-data`.
+### 1. gather_releases
+- Checks source repository for new releases
+- Adds new releases to queue
+- Uploads `dist/` and `bot_state.json` as artifacts
 
-2.  **`generate_page`**
-    -   Runs only if the `manage_releases` job found new releases.
-    -   Downloads the `release-data` artifact.
-    -   Runs `src/page_generator.py` to create the `index.html` landing page.
-    -   Uploads the generated `dist/index.html` as an artifact named `github-pages`.
+### 2. create_releases
+- Downloads artifacts from previous job
+- Creates GitHub releases for queued items
+- Uploads updated artifacts
 
-3.  **`post_to_reddit`**
-    -   Runs only if the `manage_releases` job found new releases.
-    -   Runs `src/post_to_reddit.py`.
-    -   The script reads the `releases.json` file to generate a changelog.
-    -   It posts the new release announcement to the configured subreddit.
-    -   It updates all older posts by the bot to mark them as outdated.
+### 3. generate_page
+- Generates landing page HTML
+- Deploys to GitHub Pages
+- Outputs page URL
 
----
+### 4. post_to_reddit
+- Updates existing Reddit post (rolling_update mode)
+- Uses landing page URL from previous job
+- Skipped if `dry_run` input is true
+- Uploads final `bot_state.json`
 
-### `deploy_pages.yml` - GitHub Pages Deployment
-
-**Trigger:** Runs automatically after `main.yml` completes successfully.
-
--   This workflow is responsible for deploying the landing page to GitHub Pages.
--   It downloads the `github-pages` artifact created by the `generate_page` job.
--   It uses the standard `actions/deploy-pages` action to publish the contents to your GitHub Pages site.
+**Environment Variables Required:**
+- `GITHUB_TOKEN` (automatic)
+- `REDDIT_CLIENT_ID`
+- `REDDIT_CLIENT_SECRET`
+- `REDDIT_USERNAME`
+- `REDDIT_PASSWORD`
 
 ---
 
-### `check_comments.yml` - Community Feedback Monitor
+## Maintenance Workflow (`maintain_releases.yml`)
 
-**Trigger:** Runs on a schedule (every 15 minutes).
+**Name:** `[Maintenance] Update Old Release Titles`
 
--   This workflow runs `src/check_comments.py`.
--   It fetches the comments on the currently active Reddit post (defined in `bot_state.json`).
--   It analyzes the comments for positive and negative keywords.
--   Based on the feedback, it updates a status line in the Reddit post body.
--   It uses an adaptive timer to check more frequently when new comments appear.
+**Triggers:**
+- Runs after main workflow completes successfully
+
+**What it does:**
+- Marks old releases as outdated
+- Updates release titles with `[OUTDATED]` prefix
 
 ---
 
-### `maintain_releases.yml` - Release Maintenance
+## Preview Workflow (`preview_page.yml`)
 
-**Trigger:** Runs automatically after `main.yml` completes successfully.
+**Name:** `[Preview] Generate and Deploy Landing Page`
 
--   This workflow runs `src/maintain_releases.py`.
--   It fetches all releases from the bot's own GitHub repository.
--   It prepends `[OUTDATED]` to the title of all but the most recent release, keeping the releases page clean.
+**Triggers:**
+- Manual only (workflow_dispatch)
+
+**What it does:**
+- Gathers current releases
+- Generates landing page
+- Deploys to GitHub Pages for preview
+
+**Use case:** Preview landing page changes without running full workflow.
+
+---
+
+## Workflow Configuration
+
+### Secrets Required
+
+Set these in your repository settings under **Settings → Secrets and variables → Actions**:
+
+- `REDDIT_CLIENT_ID`: Reddit app client ID
+- `REDDIT_CLIENT_SECRET`: Reddit app client secret
+- `REDDIT_USERNAME`: Reddit bot account username
+- `REDDIT_PASSWORD`: Reddit bot account password
+
+**Note:** `GITHUB_TOKEN` is automatically provided by GitHub Actions.
+
+### Permissions Required
+
+The repository needs these permissions:
+- **Contents:** Read and write (for creating releases)
+- **Pages:** Write (for deploying landing page)
+- **ID token:** Write (for GitHub Pages deployment)
+
+Set these in **Settings → Actions → General → Workflow permissions**.
+
+---
+
+## Dry Run Mode
+
+The main workflow supports a dry run mode:
+
+1. Go to **Actions** tab
+2. Select **[Multi-App Release] Check, Patch, and Manage Reddit**
+3. Click **Run workflow**
+4. Check **Run without posting to Reddit**
+5. Click **Run workflow**
+
+This will run everything except the Reddit posting step.
+
+---
+
+## Monitoring Workflows
+
+### View Workflow Runs
+
+1. Go to **Actions** tab
+2. Click on a workflow run to see details
+3. Click on individual jobs to see logs
+
+### Artifacts
+
+Workflows upload artifacts that can be downloaded:
+- `release-data`: Release queue and data files
+- `final-state`: Final bot state after posting
+
+### Troubleshooting
+
+**Common issues:**
+
+1. **Authentication errors:** Check that secrets are set correctly
+2. **Rate limits:** GitHub/Reddit API rate limits may cause failures
+3. **Missing artifacts:** Ensure previous jobs completed successfully
+4. **State persistence:** `bot_state.json` must be uploaded/downloaded between jobs
+
+---
+
+## Customizing Workflows
+
+### Changing Schedule
+
+Edit the cron expression in `main.yml`:
+
+```yaml
+schedule:
+  - cron: '0 1,16 * * *'  # 1 AM and 4 PM UTC
+```
+
+### Adding Steps
+
+Add new steps to existing jobs or create new jobs. Make sure to:
+1. Upload/download artifacts as needed
+2. Set required environment variables
+3. Use `uv run python -m src.commands.<command>` for CLI commands
+
+### Disabling Workflows
+
+To disable a workflow:
+1. Go to **Actions** tab
+2. Click on the workflow
+3. Click **⋯** (three dots)
+4. Select **Disable workflow**

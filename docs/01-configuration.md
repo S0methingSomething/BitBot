@@ -1,162 +1,141 @@
 # Configuration (`config.toml`)
 
-This file is the central control panel for the bot. Below is a detailed explanation of every section and key.
+This file is the central control panel for BitBot. Below is a detailed explanation of every section and key.
 
 ---
 
-### `[github]`
+## `[github]`
 
-This section configures the GitHub repositories the bot interacts with.
+Configures the GitHub repositories the bot interacts with.
 
--   `sourceRepo`: The repository the bot monitors for new releases (e.g., `S0methingSomething/BitEdit`).
--   `botRepo`: The repository where the bot will create its own releases with the patched assets (e.g., `S0methingSomething/BitBot`).
--   `assetFileName`: The name of the asset file the bot should download from the source release and patch.
--   `pages_url`: The URL to your GitHub Pages site where the landing page will be hosted.
-
----
-
-### `[reddit]`
-
-This section controls how the bot posts and manages content on Reddit.
-
--   `subreddit`: The name of the subreddit to post to (e.g., `"BitTest1"`).
--   `botName`: The name of your bot, used in post templates.
--   `creator`: Your Reddit username, used in post templates.
--   `postMode`: Determines how download links are presented.
-    -   `"direct_link"`: The post body will contain a separate download link for each updated app.
-    -   `"landing_page"`: (Default) The post body will contain a single link to a generated GitHub Pages site that lists all the downloads.
--   `post_manually`: Set to `true` to generate post files instead of posting to Reddit (for manual review).
+- `sourceRepo`: The repository to monitor for new releases (e.g., `"S0methingSomething/BitEdit"`)
+- `botRepo`: Your repository where patched releases will be created (e.g., `"S0methingSomething/BitBot"`)
+- `assetFileName`: The asset file name to download and patch (e.g., `"MonetizationVars"`)
 
 ---
 
-### `[reddit.templates]`
+## `[reddit]`
 
-Defines the paths to template files used by the bot.
+Controls how the bot posts and manages content on Reddit.
 
--   `post`: Path to the Markdown template for new Reddit posts (e.g., `"templates/post_template.md"`).
--   `outdated_post`: Path to the Markdown template for outdated post banners.
--   `inject_banner`: Path to the Markdown template for the banner injected into old posts (e.g., `"templates/inject_template.md"`).
--   `custom_landing`: (Optional) Path to your custom HTML template for the landing page. If omitted or file doesn't exist, uses the default template.
-
----
-
-### `[reddit.formats]`
-
-Defines dynamic format strings for post content.
-
-#### `[reddit.formats.titles]`
-
-Title formats for different scenarios:
--   `added_only`: Title when only new apps are added.
--   `updated_only_single`: Title when a single app is updated.
--   `updated_only_multi`: Title when multiple apps are updated.
--   `mixed_single_update`: Title when apps are both added and one is updated.
--   `mixed_multi_update`: Title when apps are both added and multiple are updated.
--   `generic`: Fallback title for complex updates.
-
-Placeholders: `{{added_list}}`, `{{updated_list}}`, `{{date}}`
-
-#### `[reddit.formats.changelog]`
-
-Changelog line formats for different actions and modes:
--   `added_landing`: Format for added apps in landing page mode.
--   `updated_landing`: Format for updated apps in landing page mode.
--   `removed_landing`: Format for removed apps in landing page mode.
--   `added_direct`: Format for added apps in direct link mode.
--   `updated_direct`: Format for updated apps in direct link mode.
--   `removed_direct`: Format for removed apps in direct link mode.
-
-Placeholders: `{{display_name}}`, `{{asset_name}}`, `{{version}}`, `{{new_version}}`, `{{old_version}}`, `{{download_url}}`
-
-#### `[reddit.formats.table]`
-
-Table format for available apps list:
--   `header`: Table header row.
--   `divider`: Table divider row.
--   `line`: Format for each app row.
-
-Placeholders: `{{display_name}}`, `{{asset_name}}`, `{{version}}`
+- `subreddit`: The subreddit to post to (e.g., `"BitTest1"`)
+- `botName`: Your bot's name, used in templates (e.g., `"BitBot"`)
+- `creator`: Your Reddit username (e.g., `"C1oudyLol"`)
+- `userAgent`: Reddit API user agent (e.g., `"BitBot/1.0 by C1oudyLol"`)
+- `postMode`: How posts are managed
+  - `"rolling_update"`: Updates a single post with new releases (recommended)
+- `downloadMode`: How download links are presented
+  - `"landing_page"`: Only links to landing page (recommended, lower ban risk)
+  - `"direct"`: Includes individual download links in changelog
+- `post_manually`: Set to `true` to generate post files instead of posting (for manual review)
 
 ---
 
-### `[safety]`
+## `[reddit.templates]`
 
-Safety features to prevent account flagging.
+Paths to template files used by the bot.
 
--   `max_outbound_links_warn`: Warning threshold for number of outbound links in a post (default: 5).
-
----
-
-### `[outdatedPostHandling]`
-
-Defines how the bot should handle its own previous posts after a new one is made.
-
--   `mode`: The method for marking posts as outdated. Currently supports `"inject"` (injects a banner at the top of old posts).
+- `post`: Markdown template for Reddit posts (e.g., `"templates/post_template.md"`)
+- `outdated_post`: Template for outdated post banners
+- `inject_banner`: Template for banners injected into old posts
+- `custom_landing`: (Optional) Custom HTML template for landing page
 
 ---
 
-### `[messages]`
+## `[reddit.formats]`
 
-Text formats for GitHub releases.
+Dynamic format strings for post content.
 
--   `releaseTitle`: Title format for bot releases (e.g., `"{{displayName}} MonetizationVars v{{version}}"`).
--   `releaseDescription`: Description format for bot releases.
+### `[reddit.formats.changelog]`
 
-Placeholders: `{{displayName}}`, `{{version}}`, `{{asset_name}}`
+Changelog line formats:
+- `added_landing`: Format for added apps (landing page mode)
+- `updated_landing`: Format for updated apps (landing page mode)
+- `removed_landing`: Format for removed apps (landing page mode)
+- `added_direct`: Format for added apps (direct link mode)
+- `updated_direct`: Format for updated apps (direct link mode)
+- `removed_direct`: Format for removed apps (direct link mode)
 
----
+**Placeholders:**
+- `{{display_name}}`: App display name
+- `{{asset_name}}`: Asset file name
+- `{{version}}` / `{{new_version}}` / `{{old_version}}`: Version numbers
+- `{{download_url}}`: Direct download URL (direct mode only)
 
-### `[skipContent]`
+### `[reddit.formats.table]`
 
-Defines tags for tutorial/comment blocks to be removed before posting.
-
--   `startTag`: Opening tag for content to skip (e.g., `"<!-- TUTORIAL-START -->"`).
--   `endTag`: Closing tag for content to skip (e.g., `"<!-- TUTORIAL-END -->"`).
-
----
-
-### `[feedback]`
-
-Rules for analyzing Reddit comments and updating the post status.
-
--   `statusLineFormat`: Format for the status line in posts (e.g., `"**Status:** {{status}} (based on comments)."`).
--   `statusLineRegex`: Regex pattern to find the status line for updating.
--   `workingKeywords`: List of keywords indicating the app is working.
--   `notWorkingKeywords`: List of keywords indicating the app is not working.
--   `minFeedbackCount`: Minimum net feedback count to change status.
-
-#### `[feedback.labels]`
-
-Status labels:
--   `working`: Label when app is confirmed working.
--   `broken`: Label when app is potentially broken.
--   `unknown`: Label when there's not enough feedback.
+Available apps table format:
+- `header`: Table header row
+- `divider`: Table divider row
+- `line`: Table data row format
 
 ---
 
-### `[timing]`
+## `[outdatedPostHandling]`
 
-Controls the adaptive polling interval for the comment checker (in seconds).
+Controls how old posts are marked as outdated.
 
--   `firstCheck`: Initial check interval after a new post (default: 300 seconds / 5 minutes).
--   `maxWait`: Maximum wait time between checks (default: 3600 seconds / 1 hour).
--   `increaseBy`: Amount to increase interval when no new comments (default: 300 seconds).
-
----
-
-### `[parsing]`
-
-Defines the keys to look for when parsing release descriptions.
-
--   `app_key`: Key for app identifier (default: `"app"`).
--   `version_key`: Key for version number (default: `"version"`).
--   `asset_name_key`: Key for asset filename (default: `"asset_name"`).
+- `mode`: How to update old posts
+  - `"overwrite"`: Replace entire post body with outdated banner
+  - `"inject"`: Inject banner at the top of existing content
+- `titlePrefix`: Prefix added to outdated release titles (e.g., `"[OUTDATED]"`)
 
 ---
 
-### `[[apps]]`
+## `[feedback]`
 
-This is a list of tables, where each table represents an application the bot manages.
+Community feedback monitoring settings.
 
--   `id`: A short, unique, lowercase identifier for the app (e.g., `"bitlife"`). This is used for creating release tags.
--   `displayName`: The user-friendly name of the app (e.g., `"BitLife"`). This is used in post titles and templates.
+- `statusLineFormat`: Format for status line (e.g., `"**Status:** {{status}}"`)
+- `labels`: Status labels
+  - `working`: Label when app is working
+  - `broken`: Label when app is broken
+  - `unknown`: Label when status is unknown
+- `keywords`: Keywords to detect in comments
+  - `working`: Keywords indicating app works
+  - `broken`: Keywords indicating app is broken
+
+---
+
+## `[safety]`
+
+Safety limits to prevent Reddit bans.
+
+- `max_outbound_links_warn`: Warning threshold for outbound links (default: 5)
+- `max_outbound_links_error`: Error threshold for outbound links (default: 10)
+
+**Note:** With `downloadMode = "landing_page"`, posts typically have only 3 links total (landing page + 2 related projects), well below safety limits.
+
+---
+
+## Environment Variables
+
+Required environment variables (set in GitHub Secrets):
+
+- `GITHUB_TOKEN`: GitHub personal access token
+- `REDDIT_CLIENT_ID`: Reddit app client ID
+- `REDDIT_CLIENT_SECRET`: Reddit app client secret
+- `REDDIT_USERNAME`: Reddit bot account username
+- `REDDIT_PASSWORD`: Reddit bot account password
+
+**Note:** `REDDIT_USER_AGENT` is no longer needed as an environment variable - it's configured in `config.toml` as `userAgent`.
+
+---
+
+## Example Configuration
+
+```toml
+[github]
+sourceRepo = "S0methingSomething/BitEdit"
+botRepo = "S0methingSomething/BitBot"
+assetFileName = "MonetizationVars"
+
+[reddit]
+subreddit = "BitTest1"
+botName = "BitBot"
+creator = "C1oudyLol"
+userAgent = "BitBot/1.0 by C1oudyLol"
+postMode = "rolling_update"
+downloadMode = "landing_page"
+post_manually = false
+```
