@@ -10,7 +10,6 @@ from rich.console import Console
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.error_context import error_context
-from core.error_logger import get_logger
 from patch_file import process_file
 
 app = typer.Typer()
@@ -24,20 +23,17 @@ def run(
     output_file: Path = typer.Argument(..., help="Output file path"),
 ) -> None:
     """Patch an asset file by decrypting, modifying, and re-encrypting."""
-    logger = get_logger()
-
-    with error_context("patch_file", input_file=str(input_file), output_file=str(output_file)):
-        logger.info("Patching file: %s → %s", input_file, output_file)
+    with error_context(
+        operation="patch_file", input_file=str(input_file), output_file=str(output_file)
+    ):
         console.print(f"[cyan]Patching file:[/cyan] {input_file} → {output_file}")
 
         result = process_file(input_file, output_file)
 
         if result.is_err():
-            logger.error("Patch failed: %s", result.error)
             console.print(f"[red]✗ Error:[/red] {result.error}")
             raise typer.Exit(code=1) from None
 
-        logger.info("Successfully patched file")
         console.print("[green]✓ Successfully patched file[/green]")
 
 
