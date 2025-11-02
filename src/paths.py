@@ -15,7 +15,7 @@ RELEASE_STATE_FILE: str = str(Path(ROOT_DIR) / "release_state.json")
 
 # Output and Artifact Directories
 DIST_DIR: str = str(Path(ROOT_DIR) / "dist")
-RELEASES_JSON_FILE: str = str(Path(DIST_DIR) / "releases.json")
+RELEASES_JSON_FILE: str = str(Path(DIST_DIR) / "release_queue.json")
 
 # Template Directory
 TEMPLATES_DIR: str = str(Path(ROOT_DIR) / "templates")
