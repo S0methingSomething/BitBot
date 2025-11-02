@@ -406,22 +406,11 @@
       {
         "id": 27,
         "title": "Reduce Lazy Any and Cast Usage",
-        "description": "Reduce excessive use of Any types and cast() calls. Currently 54 Any usages (mostly dict[str, Any] for config) and 8 cast() calls. Replace with proper types where possible, keep only where truly necessary with documentation.",
-        "status": "pending",
+        "description": "Reduce excessive use of Any types and cast() calls. Currently 48 dict[str, Any] for config parameters and 2 legitimate Any usages. Replace with proper Pydantic Config model throughout codebase.",
+        "status": "in-progress",
         "priority": "high",
         "dependencies": [],
-        "details": "Current State:\n- 54 Any usages (93% are dict[str, Any] for config)\n- 8 cast() calls in fetcher, parser, downloader, state, config\n\nStrategy:\n1. Create Pydantic models for config sections (GitHubConfig, RedditConfig, SafetyConfig, etc.)\n2. Replace dict[str, Any] with typed Config model throughout codebase\n3. Replace cast() with proper type annotations where possible\n4. Document remaining Any/cast with comments explaining WHY it's necessary\n\nTarget:\n- <20 Any usages (63% reduction)\n- <3 cast() calls (63% reduction)\n\nKeep Any/cast only for:\n- Generic utilities (container.get() returns Any)\n- Dynamic data (error_context **kwargs)\n- Truly dynamic JSON responses\n\nBenefits:\n- Better IDE autocomplete\n- Type errors caught at check time\n- Self-documenting code\n- Refactoring safety",
-        "testStrategy": "",
-        "subtasks": []
-      },
-      {
-        "id": 27,
-        "title": "Reduce Lazy Any and Cast Usage",
-        "description": "Reduce excessive use of Any types and cast() calls. Currently 54 Any usages (mostly dict[str, Any] for config) and 8 cast() calls. Replace with proper types where possible, keep only where truly necessary with documentation.",
-        "status": "pending",
-        "priority": "high",
-        "dependencies": [],
-        "details": "Current State:\n- 54 Any usages (93% are dict[str, Any] for config)\n- 8 cast() calls in fetcher, parser, downloader, state, config\n\nStrategy:\n1. Create Pydantic models for config sections (GitHubConfig, RedditConfig, SafetyConfig, etc.)\n2. Replace dict[str, Any] with typed Config model throughout codebase\n3. Replace cast() with proper type annotations where possible\n4. Document remaining Any/cast with comments explaining WHY it's necessary\n\nTarget:\n- <20 Any usages (63% reduction)\n- <3 cast() calls (63% reduction)\n\nKeep Any/cast only for:\n- Generic utilities (container.get() returns Any)\n- Dynamic data (error_context **kwargs)\n- Truly dynamic JSON responses\n\nBenefits:\n- Better IDE autocomplete\n- Type errors caught at check time\n- Self-documenting code\n- Refactoring safety",
+        "details": "Progress:\n✓ Step 1: Created Pydantic models (Config, GitHubConfig, RedditConfig, RedditTemplates, RedditFormats)\n✓ Step 3: Eliminated all 8 cast() calls (100% reduction)\n→ Step 2: Integrate Config model throughout codebase (IN PROGRESS)\n\nCurrent State:\n- cast() usage: 0 (was 8) ✓\n- dict[str, Any] for config: 48 instances\n- Legitimate Any: 2 (error_context **kwargs, container.register)\n\nNext Steps:\n1. Update load_config() to return Config model instead of dict\n2. Update all functions accepting config parameter to use Config type\n3. Change dict-style access (config[\"reddit\"][\"subreddit\"]) to attribute access (config.reddit.subreddit)\n4. Update type hints across ~20-30 files\n\nTarget:\n- 0 cast() calls ✓ ACHIEVED\n- <5 dict[str, Any] (90% reduction from 48)\n- 2 legitimate Any usages (documented)\n\nBenefits:\n- Type-safe config access with IDE autocomplete\n- Catch config access errors at type-check time\n- Self-documenting code\n- Refactoring safety",
         "testStrategy": "",
         "subtasks": []
       }
