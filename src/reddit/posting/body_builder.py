@@ -7,6 +7,7 @@ from typing import Any
 
 import deal
 from beartype import beartype
+from jinja2 import Environment, FileSystemLoader
 
 import paths
 from reddit.posting.changelog import generate_changelog
@@ -51,45 +52,43 @@ def generate_post_body(
 ) -> str:
     """Generate complete post body."""
     template_name = Path(config["reddit"]["templates"]["post"]).name
-    template_path = paths.get_template_path(template_name)
-    with Path(template_path).open(encoding="utf-8") as f:
-        raw_template = f.read()
+    template_path = Path(paths.TEMPLATES_DIR) / template_name
 
+    # Load template content
+    with template_path.open(encoding="utf-8") as f:
+        template_content = f.read()
+
+    # Remove tutorial block if present
     ignore_block: dict[str, str] = config.get("skipContent", {})
     start_marker = ignore_block.get("startTag")
     end_marker = ignore_block.get("endTag")
-    if start_marker and end_marker and start_marker in raw_template:
+    if start_marker and end_marker and start_marker in template_content:
         pattern = re.compile(f"{re.escape(start_marker)}.*?{re.escape(end_marker)}", re.DOTALL)
-        clean_template = re.sub(pattern, "", raw_template)
-    else:
-        clean_template = raw_template
+        template_content = re.sub(pattern, "", template_content)
 
-    post_body_template = clean_template.strip()
+    # Render with Jinja2 (autoescape=False is safe for Markdown, not HTML)
+    env = Environment(
+        loader=FileSystemLoader(paths.TEMPLATES_DIR),
+        autoescape=False,  # noqa: S701
+    )
+    template = env.from_string(template_content)
     changelog = generate_changelog(config, **changelog_data)
     available_list = generate_available_list(config, all_releases_data)
-    initial_status_line = config["feedback"]["statusLineFormat"].replace(
-        "{{status}}", config["feedback"]["labels"]["unknown"]
-    )
 
-    # Generate timestamp and app count
     now = datetime.now(timezone.utc)
     update_timestamp = now.strftime("%b %d, %Y - %I:%M %p UTC")
     app_count = sum(1 for data in all_releases_data.values() if data.get("latest_release"))
 
-    placeholders = {
-        "{{changelog}}": changelog,
-        "{{available_list}}": available_list,
-        "{{bot_name}}": config["reddit"]["botName"],
-        "{{bot_repo}}": config["github"]["botRepo"],
-        "{{asset_name}}": config["github"]["assetFileName"],
-        "{{creator_username}}": config["reddit"]["creator"],
-        "{{initial_status}}": initial_status_line,
-        "{{download_portal_url}}": page_url,
-        "{{update_timestamp}}": update_timestamp,
-        "{{app_count}}": str(app_count),
-    }
+    post_body = template.render(
+        changelog=changelog,
+        available_list=available_list,
+        bot_name=config["reddit"]["botName"],
+        bot_repo=config["github"]["botRepo"],
+        asset_name=config["github"]["assetFileName"],
+        creator_username=config["reddit"]["creator"],
+        download_portal_url=page_url,
+        update_timestamp=update_timestamp,
+        app_count=app_count,
+    )
 
-    post_body = post_body_template
-    for placeholder, value in placeholders.items():
-        post_body = post_body.replace(placeholder, str(value))
-    return post_body
+    return post_body.strip()
