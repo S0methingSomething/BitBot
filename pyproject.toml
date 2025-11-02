@@ -140,6 +140,11 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 
+
+[[tool.uv.index]]
+name = "safety"
+url = "https://pkgs.safetycli.com/repository/na-205d5/project/bitbot/pypi/simple/"
+default = false
 [dependency-groups]
 dev = [
     "coverage>=7.11.0",

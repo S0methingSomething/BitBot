@@ -10,7 +10,8 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.config import load_config
+from config_models import Config
+from core.container import Container
 from core.error_context import error_context
 from core.error_logger import LogLevel, get_logger
 from core.errors import BitBotError
@@ -21,14 +22,18 @@ from gh.releases.parser import parse_release_description
 from models import PendingRelease
 
 app = typer.Typer()
-console = Console()
-logger = get_logger(console=console)
 
 
 @beartype
 @app.command()
-def run() -> None:
+def run(ctx: typer.Context) -> None:
     """Gather new releases from source repository."""
+    # Get dependencies from container
+    container: Container = ctx.obj["container"]
+    console: Console = ctx.obj["console"]
+    logger = get_logger(console=console)
+    config: Config = container.get("config")
+
     with error_context(command="gather"):
         try:
             with Progress(
@@ -37,15 +42,6 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Gathering releases...", total=None)
-
-                # Load config
-                config_result = load_config()
-                if config_result.is_err():
-                    error = BitBotError(f"Config error: {config_result.error}")
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {config_result.error}")
-                    raise typer.Exit(code=1) from None
-                config = config_result.unwrap()
 
                 source_repo = config.github.source_repo
                 apps_config = config.model_dump().get("apps", [])

@@ -14,6 +14,7 @@ install(show_locals=True)
 sys.path.insert(0, str(Path(__file__).parent))
 
 from commands import check, gather, maintain, page, patch, post, release, sync
+from core.container import setup_container
 
 # Create CLI app
 app = typer.Typer(
@@ -42,8 +43,18 @@ def main(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
 ) -> None:
     """BitBot CLI - Automated release management and Reddit posting."""
-    # Store verbose flag in context for commands to access
-    ctx.obj = {"verbose": verbose, "console": console}
+    # Initialize DI container
+    container_result = setup_container()
+    if container_result.is_err():
+        console.print(f"[red]✗ Error:[/red] {container_result.error}")
+        raise typer.Exit(code=1)
+
+    # Store container and console in context for commands
+    ctx.obj = {
+        "container": container_result.unwrap(),
+        "console": console,
+        "verbose": verbose,
+    }
 
 
 if __name__ == "__main__":

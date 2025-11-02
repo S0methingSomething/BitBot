@@ -1,47 +1,12 @@
 """Dependency injection container for BitBot."""
 
-from typing import Any, Protocol
+from typing import Any
 
-import praw
 from beartype import beartype
 
-from config_models import Config
-
-
-class ConfigService(Protocol):
-    """Protocol for configuration service."""
-
-    def get_config(self) -> Config:
-        """Load configuration."""
-        ...
-
-
-class StateService(Protocol):
-    """Protocol for state management service."""
-
-    def load_bot_state(self) -> dict[str, Any]:
-        """Load bot state."""
-        ...
-
-    def save_bot_state(self, data: dict[str, Any]) -> None:
-        """Save bot state."""
-        ...
-
-    def load_release_state(self) -> list[int]:
-        """Load release state."""
-        ...
-
-    def save_release_state(self, data: list[int]) -> None:
-        """Save release state."""
-        ...
-
-
-class RedditService(Protocol):
-    """Protocol for Reddit service."""
-
-    def get_client(self) -> praw.Reddit:
-        """Get Reddit client."""
-        ...
+from core.config import load_config
+from core.errors import BitBotError
+from core.result import Result
 
 
 class Container:
@@ -90,3 +55,20 @@ def reset_container() -> None:
     """Reset the global container (for testing)."""
     global _container
     _container = None
+
+
+@beartype
+def setup_container() -> Result[Container, BitBotError]:
+    """Initialize container with all services."""
+    from core.result import Ok
+
+    container = get_container()
+
+    # Load and register config
+    config_result = load_config()
+    if config_result.is_err():
+        return config_result.map_err(lambda e: e)  # type: ignore[return-value]
+
+    container.register("config", config_result.unwrap())
+
+    return Ok(container)

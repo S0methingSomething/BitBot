@@ -2,7 +2,7 @@
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import paths
 from config_models import Config
-from core.config import load_config
+from core.container import Container
 from core.error_context import error_context
 from core.error_logger import LogLevel, get_logger
 from core.errors import BitBotError
@@ -27,16 +27,15 @@ from reddit.posting.body_builder import generate_post_body
 from reddit.posting.poster import post_new_release
 
 app = typer.Typer()
-console = Console()
-logger = get_logger(console=console)
 
 
-def post_or_update(
+def post_or_update(  # noqa: PLR0913
     reddit: praw.Reddit,
     title: str,
     body: str,
     config: Config,
     existing_post_id: str | None,
+    console: Console,
 ) -> praw.models.Submission:
     """Post new or update existing Reddit post."""
     if existing_post_id:
@@ -58,9 +57,16 @@ def post_or_update(
 @beartype
 @app.command()
 def run(
+    ctx: typer.Context,
     page_url: str = typer.Option(None, "--page-url", help="Landing page URL to post"),
 ) -> None:
     """Post new releases to Reddit."""
+    # Get dependencies from container
+    container: Container = ctx.obj["container"]
+    console: Console = ctx.obj["console"]
+    logger = get_logger(console=console)
+    config: Config = container.get("config")
+
     with error_context(command="post", page_url=page_url):
         try:
             with Progress(
@@ -69,15 +75,6 @@ def run(
                 console=console,
             ) as progress:
                 progress.add_task(description="Posting to Reddit...", total=None)
-
-                # Load config
-                config_result = load_config()
-                if config_result.is_err():
-                    error = BitBotError(f"Config error: {config_result.error}")
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {config_result.error}")
-                    raise typer.Exit(code=1) from None
-                config = config_result.unwrap()
 
                 # Check for pending releases
                 queue_result = load_pending_releases()
@@ -130,7 +127,7 @@ def run(
 
                 # Generate title
                 post_identifier = "[BitBot]"  # Default identifier
-                date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                date_str = datetime.now(UTC).strftime("%Y-%m-%d")
                 title = f"{post_identifier} New Updates - {date_str}"
 
                 # Generate body using proper body builder
@@ -154,7 +151,7 @@ def run(
                     existing_post_id = state.active_post_id
 
                 # Post or update
-                submission = post_or_update(reddit, title, body, config, existing_post_id)
+                submission = post_or_update(reddit, title, body, config, existing_post_id, console)
 
                 # Update state with post ID tracking
                 state_result = load_bot_state()
