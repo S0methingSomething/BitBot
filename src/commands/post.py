@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import praw
 import typer
 from beartype import beartype
 from rich.console import Console
@@ -27,6 +28,30 @@ from reddit.posting.poster import post_new_release
 app = typer.Typer()
 console = Console()
 logger = get_logger(console=console)
+
+
+def post_or_update(
+    reddit: praw.Reddit,
+    title: str,
+    body: str,
+    config: dict[str, Any],
+    existing_post_id: str | None,
+) -> praw.models.Submission:
+    """Post new or update existing Reddit post."""
+    if existing_post_id:
+        try:
+            submission = reddit.submission(id=existing_post_id)
+            submission.edit(body)
+            console.print(f"[green]✓[/green] Updated existing post: {submission.url}")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Failed to update: {e}, creating new")
+            submission = post_new_release(reddit, title, body, config)
+            console.print(f"[green]✓[/green] Posted to Reddit: {submission.url}")
+    else:
+        submission = post_new_release(reddit, title, body, config)
+        console.print(f"[green]✓[/green] Posted to Reddit: {submission.url}")
+
+    return submission
 
 
 @beartype
@@ -119,8 +144,16 @@ def run(
                     raise typer.Exit(code=1) from None
                 reddit = reddit_result.unwrap()
 
-                # Post
-                submission = post_new_release(reddit, title, body, config)
+                # Check if rolling update mode and existing post
+                post_mode = config["reddit"].get("postMode", "rolling_update")
+                state_result = load_bot_state()
+                existing_post_id = None
+                if post_mode == "rolling_update" and state_result.is_ok():
+                    state = state_result.unwrap()
+                    existing_post_id = state.active_post_id
+
+                # Post or update
+                submission = post_or_update(reddit, title, body, config, existing_post_id)
 
                 # Update state with post ID tracking
                 state_result = load_bot_state()
@@ -133,8 +166,6 @@ def run(
                     save_result = save_bot_state(state)
                     if save_result.is_err():
                         console.print("[yellow]⚠[/yellow] Failed to update state")
-
-                console.print(f"[green]✓[/green] Posted to Reddit: {submission.url}")
 
         except BitBotError as e:
             logger.log_error(e, LogLevel.ERROR)
