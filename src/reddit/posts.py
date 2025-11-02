@@ -14,6 +14,7 @@ import paths
 from core.error_logger import get_logger
 from core.errors import RedditAPIError
 from core.result import Err, Ok, Result
+from core.state import load_bot_state, save_bot_state
 from core.tenacity_helpers import log_retry_attempt, should_retry_api_error
 
 logger = get_logger(__name__)
@@ -31,20 +32,45 @@ logger = get_logger(__name__)
 def get_bot_posts(
     reddit: praw.Reddit, config: dict[str, Any]
 ) -> Result[list[praw.models.Submission], RedditAPIError]:
-    """Fetches all of the bot's release posts from the configured subreddit."""
+    """Fetches all of the bot's release posts from the configured subreddit.
+
+    Uses hybrid detection:
+    1. Primary: Check if post.id in bot_state["allPostIds"]
+    2. Fallback: Check author == bot_user AND title.startswith(config identifier)
+    3. Self-healing: Add discovered posts to state
+    """
     try:
         bot_user = reddit.user.me()
         target_subreddit = config["reddit"]["subreddit"].lower()
-        post_identifier = "[BitBot] MonetizationVars"
+        post_identifier = config["reddit"].get("postIdentifier", "[BitBot]")
 
-        posts = [
-            submission
-            for submission in bot_user.submissions.new(limit=100)
-            if (
-                submission.subreddit.display_name.lower() == target_subreddit
-                and submission.title.startswith(post_identifier)
-            )
-        ]
+        # Load state for post ID tracking
+        state_result = load_bot_state()
+        known_post_ids = set(state_result.unwrap().all_post_ids) if state_result.is_ok() else set()
+
+        posts = []
+        newly_discovered_ids = []
+
+        for submission in bot_user.submissions.new(limit=100):
+            if submission.subreddit.display_name.lower() != target_subreddit:
+                continue
+
+            # Primary detection: known post ID
+            if submission.id in known_post_ids:
+                posts.append(submission)
+                continue
+
+            # Fallback detection: title starts with identifier
+            if submission.title.startswith(post_identifier):
+                posts.append(submission)
+                newly_discovered_ids.append(submission.id)
+
+        # Self-healing: save newly discovered post IDs
+        if newly_discovered_ids and state_result.is_ok():
+            state = state_result.unwrap()
+            state.all_post_ids.extend(newly_discovered_ids)
+            save_bot_state(state)
+
         return Ok(posts)
     except Exception as e:
         return Err(RedditAPIError(f"Failed to fetch bot posts: {e}"))

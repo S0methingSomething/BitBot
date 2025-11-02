@@ -85,11 +85,14 @@ def run(
                 # Post
                 submission = post_new_release(reddit, title, body, config)
 
-                # Update state
+                # Update state with post ID tracking
                 state_result = load_bot_state()
                 if state_result.is_ok():
                     state = state_result.unwrap()
-                    state["activePostId"] = submission.id
+                    state.active_post_id = submission.id
+                    # Track all post IDs for robust detection
+                    if submission.id not in state.all_post_ids:
+                        state.all_post_ids.append(submission.id)
                     save_result = save_bot_state(state)
                     if save_result.is_err():
                         console.print("[yellow]⚠[/yellow] Failed to update state")
