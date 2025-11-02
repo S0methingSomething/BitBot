@@ -1,13 +1,14 @@
 """Configuration management for BitBot."""
 
 from pathlib import Path
-from typing import Any
 
 import deal
 import toml
 from beartype import BeartypeConf, BeartypeStrategy, beartype
+from pydantic import ValidationError
 
 import paths
+from config_models import Config
 from core.errors import ConfigurationError
 from core.result import Err, Ok, Result
 
@@ -24,24 +25,21 @@ BEARTYPE_STRICT = BeartypeConf(strategy=BeartypeStrategy.On)
     message="Config must contain 'reddit' section",
 )
 @beartype(conf=BEARTYPE_STRICT)
-def load_config() -> Result[dict[str, Any], ConfigurationError]:
+def load_config() -> Result[dict[str, dict], ConfigurationError]:
     """Loads the main configuration file (config.toml)."""
     try:
         with Path(paths.CONFIG_FILE).open() as f:
-            config: dict[str, Any] = toml.load(f)
+            data = toml.load(f)
 
-        # Validate required keys
-        if not config:
-            return Err(ConfigurationError("Config file is empty"))
-        if "github" not in config:
-            return Err(ConfigurationError("Config missing 'github' key"))
-        if "reddit" not in config:
-            return Err(ConfigurationError("Config missing 'reddit' key"))
-
-        return Ok(config)
+        # Validate with Pydantic
+        Config(**data)
+        # Convert back to dict for backward compatibility
+        return Ok(data)
     except FileNotFoundError:
         return Err(ConfigurationError(f"Config file not found: {paths.CONFIG_FILE}"))
     except toml.TomlDecodeError as e:
         return Err(ConfigurationError(f"Invalid TOML syntax: {e}"))
+    except ValidationError as e:
+        return Err(ConfigurationError(f"Invalid config structure: {e}"))
     except Exception as e:
         return Err(ConfigurationError(f"Failed to load config: {e}"))
