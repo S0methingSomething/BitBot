@@ -1,7 +1,7 @@
 """Configuration management for BitBot."""
 
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import deal
 import toml
@@ -28,7 +28,7 @@ def load_config() -> Result[dict[str, Any], ConfigurationError]:
     """Loads the main configuration file (config.toml)."""
     try:
         with Path(paths.CONFIG_FILE).open() as f:
-            config = cast("dict[str, Any]", toml.load(f))
+            config: dict[str, Any] = toml.load(f)
 
         # Validate required keys
         if not config:

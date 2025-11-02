@@ -2,7 +2,6 @@
 
 import json
 from pathlib import Path
-from typing import cast
 
 import deal
 from beartype import beartype
@@ -50,7 +49,8 @@ def load_release_state() -> Result[list[int], StateError]:
             data = json.load(f)
             if not isinstance(data, list) or not all(isinstance(x, int) for x in data):
                 return Err(StateError("Release state must be a list of integers"))
-            return Ok(cast("list[int]", data))
+            # Type narrowed by isinstance checks above
+            return Ok(data)  # type: ignore[return-value]
     except FileNotFoundError:
         return Ok([])
     except json.JSONDecodeError as e:

@@ -2,7 +2,7 @@
 
 import json
 import subprocess
-from typing import Any, cast
+from typing import Any
 
 import deal
 from beartype import beartype
@@ -46,8 +46,8 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
         return result
 
     try:
-        data = json.loads(result.unwrap().stdout)
-        return Ok(cast("dict[str, Any] | list[Any]", data))
+        data: dict[str, Any] | list[Any] = json.loads(result.unwrap().stdout)
+        return Ok(data)
     except json.JSONDecodeError as e:
         return Err(GitHubAPIError(f"Failed to parse GitHub API response: {e}"))
 
@@ -69,7 +69,8 @@ def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIErro
     if not isinstance(data, list):
         return Err(GitHubAPIError("Expected list of releases"))
 
-    return Ok(cast("list[dict[str, Any]]", data))
+    # Type narrowed by isinstance check above
+    return Ok(data)  # type: ignore[return-value]
 
 
 @deal.pre(
