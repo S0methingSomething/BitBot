@@ -1,6 +1,7 @@
 """Credential management for BitBot."""
 
 import os
+from typing import Any
 
 import deal
 from beartype import beartype
@@ -44,8 +45,10 @@ class Credentials:
     @staticmethod
     @deal.post(lambda result: len(result) > 0)
     @beartype
-    def get_reddit_user_agent() -> str:
-        """Get Reddit user agent from environment."""
+    def get_reddit_user_agent(config: dict[str, Any] | None = None) -> str:
+        """Get Reddit user agent from config or environment."""
+        if config and "reddit" in config and "userAgent" in config["reddit"]:
+            return config["reddit"]["userAgent"]
         return os.environ["REDDIT_USER_AGENT"]
 
     @staticmethod
