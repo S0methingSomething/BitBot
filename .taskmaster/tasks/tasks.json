@@ -413,11 +413,22 @@
         "details": "Progress:\n✓ Step 1: Created Pydantic models (Config, GitHubConfig, RedditConfig, RedditTemplates, RedditFormats)\n✓ Step 3: Eliminated all 8 cast() calls (100% reduction)\n→ Step 2: Integrate Config model throughout codebase (IN PROGRESS)\n\nCurrent State:\n- cast() usage: 0 (was 8) ✓\n- dict[str, Any] for config: 48 instances\n- Legitimate Any: 2 (error_context **kwargs, container.register)\n\nNext Steps:\n1. Update load_config() to return Config model instead of dict\n2. Update all functions accepting config parameter to use Config type\n3. Change dict-style access (config[\"reddit\"][\"subreddit\"]) to attribute access (config.reddit.subreddit)\n4. Update type hints across ~20-30 files\n\nTarget:\n- 0 cast() calls ✓ ACHIEVED\n- <5 dict[str, Any] (90% reduction from 48)\n- 2 legitimate Any usages (documented)\n\nBenefits:\n- Type-safe config access with IDE autocomplete\n- Catch config access errors at type-check time\n- Self-documenting code\n- Refactoring safety",
         "testStrategy": "",
         "subtasks": []
+      },
+      {
+        "id": 28,
+        "title": "Restructure to proper Python package layout",
+        "description": "Move all code from src/* to src/bitbot/* and update imports to use bitbot prefix instead of src",
+        "details": "1. Reset staged changes\n2. Create src/bitbot/ directory\n3. Move all modules from src/* to src/bitbot/*\n4. Update all imports: \"from src.X\" → \"from bitbot.X\"\n5. Update all imports: \"import src.X\" → \"import bitbot.X\"\n6. Keep package name as \"bitbot\" in pyproject.toml\n7. Remove packages override in pyproject.toml (auto-discover)\n8. Reinstall: uv pip install -e .\n9. Test: uv run python -m bitbot.cli --help\n10. Commit changes",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-02T17:34:51.848Z",
+      "updated": "2025-11-03T03:29:23.573Z",
       "description": "Tasks for master context"
     }
   }

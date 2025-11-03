@@ -85,7 +85,7 @@ repos:
       # Pydantic validation (check models are valid)
       - id: pydantic-check
         name: Pydantic Models Check
-        entry: bash -c 'uv run python -c "from src.models import *; print(\"✓ Pydantic models valid\")"'
+        entry: bash -c '.venv/bin/python -c "from bitbot.models import *; print(\"✓ Pydantic models valid\")"'
         language: system
         pass_filenames: false
         always_run: true
