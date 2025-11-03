@@ -60,8 +60,8 @@ repos:
 
       # Interrogate - Docstring coverage
       - id: interrogate
-        name: Docstring Coverage (50%)
-        entry: uv run interrogate src/ -v --fail-under 50 --ignore-init-method --ignore-private
+        name: Docstring Coverage (100%)
+        entry: uv run interrogate src/ -v --fail-under 100 --ignore-init-method --ignore-private
         language: system
         pass_filenames: false
         always_run: true
