@@ -2,6 +2,7 @@
 
 from typing import Any, TypeVar
 
+import deal
 from beartype import beartype
 
 from bitbot.core.config import load_config
@@ -18,12 +19,16 @@ class Container:
         """Initialize container."""
         self._services: dict[str, Any] = {}
 
+    @deal.pre(lambda _self, name, _service: len(name) > 0)
+    @deal.pre(lambda _self, _name, service: service is not None)
     @beartype
     # Any: Generic container accepts any service type
     def register(self, name: str, service: Any) -> None:
         """Register a service."""
         self._services[name] = service
 
+    @deal.pre(lambda _self, name, _service_type=None: len(name) > 0)
+    @deal.raises(KeyError, TypeError)
     @beartype
     # Any: Returns service of unknown type, caller must cast
     def get(self, name: str, service_type: type[T] | None = None) -> Any | T:
@@ -47,6 +52,7 @@ class Container:
 _container: Container | None = None
 
 
+@deal.post(lambda result: result is not None)
 @beartype
 def get_container() -> Container:
     """Get the global container instance."""

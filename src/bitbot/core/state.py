@@ -12,6 +12,7 @@ from bitbot.core.result import Err, Ok, Result
 from bitbot.models import BotState
 
 
+@deal.post(lambda result: isinstance(result, Ok | Err))
 @beartype
 def load_bot_state() -> Result[BotState, StateError]:
     """Loads the bot's monitoring state from JSON."""
@@ -41,6 +42,7 @@ def save_bot_state(state: BotState) -> Result[None, StateError]:
         return Err(StateError(f"Failed to save bot state: {e}"))
 
 
+@deal.post(lambda result: isinstance(result, Ok | Err))
 @beartype
 def load_release_state() -> Result[list[int], StateError]:
     """Loads the list of processed source release IDs."""

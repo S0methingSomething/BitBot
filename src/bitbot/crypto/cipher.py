@@ -3,6 +3,7 @@
 import base64
 from typing import Any
 
+import deal
 from beartype import beartype
 
 from .constants import B64_NET_BOOLEAN_FALSE, B64_NET_BOOLEAN_TRUE
@@ -26,6 +27,9 @@ def _b64_decode_and_xor(b64: str, key: str) -> str:
     return xor_result.decode("latin-1")
 
 
+@deal.pre(lambda encrypted_content, _obfuscated_key: len(encrypted_content) > 0)
+@deal.pre(lambda _encrypted_content, obfuscated_key: len(obfuscated_key) > 0)
+@deal.post(lambda result: isinstance(result, dict))
 @beartype
 def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, Any]:
     """Decrypt asset file content into dictionary."""
@@ -49,6 +53,9 @@ def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, Any]:
     return item_map
 
 
+@deal.pre(lambda data_object, _obfuscated_key: len(data_object) > 0)
+@deal.pre(lambda _data_object, obfuscated_key: len(obfuscated_key) > 0)
+@deal.post(lambda result: len(result) > 0)
 @beartype
 def encrypt(data_object: dict[str, Any], obfuscated_key: str) -> str:
     """Re-encrypt modified data object back into file format."""

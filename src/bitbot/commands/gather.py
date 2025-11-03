@@ -89,7 +89,7 @@ def run(ctx: typer.Context) -> None:
                             add_result = add_release(pending)
                             if add_result.is_err():
                                 console.print(
-                                    f"[yellow]⚠[/yellow] Failed to queue " f"{app['display_name']}"
+                                    f"[yellow]⚠[/yellow] Failed to queue {app['display_name']}"
                                 )
                                 all_queued = False
                                 continue

@@ -4,6 +4,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
+import deal
 import typer
 from beartype import beartype
 from praw.models import Submission
@@ -27,6 +28,8 @@ if TYPE_CHECKING:
 app = typer.Typer()
 
 
+@deal.pre(lambda comments, _config: isinstance(comments, list))
+@deal.post(lambda result: len(result) > 0)
 @beartype
 def _analyze_sentiment(comments: list, config: Config) -> str:
     """Analyze comment sentiment and return status."""
@@ -44,6 +47,7 @@ def _analyze_sentiment(comments: list, config: Config) -> str:
     return config.feedback["labels"]["unknown"]
 
 
+@deal.pre(lambda _submission, status, _config: len(status) > 0)
 @beartype
 def _update_post_status(submission: Submission, status: str, config: Config) -> None:
     """Update post status line if needed."""
@@ -55,6 +59,7 @@ def _update_post_status(submission: Submission, status: str, config: Config) -> 
         submission.edit(body=updated_body)
 
 
+@deal.pre(lambda _state, comment_count, _config: comment_count >= 0)
 @beartype
 def _update_check_interval(state: BotState, comment_count: int, config: Config) -> bool:
     """Update check interval based on activity. Returns whether state changed."""
