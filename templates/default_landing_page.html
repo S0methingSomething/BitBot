@@ -82,12 +82,12 @@
                 
                 <!-- =================================================================== -->
                 <!-- CORRECT PLACEMENT: The BEGIN marker goes right before the <section> -->
-                <!-- BEGIN-APP-LOOP -->
+                {% for app in apps %}
                 <section class="app-section flex flex-col border border-[var(--border-color)] rounded-xl transition-colors duration-300" data-app-name="{{app.display_name}}" data-latest-release-date="{{app.latest_release.published_at}}">
                     
                     <header class="p-4">
                         <h2 class="text-xl font-bold mb-2">{{app.display_name}}</h2>
-                        <!-- IF RELEASES EXIST -->
+                        {% if app.latest_release %}
                         <div class="latest-release space-y-3">
                             <div class="flex justify-between items-start">
                                 <div>
@@ -98,12 +98,12 @@
                             </div>
                             <a href="{{app.latest_release.download_url}}" class="download-button block w-full text-center text-sm bg-[var(--primary-color)] text-white px-4 py-2 rounded-md font-bold transition-colors duration-200 hover:bg-[var(--primary-hover)]">Download</a>
                         </div>
-                        <!-- ELSE -->
+                        {% else %}
                         <p class="text-center text-sm text-[var(--text-muted-color)] py-4">No releases found.</p>
-                        <!-- END IF -->
+                        {% endif %}
                     </header>
 
-                    <!-- IF RELEASES EXIST -->
+                    {% if app.releases %}
                     <div class="history-container p-4 border-t border-[var(--border-color)] mt-auto">
                         <details class="history-details">
                             <summary class="inline-flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800/50">
@@ -111,7 +111,7 @@
                                 <span class="history-toggle-text text-sm font-semibold text-[var(--text-muted-color)]">Version History</span>
                             </summary>
                             <div class="mt-4 space-y-3">
-                                <!-- BEGIN-RELEASE-LOOP -->
+                                {% for release in app.releases %}
                                 <div class="release-item flex flex-col sm:flex-row sm:items-center gap-3">
                                     <div class="font-semibold flex-grow">
                                         <h3>v{{release.version}}</h3>
@@ -119,13 +119,13 @@
                                     </div>
                                     <a href="{{release.download_url}}" class="download-button w-full sm:w-auto text-center flex-shrink-0 text-sm font-bold border-2 border-[var(--primary-color)] text-[var(--primary-color)] px-4 py-1.5 rounded-md transition-colors duration-200 hover:bg-[var(--primary-color)] hover:text-white">Download</a>
                                 </div>
-                                <!-- END-RELEASE-LOOP -->
+                                {% endfor %}
                             </div>
                         </details>
                     </div>
-                    <!-- END IF -->
+                    {% endif %}
                 </section>
-                <!-- END-APP-LOOP -->
+                {% endfor %}
                 <!-- CORRECT PLACEMENT: The END marker goes right after the </section> -->
                 <!-- =================================================================== -->
 
