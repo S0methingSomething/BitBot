@@ -21,4 +21,4 @@ jobs:
       - name: Mark Old Releases as Outdated
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run python -m src.commands.maintain
+        run: uv run python -m bitbot.cli maintain run

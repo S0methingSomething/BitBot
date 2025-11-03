@@ -30,7 +30,7 @@ jobs:
       - name: Gather New Releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run python -m src.commands.gather
+        run: uv run python -m bitbot.cli gather run
       - name: Upload release data artifact
         uses: actions/upload-artifact@v4
         with:
@@ -60,7 +60,7 @@ jobs:
       - name: Create GitHub Releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run python -m src.commands.release
+        run: uv run python -m bitbot.cli release run
       - name: Upload updated data
         uses: actions/upload-artifact@v4
         with:
@@ -96,7 +96,7 @@ jobs:
           pip install uv
           uv sync
       - name: Generate Landing Page
-        run: uv run python -m src.commands.page
+        run: uv run python -m bitbot.cli page run
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -131,7 +131,7 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
-        run: uv run python -m src.commands.post --page-url "${{ needs.generate_page.outputs.page_url }}"
+        run: uv run python -m bitbot.cli post run --page-url "${{ needs.generate_page.outputs.page_url }}"
       - name: Upload final state
         uses: actions/upload-artifact@v4
         with:
