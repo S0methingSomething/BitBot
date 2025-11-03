@@ -25,7 +25,7 @@ DOWNLOAD_DIR = paths.DIST_DIR
 def patch_file(original_path: str, asset_name: str) -> Result[str, GitHubAPIError]:
     """Patches the downloaded file using the Python script."""
     patched_path = Path(DOWNLOAD_DIR) / asset_name
-    result = run_command(["python", "patch_file.py", original_path, str(patched_path)])
+    result = run_command(["python", "-m", "src.patch_file", original_path, str(patched_path)])
     if result.is_err():
         return Err(GitHubAPIError(f"Failed to patch file: {result.error}"))
     return Ok(str(patched_path))
