@@ -442,15 +442,26 @@
         "description": "Add @deal.pre, @deal.post, and @deal.ensure contracts to functions that currently only have @beartype to prevent invalid data from entering the system",
         "details": "PRIORITY AREAS (Moderate approach - focus on quality over quantity):\n\n1. **Core State Management** (src/bitbot/core/state.py)\n   - load_bot_state(): @deal.post to validate Result type\n   - load_release_state(): @deal.post to validate Result type\n   - save_bot_state(): @deal.pre to validate state not None\n   - save_release_state(): @deal.pre to validate data not empty\n\n2. **Crypto Functions** (src/bitbot/crypto/)\n   - decrypt(): @deal.pre for non-empty encrypted_data and key\n   - encrypt(): @deal.pre for non-empty data and key\n   - get_obfuscated_key(): @deal.pre for non-empty key, @deal.post for non-empty result\n   - modify(): @deal.pre for non-empty data\n\n3. **Container/DI** (src/bitbot/core/container.py)\n   - get(): @deal.pre for non-empty key\n   - register(): @deal.pre for non-empty key and non-None value\n   - setup_container(): @deal.post to validate Result type\n\n4. **Result Type** (src/bitbot/core/result.py)\n   - unwrap(): @deal.pre to ensure is_ok() is True\n   - unwrap_err(): @deal.pre to ensure is_err() is True\n   - map(): @deal.pre for callable func\n   - and_then(): @deal.pre for callable func\n\n5. **Check Command Helpers** (src/bitbot/commands/check.py)\n   - _analyze_sentiment(): @deal.pre for non-empty comments list\n   - _update_post_status(): @deal.pre for valid status values\n   - _update_check_interval(): @deal.pre for positive interval\n\n6. **Release Queue** (src/bitbot/core/release_queue.py)\n   - add_release(): @deal.pre for valid PendingRelease object\n   - load_pending_releases(): @deal.post for list result\n\nGUIDELINES:\n- Add @deal.pre for input validation (non-empty, positive, valid format)\n- Add @deal.post for output validation (correct type, non-null)\n- Include descriptive error messages in contracts\n- Don't add contracts to trivial getters/setters\n- Focus on functions that could cause runtime errors if given bad data\n- Test each contract addition to ensure it doesn't break existing code\n\nCURRENT: 96 deal decorators\nTARGET: ~150 deal decorators (add ~54 new contracts)",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 31,
+        "title": "Fix scattered logging and code organization issues",
+        "description": "Centralize logging, remove legacy bloat, consolidate duplicate parsers, and standardize command patterns",
+        "details": "SCATTERED LOGIC PROBLEMS:\n\n1. LOGGING INCONSISTENCY (MAJOR):\n   - 52 print() statements scattered across commands/\n   - Only 1 get_logger() call being used\n   - 3 separate Console() instances created\n   - Should centralize on error_logger for all output\n\n2. DUPLICATE PARSERS:\n   - gh/parser.py - parses release notes\n   - gh/releases/parser.py - parses release descriptions\n   - reddit/parser.py - parses post versions\n   - Three different parsers for similar data, should consolidate\n\n3. LEGACY CODE BLOAT:\n   - 783 lines of dead code in legacy/ directory\n   - 8 legacy scripts with no imports or usage\n   - 10 deal contracts wasted on unused code\n   - All functionality replaced by new commands/\n   - Only legacy_release_migrator.py might be useful (one-time tool)\n\n4. COMMANDS INCONSISTENCY:\n   - Each command has own error handling style\n   - Mix of print() and Console() usage\n   - No shared command base class or utilities\n   - Inconsistent patterns across 8 command files\n\nPRIORITY:\n1. Fix logging (replace print with logger) - HIGH\n2. Remove legacy code - MEDIUM\n3. Consolidate parsers - MEDIUM\n4. Standardize command patterns - LOW",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
         "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-03T16:43:53.710Z",
+      "updated": "2025-11-03T17:13:59.772Z",
       "description": "Tasks for master context"
     }
   },

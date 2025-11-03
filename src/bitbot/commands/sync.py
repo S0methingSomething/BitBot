@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 import typer
 from beartype import beartype
-from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.core.error_context import error_context
@@ -16,10 +15,11 @@ from bitbot.reddit.parser import parse_versions_from_post
 from bitbot.reddit.posts import get_bot_posts
 
 if TYPE_CHECKING:
+    from rich.console import Console
+
     from bitbot.core.container import Container
 
 app = typer.Typer()
-logger = get_logger(console=Console())
 
 
 @beartype
@@ -30,6 +30,7 @@ def run(ctx: typer.Context) -> None:
         try:
             container: Container = ctx.obj["container"]
             console: Console = ctx.obj["console"]
+            logger = get_logger(console=console)
 
             with Progress(
                 SpinnerColumn(),

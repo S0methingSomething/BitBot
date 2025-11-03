@@ -25,6 +25,17 @@ app = typer.Typer(
 # Create console for rich output
 console = Console()
 
+
+def configure_logging(*, verbose: bool = False) -> None:
+    """Configure logging with RichHandler."""
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(message)s",
+        handlers=[RichHandler(console=console, rich_tracebacks=True, show_path=False)],
+    )
+
+
 # Register commands
 app.add_typer(post.app, name="post", help="Post releases to Reddit")
 app.add_typer(check.app, name="check", help="Check Reddit comments for feedback")
@@ -48,6 +59,12 @@ def main(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
 ) -> None:
     """BitBot CLI - Automated release management and Reddit posting."""
+    # Configure logging
+    configure_logging(verbose=verbose)
+
+    # Store console in context for commands
+    ctx.ensure_object(dict)
+    ctx.obj["console"] = console
     # Configure logging
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
