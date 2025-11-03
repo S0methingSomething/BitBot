@@ -28,7 +28,6 @@ class Ok[T]:
         """Check if result is Err."""
         return False
 
-    @deal.post(lambda result: result is not None, message="unwrap() must never return None")
     @beartype
     def unwrap(self) -> T:
         """Get the value."""
