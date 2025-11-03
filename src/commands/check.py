@@ -1,18 +1,26 @@
 """Check command for BitBot CLI."""
 
+import re
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import typer
 from beartype import beartype
+from praw.models import Submission
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from config_models import Config
+from core.container import Container
 from core.error_context import error_context
 from core.error_logger import LogLevel, get_logger
-from core.errors import BitBotError
+from core.errors import BitBotError, RedditAPIError
+from core.result import Err, Ok, Result
+from core.state import load_bot_state, save_bot_state
+from models import BotState
 
 app = typer.Typer()
 console = Console()
@@ -20,9 +28,113 @@ logger = get_logger(console=console)
 
 
 @beartype
+def _analyze_sentiment(comments: list, config: Config) -> str:
+    """Analyze comment sentiment and return status."""
+    working_kw = re.compile("|".join(config.feedback["workingKeywords"]), re.IGNORECASE)
+    not_working_kw = re.compile("|".join(config.feedback["notWorkingKeywords"]), re.IGNORECASE)
+    positive = sum(1 for c in comments if working_kw.search(c.body))
+    negative = sum(1 for c in comments if not_working_kw.search(c.body))
+    net_score = positive - negative
+
+    threshold = config.feedback["minFeedbackCount"]
+    if net_score <= -threshold:
+        return config.feedback["labels"]["broken"]
+    if net_score >= threshold:
+        return config.feedback["labels"]["working"]
+    return config.feedback["labels"]["unknown"]
+
+
+@beartype
+def _update_post_status(submission: Submission, status: str, config: Config) -> None:
+    """Update post status line if needed."""
+    status_line = config.feedback["statusLineFormat"].replace("{{status}}", status)
+    status_regex = re.compile(config.feedback["statusLineRegex"], re.MULTILINE)
+
+    if status_regex.search(submission.selftext) and status_line not in submission.selftext:
+        updated_body = status_regex.sub(status_line, submission.selftext)
+        submission.edit(body=updated_body)
+
+
+@beartype
+def _update_check_interval(state: BotState, comment_count: int, config: Config) -> bool:
+    """Update check interval based on activity. Returns whether state changed."""
+    last_count = state.online.get("lastCommentCount", 0)
+    current_interval = state.current_interval_seconds or config.timing["firstCheck"]
+    changed = False
+
+    if comment_count > last_count:
+        state.current_interval_seconds = config.timing["firstCheck"]
+        changed = True
+    elif current_interval < config.timing["maxWait"]:
+        state.current_interval_seconds = min(
+            config.timing["maxWait"], current_interval + config.timing["increaseBy"]
+        )
+        changed = True
+
+    if last_count != comment_count:
+        state.online["lastCommentCount"] = comment_count
+        changed = True
+
+    return changed
+
+
+@beartype
+def check_comments(config: Config) -> Result[bool, BitBotError]:  # noqa: PLR0911
+    """Check comments and update post status. Returns whether state changed."""
+    state_result = load_bot_state()
+    if state_result.is_err():
+        return state_result.map(lambda _: False)
+
+    state = state_result.unwrap()
+    if not state.active_post_id:
+        return Ok(value=False)
+
+    now = datetime.now(UTC)
+    last_check_str = state.last_check_timestamp or "2000-01-01T00:00:00Z"
+    last_check = datetime.fromisoformat(last_check_str.replace("Z", "+00:00"))
+
+    current_interval = state.current_interval_seconds or config.timing["firstCheck"]
+    if now < (last_check + timedelta(seconds=current_interval)):
+        return Ok(value=False)
+
+    # Initialize reddit client
+    from reddit.client import init_reddit
+
+    reddit_result = init_reddit(config)
+    if reddit_result.is_err():
+        return reddit_result.map(lambda _: False)
+
+    reddit = reddit_result.unwrap()
+
+    try:
+        submission = reddit.submission(id=state.active_post_id)
+        submission.comments.replace_more(limit=0)
+        comments = submission.comments.list()
+
+        status = _analyze_sentiment(comments, config)
+        _update_post_status(submission, status, config)
+        state_changed = _update_check_interval(state, len(comments), config)
+
+    except Exception as e:
+        return Err(error=RedditAPIError(f"Failed to check comments: {e}"))
+
+    # Update timestamp and save state (moved out of finally to avoid B012)
+    state.last_check_timestamp = now.isoformat().replace("+00:00", "Z")
+    if state_changed:
+        save_result = save_bot_state(state)
+        if save_result.is_err():
+            return save_result.map(lambda _: False)
+
+    return Ok(value=state_changed)
+
+
+@beartype
 @app.command()
-def run() -> None:
+def run(ctx: typer.Context) -> None:
     """Check Reddit comments for feedback."""
+    container: Container = ctx.obj["container"]
+    config: Config = container.get("config")
+
     with error_context(operation="check_comments"):
         try:
             with Progress(
@@ -31,8 +143,19 @@ def run() -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Checking comments...", total=None)
-                msg = "Legacy script moved - needs refactoring"
-                raise NotImplementedError(msg)
+                result = check_comments(config)
+
+                if result.is_err():
+                    error = result.error
+                    logger.log_error(error, LogLevel.ERROR)
+                    console.print(f"[red]✗ Error:[/red] {error.message}")
+                    raise typer.Exit(code=1)
+
+                state_changed = result.unwrap()
+                if state_changed:
+                    console.print("[green]✓[/green] Comments checked, state updated")
+                else:
+                    console.print("[green]✓[/green] No updates needed")
 
         except BitBotError as e:
             logger.log_error(e, LogLevel.ERROR)

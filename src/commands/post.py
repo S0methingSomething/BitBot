@@ -29,29 +29,31 @@ from reddit.posting.poster import post_new_release
 app = typer.Typer()
 
 
-def post_or_update(  # noqa: PLR0913
+def post_or_update(
     reddit: praw.Reddit,
     title: str,
     body: str,
     config: Config,
     existing_post_id: str | None,
-    console: Console,
-) -> praw.models.Submission:
-    """Post new or update existing Reddit post."""
+) -> tuple[praw.models.Submission, bool]:
+    """Post new or update existing Reddit post.
+
+    Returns:
+        Tuple of (submission, was_updated) where was_updated is True if existing post was updated.
+    """
     if existing_post_id:
         try:
             submission = reddit.submission(id=existing_post_id)
             submission.edit(body)
-            console.print(f"[green]✓[/green] Updated existing post: {submission.url}")
-        except Exception as e:
-            console.print(f"[yellow]⚠[/yellow] Failed to update: {e}, creating new")
+        except Exception:
+            # Failed to update, create new post
             submission = post_new_release(reddit, title, body, config)
-            console.print(f"[green]✓[/green] Posted to Reddit: {submission.url}")
+            return (submission, False)
+        else:
+            return (submission, True)
     else:
         submission = post_new_release(reddit, title, body, config)
-        console.print(f"[green]✓[/green] Posted to Reddit: {submission.url}")
-
-    return submission
+        return (submission, False)
 
 
 @beartype
@@ -151,7 +153,14 @@ def run(
                     existing_post_id = state.active_post_id
 
                 # Post or update
-                submission = post_or_update(reddit, title, body, config, existing_post_id, console)
+                submission, was_updated = post_or_update(
+                    reddit, title, body, config, existing_post_id
+                )
+
+                if was_updated:
+                    console.print(f"[green]✓[/green] Updated existing post: {submission.url}")
+                else:
+                    console.print(f"[green]✓[/green] Posted to Reddit: {submission.url}")
 
                 # Update state with post ID tracking
                 state_result = load_bot_state()

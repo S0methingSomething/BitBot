@@ -75,15 +75,14 @@ endTag = "<!-- TUTORIAL-END -->"
 [feedback]
 statusLineFormat = "**Status:** {{status}} (based on comments)."
 statusLineRegex = "^\\*\\*Status:\\*\\*.*$"
+workingKeywords = ["working", "works for me", "no issues", "perfect", "thanks"]
+notWorkingKeywords = ["not working", "broken", "doesnt work"]
+minFeedbackCount = 2
 
   [feedback.labels]
   working = "Working"
   broken = "Potentially Not Working"
   unknown = "Not enough feedback..."
-
-workingKeywords = ["working", "works for me", "no issues", "perfect", "thanks"]
-notWorkingKeywords = ["not working", "broken", "doesnt work"]
-minFeedbackCount = 2
 
 # Controls the adaptive polling interval for the comment checker (in seconds).
 [timing]

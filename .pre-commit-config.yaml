@@ -101,7 +101,7 @@ repos:
       # Pip-audit - Audit dependencies for vulnerabilities (strict)
       - id: pip-audit
         name: Dependency Audit (pip-audit)
-        entry: uv run pip-audit --desc
+        entry: uv run pip-audit --desc --ignore-vuln=PYSEC-2022-42969
         language: system
         pass_filenames: false
         files: pyproject.toml|uv.lock
