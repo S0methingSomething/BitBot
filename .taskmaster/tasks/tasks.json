@@ -1,67 +1,511 @@
 {
-  "tasks": [
-    {
-      "id": 1,
-      "title": "Fix critical bug: sync.py calls non-existent unwrap_err()",
-      "description": "The sync command calls result.unwrap_err() 5 times but the Result type doesn't have this method. This will crash at runtime when any error occurs.",
-      "status": "pending",
-      "priority": "high",
-      "details": "Files: src/bitbot/commands/sync.py (lines 48, 53, 58, 63, 68) and src/bitbot/core/result.py. Either add unwrap_err() method to Err class that returns self.error, or change sync.py to use .error attribute directly.",
-      "testStrategy": "Run sync command with invalid config to trigger error path and verify it doesn't crash"
-    },
-    {
-      "id": 2,
-      "title": "Remove duplicate model definitions",
-      "description": "Both models.py and config_models.py define Config, GitHubConfig, and RedditConfig classes with different fields. This is confusing and error-prone.",
-      "status": "pending",
-      "priority": "high",
-      "details": "config_models.py is the actual used Config (17 imports). Remove Config/GitHubConfig/RedditConfig from models.py, keep only BotState and PendingRelease there.",
-      "testStrategy": "Verify all imports still work and no duplicate class definitions exist"
-    },
-    {
-      "id": 3,
-      "title": "Fix Result type incorrect signatures",
-      "description": "Result type has several type signature issues that limit functionality and type safety.",
-      "status": "pending",
-      "priority": "high",
-      "details": "In core/result.py: (1) Err.unwrap_or returns E but should return T, (2) Ok.map can't change types, should be Callable[[T], U] -> Ok[U], (3) Missing unwrap_err/expect/or_else methods, (4) Err.unwrap should return Never not None",
-      "testStrategy": "Add type tests and runtime tests for all Result methods"
-    },
-    {
-      "id": 4,
-      "title": "Add type safety to Container",
-      "description": "Container uses Any everywhere which defeats type checking purpose.",
-      "status": "pending",
-      "priority": "medium",
-      "details": "In core/container.py: Add generic get method like get[T](name: str, service_type: type[T]) -> T to enable type-safe service retrieval",
-      "testStrategy": "Verify type checker catches incorrect service type usage"
-    },
-    {
-      "id": 5,
-      "title": "Fix commands to use CLI context",
-      "description": "Commands like sync.py set up their own container instead of using ctx.obj from main CLI.",
-      "status": "pending",
-      "priority": "medium",
-      "details": "Commands should accept ctx: typer.Context parameter and use ctx.obj['container'] instead of calling setup_container() again. This enables sharing state and respecting verbose flag.",
-      "testStrategy": "Verify commands receive and use container from CLI context"
-    },
-    {
-      "id": 6,
-      "title": "Add validation to Pydantic models",
-      "description": "Config models lack validators for repo format, subreddit format, post_mode enum, and numeric constraints.",
-      "status": "pending",
-      "priority": "medium",
-      "details": "Add validators: repo format (owner/repo), subreddit format, post_mode enum, days_before_new_post > 0, field descriptions in Field() calls",
-      "testStrategy": "Test that invalid configs are rejected with clear error messages"
-    },
-    {
-      "id": 7,
-      "title": "Add standard CLI features",
-      "description": "CLI lacks --version, logging config, typed context, and exception handler.",
-      "status": "pending",
-      "priority": "low",
-      "details": "In cli.py: Add --version option, configure logging based on verbose flag, use TypedDict for ctx.obj, add global exception handler, enable shell completion",
-      "testStrategy": "Test --version works, verbose flag enables debug logging"
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Deep Integration: Add Validation to All Functions",
+        "description": "Add deal contracts, beartype decorators, and pydantic models to all 28 remaining unvalidated functions. Current coverage: 17.6% (6/34). Target: 80%+ (27+ functions).",
+        "status": "done",
+        "priority": "high",
+        "details": "Current validated: load_config, load_bot_state, init_reddit, get_github_data, download_asset, patch_file.\n\nPriority functions:\n1. State: save_bot_state, load_release_state, save_release_state\n2. Parsing: parse_release_notes, parse_versions_from_post, parse_release_description\n3. Security: decrypt, encrypt, modify (patch_file.py)\n4. File ops: get_template_path\n5. Helpers: get_bot_posts, update_older_posts, get_source_releases\n6. Entry points: All main() functions\n\nEach function needs:\n- @deal.pre (input validation)\n- @deal.post (output validation)\n- @beartype (runtime types)\n- Pydantic models for data structures",
+        "dependencies": []
+      },
+      {
+        "id": 2,
+        "title": "Add Comprehensive Test Suite",
+        "description": "Critical: Zero test coverage despite 100% validation. Need unit tests for 43 functions, integration tests, and mocking for GitHub/Reddit APIs.",
+        "details": "Current: 0% test coverage, 1776 LOC untested.\n\nRequired:\n- Unit tests for all 43 validated functions\n- Integration tests for main workflows\n- Mock GitHub API responses\n- Mock Reddit API interactions\n- Test fixtures for config/state files\n- Test validation contracts (deal, beartype, pydantic)\n\nTarget: 80%+ test coverage\n\nFiles to test:\n- helpers.py (18 functions)\n- release_manager.py (8 functions)\n- patch_file.py (7 functions)\n- post_to_reddit.py (3 functions)\n- All other modules\n\nTools: pytest, pytest-mock, pytest-cov",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Make Post Detection Robust",
+        "description": "Current post detection is fragile - hardcoded \"[BitBot] MonetizationVars\" string that ignores config and breaks if title changes. Need reliable way to identify bot's own posts.",
+        "details": "Current Issues:\n- Hardcoded post_identifier = \"[BitBot] MonetizationVars\" in helpers.py\n- Ignores config[\"reddit\"][\"postIdentifier\"] \n- Only uses title.startswith() - fragile\n- No fallback if title format changes\n\nProposed Solution (Hybrid Approach):\n1. Store post IDs in bot_state.json\n   - Add \"allPostIds\": [] to track all bot posts\n   - Save post ID when creating/updating posts\n   \n2. Detection logic:\n   - Primary: Check if post.id in bot_state[\"allPostIds\"]\n   - Fallback: Check author == bot_user AND title.startswith(config identifier)\n   - Self-healing: Add discovered posts to state\n   \n3. Use config postIdentifier instead of hardcoded string\n\nBenefits:\n- Survives title format changes\n- Self-healing if state lost\n- Respects configuration\n- No mod permissions needed\n\nFiles to modify:\n- src/helpers.py: get_bot_posts() function\n- src/models.py: Add allPostIds to BotState\n- src/post_to_reddit.py: Save post IDs after creation",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Clarify Rolling Update Changelog Behavior",
+        "description": "Clarify behavior of changelog vs available list in rolling update mode. Need to decide how to display cumulative changes over 7-day update window.",
+        "details": "Current Behavior:\n- Changelog: Shows Added/Updated/Removed in current update\n- Available List: Shows table of all apps with latest versions\n\nQuestion for Rolling Update Mode:\nWhen updating same post for 7 days, what should changelog show?\n\nOption A: Cumulative (all changes over 7 days)\n- Day 0: \"Added BitLife v1.0\"\n- Day 2: Post shows \"Added BitLife v1.0\" + \"Added BitLife Go v2.0\"\n- Day 4: Post shows all 3 changes\n\nOption B: Latest Only\n- Only show most recent change\n- Simpler but loses history\n\nOption C: Keep Both Sections\n- Changelog = recent changes\n- Available List = full inventory\n- Current behavior, just clarify purpose\n\nDecision Needed:\n- Which option fits user workflow?\n- Should changelog accumulate or replace?\n- Is available list redundant with changelog?\n\nFiles affected:\n- src/post_to_reddit.py: _generate_changelog(), _generate_post_body()\n- templates/post_template.md: Post structure",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Refactor to Modular Architecture",
+        "description": "Refactor codebase into proper modular structure. Break up god modules (helpers.py 385 LOC, post_to_reddit.py 358 LOC) into focused, reusable components organized by domain.",
+        "details": "Current Problems:\n- helpers.py: 385 LOC, 7 responsibilities (god module)\n- post_to_reddit.py: 358 LOC, complex logic\n- release_manager.py: 266 LOC, mixed concerns\n- No clear separation of domains\n- Hard to test, hard to maintain\n\nProposed Structure:\n\nsrc/\n├── core/\n│   ├── __init__.py\n│   ├── config.py          - load_config() from helpers.py\n│   ├── state.py           - State management (bot_state, release_state)\n│   └── credentials.py     - Credentials class from helpers.py\n│\n├── reddit/\n│   ├── __init__.py\n│   ├── client.py          - init_reddit() from helpers.py\n│   ├── posts.py           - get_bot_posts(), update_older_posts()\n│   └── parser.py          - parse_versions_from_post()\n│\n├── github/\n│   ├── __init__.py\n│   ├── releases.py        - get_github_data(), get_source_releases()\n│   └── parser.py          - parse_release_notes(), parse_release_description()\n│\n├── scripts/\n│   ├── check_comments.py  - Refactored to use core/reddit\n│   ├── post_to_reddit.py  - Refactored to use core/reddit\n│   ├── release_manager.py - Refactored to use core/github\n│   └── ... (other scripts)\n│\n└── models.py              - Keep as-is (Pydantic models)\n└── paths.py               - Keep as-is (path constants)\n└── patch_file.py          - Keep as-is (standalone utility)\n\nMigration Plan:\n1. Create new directory structure\n2. Extract functions from helpers.py into core/\n3. Extract Reddit logic into reddit/\n4. Extract GitHub logic into github/\n5. Update imports in all scripts\n6. Update tests\n7. Delete old helpers.py\n\nTarget Metrics:\n- Max file size: 150 LOC\n- Single responsibility per module\n- Clear domain boundaries\n- 100% test coverage maintained\n\nBenefits:\n- Easier to understand\n- Easier to test (mock specific modules)\n- Easier to extend\n- Follows Single Responsibility Principle\n- Reduces coupling",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Split Remaining Large Scripts",
+        "description": "Split remaining large scripts into smaller, focused modules. post_to_reddit.py (355 LOC), release_manager.py (268 LOC), and patch_file.py (172 LOC) are still too large and violate Single Responsibility Principle.",
+        "details": "Current Large Scripts:\n1. post_to_reddit.py - 355 LOC\n   - Title generation\n   - Changelog generation\n   - Available list generation\n   - Post body generation\n   - Post creation\n   - Rolling update logic\n   - Main orchestration\n\n2. release_manager.py - 268 LOC\n   - GitHub API calls\n   - Release fetching\n   - Release parsing\n   - Asset downloading\n   - File patching\n   - Release creation\n   - Main orchestration\n\n3. patch_file.py - 172 LOC\n   - Key obfuscation\n   - XOR encoding/decoding\n   - Encryption/decryption\n   - Data modification\n   - Main orchestration\n\nProposed Refactoring:\n\npost_to_reddit.py → reddit/posting/\n├── title_generator.py - _generate_dynamic_title()\n├── changelog.py - _generate_changelog()\n├── body_builder.py - _generate_post_body(), _generate_available_list()\n├── poster.py - _post_new_release()\n└── main.py - Orchestration only (~50 LOC)\n\nrelease_manager.py → gh/releases/\n├── fetcher.py - get_source_releases(), get_github_data()\n├── parser.py - parse_release_description() (merge with existing)\n├── downloader.py - download_asset()\n├── patcher.py - patch_file()\n├── creator.py - create_bot_release()\n└── main.py - Orchestration only (~50 LOC)\n\npatch_file.py → crypto/\n├── obfuscation.py - get_obfuscated_key()\n├── encoding.py - xor_and_b64_encode(), b64_decode_and_xor()\n├── cipher.py - encrypt(), decrypt()\n├── modifier.py - modify()\n└── main.py - Orchestration only (~30 LOC)\n\nTarget Metrics:\n- Max file size: 100 LOC\n- Single responsibility per module\n- Clear function grouping\n- Easier to test individual components\n\nBenefits:\n- Smaller, focused modules\n- Easier to understand\n- Easier to test (mock specific components)\n- Easier to maintain\n- Follows Single Responsibility Principle",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Fix Validation Coverage to 100%",
+        "description": "Add @beartype and @deal decorators to 6 missing functions in reddit/posting/ modules (body_builder.py, changelog.py, poster.py, title_generator.py) to reach 90%+ validation coverage threshold",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Add Validation to reddit/posting/ Modules",
+        "description": "Add @beartype and @deal decorators to 6 missing functions in reddit/posting/ modules: body_builder.py (2 functions), changelog.py (1 function), poster.py (2 functions), title_generator.py (1 function). This will bring validation coverage from 87.8% to 100%.",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Complete Deep Validation Integration",
+        "description": "Add @deal contracts to 17 files to achieve 80+ integration score. Currently at 57.4/100 with @beartype at 100% but missing @deal.pre/@deal.post contracts on main scripts and reddit/posting modules.",
+        "details": "Integration Analysis Results:\n- Current score: 57.4/100\n- @beartype: 46/49 (93.9%) - 3 functions missing\n- @deal contracts: 45 total (need ~90+)\n- Type hints: 49/49 (100%)\n\nMissing @beartype (3 functions):\n- gh/releases/downloader.py\n- gh/releases/patcher.py  \n- page_generator.py (1 function)\n\nMissing @deal.pre (17 files):\n- All main scripts (check_comments, gather_post_data, etc.)\n- reddit/posting/* modules (4 files)\n- Several gh/releases modules\n\nMissing @deal.post (14 files):\n- Similar pattern to @deal.pre\n\nTarget: 80+/100 integration score\nStrategy: Add @deal.pre for input validation, @deal.post for output validation",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Replace Any Types with Specific Types",
+        "description": "Replace dict[str, Any] and other Any usage with specific types (Pydantic models, TypedDict) in 18 functions to improve type safety and integration score from 68.7 to 85+",
+        "details": "Current: 18/49 functions (36.7%) use Any, weakening type safety\n\nFiles with weak types:\n- gh/releases/fetcher.py: get_github_data, get_source_releases\n- reddit/posting/poster.py: post_new_release\n- reddit/client.py: init_reddit\n- reddit/parser.py: parse_versions_from_post\n- reddit/posts.py: get_bot_posts, update_older_posts\n- gh/parser.py: parse_release_notes\n- gh/releases/parser.py: parse_release_description\n- reddit/posting/title_generator.py: create_app_list, generate_dynamic_title\n- reddit/posting/body_builder.py: generate_available_list, generate_post_body\n- core/state.py: load_bot_state, save_bot_state\n- reddit/posting/changelog.py: create_section, generate_changelog\n- core/config.py: load_config\n\nStrategy:\n1. Create Pydantic models for structured data (BotState, ReleaseData, etc.)\n2. Replace dict[str, Any] with specific models\n3. Update function signatures\n4. Maintain backward compatibility\n\nTarget: 85+/100 integration score with strong typing",
+        "testStrategy": "",
+        "status": "deferred",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Implement Dependency Injection",
+        "description": "Implement dependency injection to remove tight coupling and enable testability. Replace global imports and direct instantiation with DI container pattern.",
+        "details": "Current issues:\n- 21 sys.exit() calls blocking testability\n- Tight coupling to Reddit/GitHub clients\n- Direct imports of config/state everywhere\n- No way to mock dependencies in tests\n\nImplementation:\n1. Create DI container (use dependency-injector or simple custom)\n2. Define interfaces/protocols for external services\n3. Inject dependencies into main functions\n4. Replace sys.exit() with proper error returns\n5. Make all scripts testable\n\nBenefits:\n- Enables mocking for tests\n- Loose coupling\n- Easier to swap implementations\n- Better error handling\n\nFiles to refactor:\n- All main scripts (8 files)\n- Reddit client initialization\n- GitHub API calls\n- Config/state loading",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Add Error Handling Framework",
+        "description": "Implement comprehensive error handling framework with typed errors, retry logic, structured logging, and Result type integration. Build on existing Result type and DI infrastructure.",
+        "details": "CURRENT STATE:\n- Result type exists (core/result.py) with Ok/Err pattern\n- DI container exists (core/container.py) with service protocols\n- CLI with Rich tracebacks (src/cli.py)\n- Partial Result usage in patch_file.py\n- CLI commands wrap exceptions and convert to typer.Exit\n\nWHAT'S MISSING:\n- Error type hierarchy (TransientError, PermanentError, etc.)\n- Retry mechanism with exponential backoff\n- Centralized error logger with structured logging\n- Error context propagation (thread-local context stack)\n- Integration with Reddit/GitHub clients\n- Integration with all 8 CLI commands\n- Error recovery strategies\n- Comprehensive tests\n\nTECHNICAL DESIGN:\n- Error hierarchy: BitBotError base with TransientError, PermanentError, ConfigurationError, StateError, ExternalAPIError\n- Retry decorator: @retry(max_attempts=3, backoff=exponential, on=[TransientError])\n- Error context: with error_context(operation=\"post_to_reddit\", release_id=123)\n- Integration with Result: functions return Result[T, BitBotError]\n- CLI layer converts Result to exit codes and Rich output\n- Complements existing @beartype + @deal validation\n\nESTIMATED COMPLEXITY: ~920 LOC across 10 subtasks\n\nBenefits:\n- Testable error paths\n- Better debugging with context\n- Graceful degradation\n- Retry logic for transient failures\n- Structured error logging",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Error Type Hierarchy",
+            "description": "Create core/errors.py with BitBotError base class and specialized error types: TransientError, PermanentError, ConfigurationError, StateError, ExternalAPIError (RedditAPIError, GitHubAPIError)",
+            "status": "done",
+            "dependencies": [],
+            "details": "Implement error hierarchy:\n- BitBotError(Exception): Base class with message, context dict\n- TransientError(BitBotError): Retry-able errors (network, rate limits)\n- PermanentError(BitBotError): Not retry-able (404, validation)\n- ConfigurationError(BitBotError): Config/setup issues\n- StateError(BitBotError): State corruption/inconsistency\n- ExternalAPIError(BitBotError): Base for API errors\n  - RedditAPIError(ExternalAPIError): Reddit-specific\n  - GitHubAPIError(ExternalAPIError): GitHub-specific\n\nEach error should:\n- Accept message and optional context dict\n- Support error chaining (from original exception)\n- Be serializable for logging\n- Include timestamp\n\n~50 LOC, fully typed with @beartype"
+          },
+          {
+            "id": 2,
+            "title": "Implement Retry Decorator",
+            "description": "Create core/retry.py with @retry decorator supporting exponential backoff, max attempts, and error type filtering",
+            "status": "done",
+            "dependencies": [
+              "12.1"
+            ],
+            "details": "Implement retry mechanism:\n- @retry(max_attempts=3, backoff='exponential', on=[TransientError])\n- Exponential backoff: 1s, 2s, 4s, 8s...\n- Linear backoff option: 1s, 2s, 3s...\n- Configurable base delay and max delay\n- Only retry specified error types\n- Log each retry attempt with context\n- Raise last exception if all attempts fail\n\nUsage:\n@retry(max_attempts=3, on=[RedditAPIError])\ndef post_to_reddit(): ...\n\n~80 LOC with @beartype validation"
+          },
+          {
+            "id": 3,
+            "title": "Create Error Context Manager",
+            "description": "Create core/error_context.py with thread-local context stack for error propagation",
+            "status": "done",
+            "dependencies": [
+              "12.1"
+            ],
+            "details": "Implement error context:\n- Thread-local context stack\n- with error_context(operation='post', release_id=123): ...\n- Automatically adds context to raised BitBotErrors\n- get_error_context() returns current context dict\n- Nested contexts merge (inner overrides outer)\n\nUsage:\nwith error_context(operation='post_to_reddit', release_id=123):\n    # errors here include context\n    post_release()\n\n~40 LOC with thread-local storage"
+          },
+          {
+            "id": 4,
+            "title": "Implement Structured Error Logger",
+            "description": "Create core/error_logger.py with Rich integration for structured error logging",
+            "status": "done",
+            "dependencies": [
+              "12.1",
+              "12.3"
+            ],
+            "details": "Implement error logger:\n- ErrorLogger class with log_error(error, context)\n- Structured logging with timestamp, error type, message, stack trace, context\n- Rich console output with colors and formatting\n- Optional JSON file output for CI/monitoring\n- Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL\n- Integration with error_context for automatic context\n\nOutput formats:\n- Console: Rich formatted with colors\n- File: JSON lines for parsing\n\n~100 LOC with Rich integration"
+          },
+          {
+            "id": 5,
+            "title": "Enhance Result Type",
+            "description": "Enhance core/result.py to work seamlessly with error type hierarchy",
+            "status": "done",
+            "dependencies": [
+              "12.1"
+            ],
+            "details": "Add to Result type:\n- map() method for transforming Ok values\n- map_err() method for transforming Err values\n- and_then() for chaining Result-returning operations\n- unwrap_or_else() for lazy default computation\n- expect() for custom panic messages\n- Type alias: Result[T, E] where E extends BitBotError\n\nExample:\nresult = fetch_release(url)\n    .map(lambda r: r.version)\n    .unwrap_or('unknown')\n\n~30 LOC additions to existing file"
+          },
+          {
+            "id": 6,
+            "title": "Add Error Handling to Reddit Client",
+            "description": "Refactor reddit/client.py and reddit/posts.py with error handling, retry logic, and Result types",
+            "status": "done",
+            "dependencies": [
+              "12.1",
+              "12.2",
+              "12.4",
+              "12.5"
+            ],
+            "details": "Refactor Reddit operations:\n- Wrap PRAW calls in try/except\n- Convert exceptions to RedditAPIError\n- Use @retry for transient failures (429, 503)\n- Return Result[T, RedditAPIError] instead of raising\n- Add error logging with context\n- Handle rate limits gracefully\n\nFunctions to update:\n- init_reddit() → Result[Reddit, RedditAPIError]\n- get_bot_posts() → Result[list[Post], RedditAPIError]\n- update_older_posts() → Result[None, RedditAPIError]\n\n~100 LOC changes"
+          },
+          {
+            "id": 7,
+            "title": "Add Error Handling to GitHub Operations",
+            "description": "Refactor gh/releases/ modules with error handling, retry logic, and Result types",
+            "status": "done",
+            "dependencies": [
+              "12.1",
+              "12.2",
+              "12.4",
+              "12.5"
+            ],
+            "details": "Refactor GitHub operations:\n- Wrap requests calls in try/except\n- Convert exceptions to GitHubAPIError\n- Use @retry for transient failures (rate limits, network)\n- Return Result[T, GitHubAPIError] instead of raising\n- Add error logging with context\n- Handle 404, 403, 429 specifically\n\nFunctions to update:\n- get_github_data() → Result[dict, GitHubAPIError]\n- get_source_releases() → Result[list, GitHubAPIError]\n- download_asset() → Result[Path, GitHubAPIError]\n- create_bot_release() → Result[None, GitHubAPIError]\n\n~120 LOC changes"
+          },
+          {
+            "id": 8,
+            "title": "Add Error Handling to File Operations",
+            "description": "Add error handling to file operations in patch_file.py, core/config.py, core/state.py",
+            "status": "done",
+            "dependencies": [
+              "12.1",
+              "12.4",
+              "12.5"
+            ],
+            "details": "Refactor file operations:\n- Wrap file I/O in try/except\n- Convert to ConfigurationError, StateError as appropriate\n- Return Result types (already done for patch_file.py)\n- Add error logging\n- Handle FileNotFoundError, PermissionError, JSONDecodeError\n\nFunctions to update:\n- load_config() → Result[dict, ConfigurationError]\n- load_bot_state() → Result[dict, StateError]\n- save_bot_state() → Result[None, StateError]\n- load_release_state() → Result[list[int], StateError]\n- save_release_state() → Result[None, StateError]\n\n~80 LOC changes"
+          },
+          {
+            "id": 9,
+            "title": "Update CLI Commands with Error Framework",
+            "description": "Update all 8 CLI commands to use error framework, Result types, and Rich error display",
+            "status": "done",
+            "dependencies": [
+              "12.4",
+              "12.5",
+              "12.6",
+              "12.7",
+              "12.8"
+            ],
+            "details": "Update CLI commands:\n- Use error_context for operation tracking\n- Handle Result types from business logic\n- Display errors with Rich formatting\n- Convert errors to appropriate exit codes\n- Log errors with ErrorLogger\n- Show user-friendly error messages\n\nCommands to update:\n- post.py\n- check.py\n- release.py\n- sync.py\n- patch.py (already uses Result)\n- page.py\n- gather.py\n- maintain.py\n\nPattern:\nwith error_context(operation='post'):\n    result = post_to_reddit()\n    if result.is_err():\n        logger.log_error(result.error)\n        console.print(f'[red]Error: {result.error.message}[/red]')\n        raise typer.Exit(1)\n\n~150 LOC changes"
+          },
+          {
+            "id": 10,
+            "title": "Add Error Handling Tests",
+            "description": "Add comprehensive tests for error handling framework: error types, retry logic, context propagation, logging, Result integration",
+            "status": "done",
+            "dependencies": [
+              "12.1",
+              "12.2",
+              "12.3",
+              "12.4",
+              "12.5"
+            ],
+            "details": "Test coverage:\n- Error type hierarchy (instantiation, serialization, chaining)\n- Retry decorator (success after retry, max attempts, backoff timing)\n- Error context (nesting, propagation, thread safety)\n- Error logger (output formats, log levels, Rich integration)\n- Result type enhancements (map, and_then, unwrap_or_else)\n- Integration tests (end-to-end error flows)\n\nTest files:\n- tests/core/test_errors.py\n- tests/core/test_retry.py\n- tests/core/test_error_context.py\n- tests/core/test_error_logger.py\n- tests/core/test_result.py\n- tests/integration/test_error_handling.py\n\n~300 LOC tests with pytest"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Add Sophisticated Code Analysis",
+        "description": "Enhance analysis script with sophisticated pattern detection: type complexity scoring, validation depth analysis, code smell detection, and escape hatch tracking.",
+        "details": "Add deep analysis capabilities for LLM-generated code:\n\n1. Type Complexity Scoring:\n   - Detect nested types: dict[str, list[dict[str, Any]]]\n   - Generic complexity scoring\n   - Type depth analysis\n\n2. Validation Depth:\n   - Weak contract detection (@deal.pre(lambda x: True))\n   - Parameter coverage (% of params validated)\n   - Contract effectiveness scoring\n\n3. Code Smell Detection:\n   - God functions (>50 LOC, >10 branches)\n   - Long parameter lists (>5 params)\n   - Deep nesting (>4 levels)\n   - Tight coupling (>10 imports)\n\n4. Escape Hatch Tracking:\n   - cast() usage count\n   - type: ignore count (already tracked)\n   - Any usage (already tracked)\n   - Total type safety score\n\n5. Semantic Analysis:\n   - Error handling coverage\n   - Return path completeness\n   - Null safety patterns\n\nCritical for LLM code quality enforcement.",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Create Unified CLI with Typer + Rich",
+        "description": "Create unified CLI using Typer + Rich to replace 8 separate script files with a single professional command-line interface. Implements DI and error handling naturally.",
+        "details": "Current state:\n- 8 separate scripts: check_comments.py, post_to_reddit.py, release_manager.py, sync_reddit_history.py, patch_file.py, page_generator.py, gather_post_data.py, maintain_releases.py\n- Each has own main() with sys.exit()\n- No unified interface\n- Poor error messages\n\nProposed CLI:\n```\nbitbot post [--page-url URL]           # Post to Reddit\nbitbot check-comments                   # Check Reddit comments  \nbitbot release                          # Manage GitHub releases\nbitbot sync                             # Sync Reddit state\nbitbot patch <input> <output>          # Patch files\nbitbot page                             # Generate landing page\nbitbot gather                           # Gather post data\nbitbot maintain                         # Maintain releases\n```\n\nImplementation:\n1. Add typer + rich to pyproject.toml\n2. Create src/cli.py as main entry point\n3. Create src/commands/ directory:\n   - post.py\n   - check.py\n   - release.py\n   - sync.py\n   - patch.py\n   - page.py\n   - gather.py\n   - maintain.py\n4. Initialize DI container in CLI\n5. Use Rich for:\n   - Progress bars\n   - Colored output\n   - Tables\n   - Error formatting\n6. Centralized error handling\n7. Update pyproject.toml with entry point\n\nBenefits:\n- Single entry point\n- Professional UX\n- Natural DI injection\n- Centralized error handling\n- Better for CI/CD\n- Solves Task #11 and #12 together\n\nDependencies: Replaces Task #11 and #12",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Refactor Scripts to Use Result Types",
+        "description": "Refactor all 8 main scripts to fully use Result types instead of sys.exit() and exceptions. Remove hybrid CLI wrapper pattern and make scripts return Result types directly.",
+        "details": "Current state:\n- CLI commands wrap old scripts with sys.exit()\n- Scripts use exceptions and print statements\n- Hybrid pattern is transitional, not production-ready\n\nScripts to refactor:\n1. post_to_reddit.py - Main posting logic\n2. release_manager.py - Release management\n3. check_comments.py - Comment checking\n4. sync_reddit_history.py - State syncing\n5. gather_post_data.py - Data gathering\n6. page_generator.py - Landing page generation\n7. maintain_releases.py - Release maintenance\n8. legacy_release_migrator.py - Migration script\n\nFor each script:\n- Remove sys.exit() calls\n- Return Result[None, BitBotError] from main()\n- Use error_context for operation tracking\n- Convert exceptions to typed errors\n- Remove print statements, use logger\n- Update CLI command to handle Result\n\nPattern:\n```python\ndef main() -> Result[None, BitBotError]:\n    config_result = load_config()\n    if config_result.is_err():\n        return config_result\n    \n    reddit_result = init_reddit()\n    if reddit_result.is_err():\n        return reddit_result\n    \n    # ... business logic\n    return Ok(None)\n```\n\nBenefits:\n- Testable (no sys.exit)\n- Type-safe error handling\n- Consistent error patterns\n- Better debugging",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Fix Linting, Validation, and Analysis Errors",
+        "description": "Fix all remaining linting, validation, and analysis errors to achieve clean codebase: ruff (158 errors), mypy (60 errors), improve integration score from 58.1 to 80+",
+        "details": "Current state:\n- Validation: 92.7% (89/96) ✅\n- Integration score: 58.1/100 ⚠️\n- Ruff: 158 errors\n- Mypy: 60 errors (mostly missing stubs)\n\nRuff errors to fix:\n- 103 ARG005: Unused lambda arguments in @deal contracts\n- 7 BLE001: Blind except (add noqa where legitimate)\n- 5 E501: Line too long (>100 chars)\n- 5 invalid-syntax: Fix syntax errors from noqa additions\n- Others: B904, FBT003, PLR0911, S112\n\nMypy errors:\n- Missing stubs for typer, rich (external libs - ignore)\n- Untyped decorators (add type: ignore where needed)\n- Fix remaining type issues in new code\n\nIntegration score improvements:\n- Add @deal.pre contracts to CLI commands (27 files)\n- Add @deal.post contracts where missing (24 files)\n- Reduce type: ignore comments where possible\n\nStrategy:\n1. Fix syntax errors first\n2. Add noqa comments for legitimate warnings\n3. Fix line length issues\n4. Add @deal contracts to improve integration score\n5. Run all checks and verify clean state\n\nTarget:\n- Ruff: <50 errors (mostly style)\n- Mypy: <20 errors (only external stubs)\n- Integration score: 80+/100\n- Validation: maintain 90%+",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [
+          15
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Remove Lazy Noqa Comments and Fix Ruff Errors Properly",
+        "description": "Remove all lazy noqa comments and actually fix the underlying ruff errors instead of suppressing them. Currently ~150+ errors are suppressed with noqa, defeating the purpose of linting.",
+        "details": "Current state:\n- Added noqa comments to suppress errors instead of fixing them\n- Ruff is now useless because everything is suppressed\n- Need to actually fix the root causes\n\nErrors to fix properly:\n\n1. ARG005 (103 errors): Unused lambda arguments in @deal contracts\n   - Fix: Rewrite @deal.pre lambdas to only include params being validated\n   - Example: @deal.pre(lambda x, y: len(x) > 0) where y is unused\n   - Should be: @deal.pre(lambda x, _: len(x) > 0) or split into separate contracts\n\n2. BLE001 (7 errors): Blind exception catching\n   - Fix: Catch specific exceptions instead of Exception\n   - Example: except Exception as e → except (ValueError, KeyError) as e\n   - Only use except Exception where truly necessary (error framework)\n\n3. E501 (5 errors): Line too long (>100 chars)\n   - Fix: Break long lines properly\n   - Use parentheses for line continuation\n   - Split long function signatures\n\n4. ARG002 (3 errors): Unused method arguments\n   - Fix: Rename unused args to _ or remove if not needed\n   - Example: def unwrap_or(self, default: T) where default unused\n   - Should be: def unwrap_or(self, _: T) or remove parameter\n\n5. FBT003 (2 errors): Boolean positional values\n   - Fix: Use named arguments or constants\n   - Example: return Ok(False) → return Ok(RELEASE_NOT_FOUND)\n\n6. PLR0911 (2 errors): Too many return statements\n   - Fix: Refactor to reduce branches or mark as acceptable\n\n7. Others: B904, S112, PLW0603, etc.\n   - Fix each properly based on context\n\nStrategy:\n1. Remove all noqa comments\n2. Run ruff to see real error count\n3. Fix errors by category (ARG005 first, then BLE001, etc.)\n4. Only add noqa for truly legitimate cases (not laziness)\n\nTarget: <20 ruff errors (only legitimate suppressions)\n\nBenefits:\n- Ruff becomes useful again\n- Code quality actually improves\n- Catches real issues\n- No false sense of cleanliness",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "Replace Custom Retry Logic with Tenacity Library",
+        "description": "Replace LLM-generated custom retry logic with battle-tested Tenacity library. Current retry decorator doesn't work with Result types and is risky for production.",
+        "details": "Current Issues:\n- Custom retry.py only catches exceptions, not Result[T, E] types\n- Retry is NOT working for 7 API call sites (critical bug!)\n- LLM-generated retry logic is risky for production\n- No logging, jitter, or statistics\n\nWhy Tenacity:\n- Battle-tested (OpenStack, AWS SDK)\n- Works with Result types via retry_if_result()\n- Built-in logging, jitter, statistics\n- Human-reviewed, production-proven\n- Less maintenance burden\n\nImplementation:\n1. Add tenacity to pyproject.toml dependencies\n2. Create helper function for Result-aware retry pattern\n3. Update 7 existing @retry usages:\n   - src/gh/releases/fetcher.py (2 usages)\n   - src/gh/releases/creator.py (1 usage)\n   - src/gh/releases/downloader.py (1 usage)\n   - src/reddit/posts.py (2 usages)\n   - src/reddit/client.py (1 usage)\n4. Add logging callbacks for retry attempts\n5. Deprecate/remove src/core/retry.py\n6. Test all retry scenarios\n\nPattern:\n```python\nfrom tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential\n\ndef should_retry_api_error(result):\n    return result.is_err() and isinstance(\n        result.unwrap_err(), \n        (GitHubAPIError, RedditAPIError)\n    )\n\n@retry(\n    retry=retry_if_result(should_retry_api_error),\n    stop=stop_after_attempt(3),\n    wait=wait_exponential(multiplier=1, min=1, max=60),\n    before_sleep=log_retry_attempt\n)\ndef fetch() -> Result[Data, Error]:\n    ...\n```\n\nBenefits:\n- Fixes critical bug (retry actually works)\n- Production-ready reliability\n- Better observability (logging)\n- Jitter prevents thundering herd\n- Less code to maintain",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 19,
+        "title": "Add Comprehensive Deal Contracts to Critical Code Paths",
+        "description": "Add @deal contracts to 24 files currently missing them. Focus on preconditions, postconditions, and invariants for critical business logic, especially in LLM-generated code.",
+        "details": "Current State:\n- Only 10/34 files have @deal contracts (29% coverage)\n- Critical infrastructure missing contracts: config, result, error handling\n- GitHub releases operations unvalidated\n- CLI commands have no input validation\n\nFiles Missing Contracts (24):\n1. Core Infrastructure (6 files):\n   - core/config.py - Config loading/validation\n   - core/result.py - Ok/Err type safety\n   - core/error_logger.py - Logging operations\n   - core/error_context.py - Context management\n   - core/container.py - Service container\n   - core/tenacity_helpers.py - Retry predicates\n\n2. GitHub Releases (3 files):\n   - gh/releases/fetcher.py - API calls\n   - gh/releases/creator.py - Release creation\n   - gh/releases/downloader.py - Asset downloads\n\n3. CLI Layer (9 files):\n   - cli.py - Main CLI entry\n   - commands/*.py (8 command files)\n\n4. Models (1 file):\n   - models.py - Data models\n\n5. Other (5 files):\n   - crypto/constants.py\n   - core/services.py\n   - Various __init__.py files\n\nPriority Order:\n1. **Critical Path** (must have):\n   - core/result.py - Type safety for entire codebase\n   - core/config.py - Config validation\n   - gh/releases/fetcher.py - API validation\n   - gh/releases/creator.py - Release validation\n   - core/tenacity_helpers.py - Retry logic validation\n\n2. **High Value** (should have):\n   - gh/releases/downloader.py - File operations\n   - models.py - Data validation\n   - core/error_logger.py - Logging safety\n\n3. **Nice to Have** (optional):\n   - CLI commands - Input validation\n   - core/container.py - Service validation\n   - __init__.py files - Usually empty\n\nContract Types to Add:\n\n1. **Preconditions (@deal.pre)**:\n   - Input validation (non-empty strings, valid paths)\n   - Type checks (Result types, error types)\n   - State validation (file exists, config loaded)\n\n2. **Postconditions (@deal.post)**:\n   - Return type validation (Result is Ok or Err)\n   - Required keys in dicts\n   - Non-null guarantees\n\n3. **Invariants (@deal.ensure)**:\n   - Result type consistency\n   - Error type correctness\n\nExamples:\n\n```python\n# core/result.py\n@deal.pre(lambda self: self.is_ok())\n@deal.post(lambda result: result is not None)\ndef unwrap(self) -> T:\n    return self.value\n\n# core/config.py\n@deal.post(lambda result: result.is_ok() or result.is_err())\n@deal.post(lambda result: result.is_err() or \"reddit\" in result.unwrap())\n@deal.post(lambda result: result.is_err() or \"github\" in result.unwrap())\ndef load_config() -> Result[dict, ConfigurationError]:\n    ...\n\n# gh/releases/fetcher.py\n@deal.pre(lambda url: url.startswith(\"/\"))\n@deal.pre(lambda url: len(url) > 1)\n@deal.post(lambda result: result.is_ok() or result.is_err())\ndef get_github_data(url: str) -> Result[dict | list, GitHubAPIError]:\n    ...\n\n# gh/releases/creator.py\n@deal.pre(lambda bot_repo, tag, title, notes, file_path: len(tag) > 0)\n@deal.pre(lambda bot_repo, tag, title, notes, file_path: \"/\" in bot_repo)\n@deal.pre(lambda bot_repo, tag, title, notes, file_path: Path(file_path).exists())\n@deal.post(lambda result: result.is_ok() or result.is_err())\ndef create_bot_release(...) -> Result[None, GitHubAPIError]:\n    ...\n\n# core/tenacity_helpers.py\n@deal.pre(lambda result: result is not None)\n@deal.post(lambda result: isinstance(result, bool))\ndef should_retry_api_error(result: Any) -> bool:\n    ...\n```\n\nImplementation Strategy:\n1. Start with core/result.py (affects everything)\n2. Add contracts to core/config.py (critical for startup)\n3. Add contracts to GitHub release operations (main business logic)\n4. Add contracts to tenacity_helpers (retry safety)\n5. Add contracts to remaining core infrastructure\n6. Optionally add to CLI commands and models\n\nBenefits:\n- Catch bugs at function boundaries\n- Document expected behavior\n- Runtime validation in development\n- Better error messages\n- Especially valuable for LLM-generated code\n\nTesting:\n- Run deal linter: `uv run python -m deal lint src/`\n- Verify contracts don't break existing code\n- Check integration score improves\n- Ensure all pre-commit hooks pass",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 20,
+        "title": "Clean Up Redundant Deal Contracts - Keep Only Business Logic",
+        "description": "Remove ~50% of deal contracts that are redundant with beartype/type annotations. Keep only business logic contracts that types can't express. Add explanatory messages to remaining contracts.",
+        "details": "Current Problem:\n- ~50% of deal contracts are redundant with beartype\n- isinstance() checks duplicate type annotations\n- Tautologies like \"result.is_ok() or result.is_err()\"\n- Type-based postconditions duplicate return types\n- Makes code harder to read without adding value\n\nStrategy: Clear Separation of Concerns\n- Beartype = Type validation (keep on ALL functions)\n- Deal = Business logic validation (only where needed)\n\nContracts to REMOVE (redundant):\n1. isinstance() checks:\n   - @deal.pre(lambda x: isinstance(x, SomeType))\n   - @deal.post(lambda result: isinstance(result, Ok))\n   - Beartype already validates types\n\n2. is not None checks:\n   - @deal.pre(lambda x: x is not None)\n   - Type annotations handle Optional vs non-Optional\n\n3. Tautologies:\n   - @deal.post(lambda result: result.is_ok() or result.is_err())\n   - Result is ALWAYS Ok or Err by definition\n\n4. Type-based postconditions:\n   - @deal.post(lambda result: isinstance(result, dict))\n   - Return type annotation already specifies this\n\n5. Constant return values:\n   - @deal.post(lambda result: result is True)\n   - Function always returns True by definition\n\nContracts to KEEP (business logic):\n1. Non-empty strings:\n   - @deal.pre(lambda tag: len(tag) > 0, message=\"Tag cannot be empty\")\n   \n2. Dict key requirements:\n   - @deal.post(lambda result: 'github' in result.unwrap(), message=\"Config must have github key\")\n   \n3. Value ranges:\n   - @deal.pre(lambda release_id: release_id > 0, message=\"Release ID must be positive\")\n   \n4. Format requirements:\n   - @deal.pre(lambda url: url.startswith('/'), message=\"GitHub API URLs must start with /\")\n   \n5. String length limits:\n   - @deal.pre(lambda name: len(name) <= 100, message=\"Name too long\")\n   \n6. State validation:\n   - @deal.pre(lambda reddit: not reddit.read_only, message=\"Reddit client must have write access\")\n   \n7. Relationships between parameters:\n   - @deal.pre(lambda mode, url: mode != 'page' or url is not None, message=\"Page mode requires URL\")\n\nFiles to Clean (10 files):\n1. src/core/result.py\n   - Remove: isinstance checks, constant returns\n   - Keep: unwrap() postcondition (never None)\n   \n2. src/core/config.py\n   - Remove: result.is_ok() or result.is_err()\n   - Keep: 'github' in config, 'reddit' in config\n   \n3. src/core/tenacity_helpers.py\n   - Remove: isinstance(result, bool)\n   - Keep: result is not None (catches actual None)\n   \n4. src/core/error_logger.py\n   - Remove: isinstance(error, BitBotError), isinstance(level, LogLevel)\n   - Keep: len(color) > 0\n   \n5. src/core/error_context.py\n   - Remove: isinstance(result, dict)\n   - Keep: None (no business logic)\n   \n6. src/gh/releases/fetcher.py\n   - Remove: result.is_ok() or result.is_err()\n   - Keep: url.startswith('/'), len(url) > 1\n   \n7. src/gh/releases/creator.py\n   - Remove: result.is_ok() or result.is_err()\n   - Keep: len(tag) > 0, len(file_path) > 0\n   \n8. src/gh/releases/downloader.py\n   - Remove: result.is_ok() or result.is_err()\n   - Keep: len(asset_name) > 0, release_id > 0\n   \n9. src/crypto/*.py\n   - Review existing contracts\n   - Keep only business logic\n   \n10. src/reddit/*.py\n    - Review existing contracts\n    - Keep only business logic\n\nImplementation Steps:\n1. Audit each file's contracts\n2. Remove redundant type checks\n3. Add message= to remaining contracts\n4. Remove @deal import if no contracts remain\n5. Verify beartype is on all functions\n6. Run deal linter to verify\n7. Update integration score\n\nExpected Results:\n- ~14 contracts removed (redundant)\n- ~7 contracts kept (meaningful)\n- All remaining contracts have explanatory messages\n- Cleaner, more readable code\n- Same safety guarantees (beartype handles types)\n\nTesting:\n- All pre-commit hooks must pass\n- Deal linter must pass\n- Integration score should improve (less noise)\n- Validation coverage maintained",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 21,
+        "title": "Reduce type: ignore Comments from 176 to <5 via mypy.ini",
+        "description": "Reduce 176 inline type: ignore comments to <5 by moving configuration to mypy.ini. Currently 85 deal ignores, 76 beartype ignores, 8 pydantic ignores cluttering source code.",
+        "details": "Current State:\n- 176 total type: ignore comments in source code\n- 85 deal decorator ignores (48%)\n- 76 beartype decorator ignores (43%)\n- 8 pydantic model ignores (5%)\n- 1 import ignore (toml)\n- 6 other ignores (no-any-return, misc)\n\nProblem:\n- Source code cluttered with repetitive ignores\n- Configuration scattered across files\n- Hard to see which ignores are truly necessary\n- Violates DRY principle (same ignore repeated 85 times)\n\nGoal: <5 inline type: ignore comments\n- Move decorator ignores to mypy.ini\n- Configure pydantic plugin\n- Centralize third-party library ignores\n- Keep only truly necessary inline ignores with explanations\n\nImplementation Plan:\n\n1. Deal Decorators (85 ignores → 0):\n   Add to mypy.ini:\n   ```ini\n   [mypy-deal.*]\n   ignore_errors = True\n   ```\n   Remove all `@deal.pre/post/raises  # type: ignore[misc]`\n\n2. Beartype Decorators (76 ignores → 0):\n   Add to mypy.ini:\n   ```ini\n   [mypy-beartype.*]\n   ignore_errors = True\n   ```\n   Remove all `@beartype  # type: ignore[misc]`\n\n3. Pydantic Models (8 ignores → 0):\n   Add to mypy.ini:\n   ```ini\n   [pydantic-mypy]\n   init_forbid_extra = True\n   init_typed = True\n   warn_required_dynamic_aliases = True\n   ```\n   Enable pydantic plugin\n   Remove `BaseModel  # type: ignore[misc]`\n\n4. Import Ignores (1 ignore → 0):\n   Already have in mypy.ini:\n   ```ini\n   [mypy-toml.*]\n   ignore_missing_imports = True\n   ```\n   Remove inline ignore from import\n\n5. Other Ignores (6 ignores → review):\n   - no-any-return (4): Fix by adding proper type annotations\n   - misc (2): Review and fix or document\n\nReasoning:\n\nWhy move to mypy.ini?\n- **DRY**: Configure once, not 85 times\n- **Cleaner code**: Source code focuses on logic, not tooling\n- **Centralized**: All mypy config in one place\n- **Maintainable**: Easy to update configuration\n- **Explicit**: Clear which libraries we're ignoring\n\nWhy keep some inline?\n- **Truly exceptional cases**: Where we need to ignore for a specific reason\n- **Documented**: With comment explaining WHY\n- **Rare**: Should be <5 in entire codebase\n\nExpected Results:\n- 176 ignores → <5 inline ignores (97% reduction)\n- All decorator ignores moved to mypy.ini\n- Pydantic plugin configured\n- Source code much cleaner\n- Same type safety guarantees\n\nFiles to Modify:\n1. .mypy.ini - Add configurations\n2. All src/**/*.py files - Remove inline ignores\n3. pyproject.toml - Add pydantic mypy plugin if needed\n\nTesting:\n- Run mypy src/ - should pass with same or fewer errors\n- Verify no new type errors introduced\n- Check that ignores are actually working\n- All pre-commit hooks must pass\n\nRisks:\n- Might expose hidden type errors if ignores were masking real issues\n- Need to verify each category actually works when moved to config\n- Pydantic plugin might need additional configuration\n\nMitigation:\n- Test incrementally (one category at a time)\n- Run mypy after each change\n- Keep git history to revert if needed\n- Document any issues found",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 22,
+        "title": "Reduce Any Types and Improve Type Specificity",
+        "description": "Reduce 54 Any type usages to <20 by creating typed Pydantic models for config sections and typing API responses. Currently 50/54 are dict[str, Any] config parameters.",
+        "details": "Current State:\n- 54 Any usages total\n- 50 dict[str, Any] (93% of usages)\n- 3 param types (tenacity, error_context, container)\n- 1 return type (container.get)\n\nBreakdown:\n1. Config sections in models.py (5 usages):\n   - safety: dict[str, Any]\n   - timing: dict[str, Any]\n   - parsing: dict[str, Any]\n   - online: dict[str, Any]\n   - offline: dict[str, Any]\n\n2. Function parameters (45 usages):\n   - config: dict[str, Any] throughout codebase\n   - Can be replaced with Config model\n\n3. Generic utilities (4 usages):\n   - tenacity_helpers: result: Any (necessary - checks any type)\n   - error_context: **context: Any (necessary - accepts any kwargs)\n   - container: service: Any, get() -> Any (necessary - generic container)\n\nImplementation Plan:\n\n1. Create typed config models in models.py:\n   ```python\n   class SafetyConfig(BaseModel):\n       max_file_size_mb: int = 100\n       allowed_extensions: list[str] = [\".json\"]\n   \n   class TimingConfig(BaseModel):\n       first_check: int\n       max_interval: int\n       backoff_multiplier: float\n   \n   class ParsingConfig(BaseModel):\n       key_value_separator: str = \":\"\n       section_markers: list[str]\n   ```\n\n2. Update Config model to use typed sections:\n   ```python\n   class Config(BaseModel):\n       github: GitHubConfig\n       reddit: RedditConfig\n       safety: SafetyConfig\n       timing: TimingConfig\n       parsing: ParsingConfig\n   ```\n\n3. Update all function signatures:\n   - Before: def process(config: dict[str, Any])\n   - After: def process(config: Config)\n\n4. Document remaining Any usages:\n   ```python\n   def should_retry_api_error(result: Any) -> bool:\n       # Any: Accepts any Result type for generic retry logic\n       ...\n   ```\n\nExpected Results:\n- 54 → <10 Any usages (81% reduction)\n- Type-safe config access with autocomplete\n- Catch config errors at type-check time\n- All remaining Any documented\n\nBenefits:\n- IDE autocomplete for config fields\n- Type errors caught before runtime\n- Self-documenting code\n- Refactoring safety",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 23,
+        "title": "Implement Release Queue and Landing Page Services",
+        "description": "Add missing service-level infrastructure for bot workflow: release queue management with Pydantic validation and landing page generation with Jinja2 templates. Required before CLI commands can be completed.",
+        "details": "PART 1: Release Queue Service (src/core/release_queue.py)\n\nPurpose: Manage pending app updates in dist/releases.json with type-safe Pydantic validation\n\n1. Add PendingRelease model to models.py:\n   - release_id: int (source GitHub release ID)\n   - tag: str (source release tag, e.g., \"v1.2.3\")\n   - app_id: str (app identifier from config)\n   - display_name: str (human-readable app name)\n   - version: str (app version, e.g., \"1.2.3\")\n   - asset_name: str | None (optional override for asset filename)\n\n2. Implement functions in src/core/release_queue.py:\n   \n   load_pending_releases() -> Result[list[PendingRelease], ReleaseQueueError]:\n   - Read dist/releases.json\n   - Parse JSON and validate each entry with Pydantic\n   - Return empty list if file doesn't exist (not an error)\n   - Return Err for invalid JSON or validation failures\n   \n   save_pending_releases(releases: list[PendingRelease]) -> Result[None, ReleaseQueueError]:\n   - Serialize list to JSON with indent=2\n   - Create dist/ directory if needed\n   - Write to dist/releases.json atomically\n   - Return Err on write failures\n   \n   add_release(release: PendingRelease) -> Result[None, ReleaseQueueError]:\n   - Load existing releases\n   - Append new release\n   - Save back to file\n   - Return Err if load or save fails\n   \n   clear_pending_releases() -> Result[None, ReleaseQueueError]:\n   - Write empty list [] to dist/releases.json\n   - Return Err on write failures\n\n3. Error handling:\n   - Add ReleaseQueueError to core/errors.py\n   - Handle FileNotFoundError (return empty list for load)\n   - Handle JSONDecodeError (return Err with message)\n   - Handle Pydantic ValidationError (return Err with details)\n\n4. Validation with deal contracts:\n   - @deal.pre for save_pending_releases: isinstance(releases, list)\n   - @deal.post for load_pending_releases: isinstance(result, list) or is_err\n   - @deal.pre for add_release: isinstance(release, PendingRelease)\n\nPART 2: Landing Page Generator (src/gh/page_generator.py)\n\nPurpose: Render HTML landing pages from Jinja2 templates with release data\n\n1. Add dependency:\n   - Run: uv add jinja2\n   - Import: from jinja2 import Environment, FileSystemLoader, TemplateNotFound\n\n2. Implement function:\n   \n   generate_landing_page(\n       releases_data: dict[str, Any],\n       output_path: str,\n       template_name: str = \"default_landing_page.html\"\n   ) -> Result[Path, PageGeneratorError]:\n   \n   - Create Jinja2 environment with FileSystemLoader(paths.TEMPLATES_DIR)\n   - Load template by name\n   - Render with releases_data context\n   - Create output directory if needed\n   - Write rendered HTML to output_path\n   - Return Path(output_path) on success\n   - Return Err on template not found, render errors, or write failures\n\n3. Expected releases_data structure:\n   {\n       \"bot_repo\": \"owner/repo\",\n       \"apps\": [\n           {\n               \"display_name\": \"App Name\",\n               \"latest_release\": {\n                   \"version\": \"1.2.3\",\n                   \"download_url\": \"https://...\",\n                   \"published_at\": \"2024-01-01\"\n               },\n               \"releases\": [...]  # Release history\n           }\n       ]\n   }\n\n4. Error handling:\n   - Add PageGeneratorError to core/errors.py\n   - Handle TemplateNotFound (return Err with template name)\n   - Handle Jinja2 rendering errors (return Err with details)\n   - Handle file write errors (return Err with path)\n\n5. Validation with deal contracts:\n   - @deal.pre: isinstance(releases_data, dict)\n   - @deal.pre: len(output_path) > 0\n   - @deal.pre: len(template_name) > 0\n   - @deal.post: result.is_ok() implies Path(output_path).exists()\n\nREQUIREMENTS FOR BOTH:\n\n- Use Result[T, E] types for all returns (from core/result.py)\n- Use @beartype decorator on all functions\n- Use @deal.pre/@deal.post contracts for validation\n- Add centralized logging with get_logger() from core/error_logger.py\n- Follow patterns from existing services (core/state.py, gh/releases/fetcher.py)\n- Pass uv run ruff check with 0 errors\n- Pass uv run mypy with 0 errors\n- Add docstrings explaining purpose and parameters\n\nFILES TO CREATE/MODIFY:\n- src/models.py (add PendingRelease model)\n- src/core/errors.py (add ReleaseQueueError, PageGeneratorError)\n- src/core/release_queue.py (new file, 4 functions)\n- src/gh/page_generator.py (new file, 1 function)\n- pyproject.toml (add jinja2 dependency via uv)",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 24,
+        "title": "Improve Function Decorator Patterns",
+        "description": "Review and improve all @deal.pre/@beartype/@retry decorator patterns across the codebase for clarity, consistency, and better validation",
+        "details": "## Objective\nSystematically improve decorator patterns in all functions using @deal.pre, @beartype, and @retry decorators to make contracts self-documenting, add missing validations, and ensure consistency.\n\n## Improvement Rules\n\n### 1. Explicit Parameter Names in Deal Contracts\nBEFORE: @deal.pre(lambda _r, tag, _t: len(tag) > 0)\nAFTER: @deal.pre(lambda repo, tag, title: len(tag) > 0, message=\"Tag cannot be empty\")\n\nRule: Use actual parameter names in lambda, not underscores. Makes contracts self-documenting.\n\n### 2. Add Repository Format Validation\nFor any function taking a 'repo' parameter that calls GitHub API:\n@deal.pre(lambda repo, **kwargs: \"/\" in repo, message=\"Repository must be in owner/name format\")\n\nCatches \"myrepo\" vs \"owner/myrepo\" errors early.\n\n### 3. Validate All String Parameters Are Non-Empty\nAdd contracts for all string parameters:\n- Tags: @deal.pre(lambda tag, **kwargs: len(tag) > 0, message=\"Tag cannot be empty\")\n- Paths: @deal.pre(lambda path, **kwargs: len(path) > 0, message=\"Path cannot be empty\")\n- Names: @deal.pre(lambda name, **kwargs: len(name) > 0, message=\"Name cannot be empty\")\n- URLs: @deal.pre(lambda url, **kwargs: len(url) > 0, message=\"URL cannot be empty\")\n\n### 4. Add Format Validation Where Appropriate\n- URLs: @deal.pre(lambda url, **kwargs: url.startswith(\"http\"), message=\"URL must start with http\")\n- Paths: @deal.pre(lambda path, **kwargs: not path.startswith(\" \"), message=\"Path cannot start with whitespace\")\n\n### 5. Order Decorators Consistently\nStandard order (top to bottom):\n1. @deal.pre(...) - All preconditions\n2. @deal.post(...) - All postconditions\n3. @beartype - Type checking\n4. @retry(...) - Retry logic (if needed)\n\n### 6. Ensure All Messages Are Clear\nEvery deal contract needs message= parameter explaining:\n- WHAT is wrong\n- WHY it matters\n- WHAT the caller should do\n\nGOOD: message=\"Tag cannot be empty - GitHub API requires a version tag\"\nBAD: message=\"Invalid tag\"\n\n## Files to Review\n\nPriority files (most critical):\n- src/gh/releases/fetcher.py\n- src/gh/releases/creator.py\n- src/gh/releases/downloader.py\n- src/gh/releases/patcher.py\n- src/gh/releases/updater.py\n- src/gh/releases/parser.py\n- src/reddit/posts.py\n- src/reddit/posting/*.py\n- src/crypto/*.py\n- src/core/release_queue.py\n- src/core/state.py\n\n## Expected Changes\n\nEstimate 20-30 functions will need updates:\n- Add repo format validation: ~10 functions\n- Make lambda parameters explicit: ~15 functions\n- Add missing string non-empty checks: ~5 functions\n- Improve error messages: ~20 functions\n- Reorder decorators: ~5 functions\n\n## Validation\n\nAfter changes:\n- Run: uv run ruff check src/\n- Run: uv run mypy src/\n- Run: git commit (all pre-commit hooks must pass)\n\n## Deliverables\n\nSummary report including:\n- Total functions reviewed\n- Contracts added\n- Messages improved\n- Decorator order fixes\n- Any patterns that don't fit guidance (with explanation WHY)",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 25,
+        "title": "Make Analysis Script Architecture-Aware",
+        "description": "Enhance analysis script with project-specific architectural pattern detection and context-aware scoring that understands function types and enforces BitBot's specific patterns (Result types, Tenacity retry, error handling, service layer)",
+        "details": "## Objective\nTransform analyze_tool_integration.py from generic decorator counting to context-aware architectural compliance checking that understands BitBot's specific patterns.\n\n## Current Weaknesses\n\n1. Generic validation - treats all functions equally\n2. Shallow contract analysis - counts decorators, doesn't verify meaningfulness\n3. No Result type flow analysis\n4. No retry pattern verification\n5. No error handling architecture checks\n6. Scoring doesn't reflect architectural compliance\n7. No service layer validation\n\n## Enhancements to Implement\n\n### 1. Function Type Detection\nAutomatically categorize functions by type:\n- **API Call Functions**: Call GitHub/Reddit APIs (check for \"gh api\", \"reddit.\", \"praw\")\n- **File I/O Functions**: Read/write files (check for \"open(\", \"Path\", \".read\", \".write\")\n- **CLI Commands**: Entry points in src/commands/ (check for @app.command())\n- **Parsers**: Transform data (check for \"parse\" in name, no side effects)\n- **Services**: Business logic in gh/, reddit/, core/\n\n### 2. Pattern-Specific Validation Rules\n\n**API Call Functions MUST have:**\n- @retry decorator with Tenacity\n- Result[T, Error] return type\n- Proper error type (GitHubAPIError, RedditAPIError)\n- should_retry_api_error predicate\n- Repo parameter validated with \"/\" check\n\n**File I/O Functions MUST have:**\n- Result[T, Error] return type\n- Proper error type (StateError, ConfigError, etc.)\n- Path validation in @deal.pre\n- Exception handling (FileNotFoundError, JSONDecodeError)\n\n**CLI Commands MUST have:**\n- error_context() wrapper\n- get_logger() usage (not print())\n- Result type handling with .is_err() checks\n- Thin logic (orchestration only, <50 LOC)\n- Rich progress display\n\n**Parsers MUST have:**\n- Strong @deal.pre contracts (input validation)\n- Strong @deal.post contracts (output validation)\n- No side effects (pure functions)\n- No Any types (should use specific types)\n\n### 3. Result Type Flow Analysis\n\nTrack Result type usage:\n- Identify functions returning Result[T, E]\n- Find all call sites\n- Verify callers check .is_err() before .unwrap()\n- Flag unsafe .unwrap() without error checking\n- Verify error propagation (return result vs unwrap)\n\n### 4. Retry Pattern Verification\n\nFor each API call function:\n- Check if @retry decorator present\n- Verify using Tenacity (not old custom retry)\n- Check retry predicate is should_retry_api_error\n- Verify retry config (stop_after_attempt, wait_exponential)\n- Flag missing @retry on API calls\n\n### 5. Error Handling Architecture Check\n\nVerify error handling patterns:\n- CLI commands use error_context()\n- Functions use get_logger() not print()\n- Errors use proper types (not generic Exception)\n- Errors are logged before returning\n- Result types used for recoverable errors\n\n### 6. Contract Meaningfulness Analysis\n\nAnalyze @deal.pre contracts:\n- Flag useless contracts: `lambda x: True`, `lambda: True`\n- Verify repo parameters have \"/\" check\n- Verify string parameters have len() > 0 check\n- Verify numeric IDs have > 0 check\n- Score based on validation coverage AND quality\n\n### 7. Context-Aware Scoring\n\nReplace generic scoring with context-aware:\n- API functions: 40% retry + 30% Result + 20% error type + 10% contracts\n- File I/O: 50% Result + 30% error handling + 20% contracts\n- CLI commands: 40% thin logic + 30% error_context + 20% logger + 10% contracts\n- Parsers: 50% contracts + 30% no side effects + 20% no Any\n\n### 8. Service Layer Architecture Validation\n\nCheck separation of concerns:\n- CLI commands should be <50 LOC (orchestration only)\n- Business logic should be in services (gh/, reddit/, core/)\n- No direct API calls in CLI commands\n- Services properly organized by domain\n\n### 9. Architectural Compliance Report\n\nNew report sections:\n- **Result Type Compliance**: % of functions using Result for errors\n- **Retry Pattern Compliance**: % of API calls with proper @retry\n- **Error Handling Compliance**: % using get_logger + error_context\n- **Service Layer Compliance**: % of CLI commands that are thin\n- **Contract Quality Score**: % of contracts that are meaningful\n\n### 10. Detailed Violation Reporting\n\nFor each violation, report:\n- Function name and location\n- What pattern is violated\n- Why it matters for this architecture\n- How to fix it (specific guidance)\n\nExample:\n```\n❌ gh/releases/fetcher.py:get_source_releases (line 52)\n   Violation: API call without @retry decorator\n   Impact: Network failures won't be retried, reducing reliability\n   Fix: Add @retry(retry=retry_if_result(should_retry_api_error), ...)\n```\n\n## Implementation Plan\n\n1. Add function type detection (categorize by purpose)\n2. Add pattern-specific validators (one per function type)\n3. Add Result type flow analyzer\n4. Add retry pattern checker\n5. Add error handling architecture checker\n6. Replace generic scoring with context-aware scoring\n7. Add architectural compliance summary section\n8. Add detailed violation reporting with fix guidance\n\n## Expected Output\n\nNew sections in report:\n- 🏗️ ARCHITECTURAL COMPLIANCE\n- 🔄 RESULT TYPE USAGE\n- 🔁 RETRY PATTERN COMPLIANCE\n- 📝 ERROR HANDLING PATTERNS\n- 🏢 SERVICE LAYER ARCHITECTURE\n- ❌ ARCHITECTURAL VIOLATIONS (with fix guidance)\n\n## Success Criteria\n\n- Script understands function types and applies appropriate rules\n- Scoring reflects architectural compliance, not just decorator counts\n- Violations include specific fix guidance\n- Report shows project-specific pattern adoption rates",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 26,
+        "title": "Raise Codebase Rating to 75+",
+        "description": "Fix 29 architectural violations to raise rating from 58.3/100 to 75+/100",
+        "details": "## Current State\n- Overall score: 58.3/100 (moderate)\n- 29 architectural violations detected\n- Key issues: missing @retry (7), missing Result types (15), fat CLI commands (4), weak types (2), missing error_context (1)\n\n## Violations to Fix\n\n### High Priority (Quick Wins)\n1. **Add @retry to reddit poster** (1 function)\n   - reddit/posting/poster.py:post_new_release() makes API call without @retry\n   - Add: @retry(retry=retry_if_result(should_retry_api_error), stop=stop_after_attempt(3), wait=wait_exponential())\n\n2. **Fix patch.py** (1 function)\n   - commands/patch.py:run() missing error_context() and get_logger()\n   - Wrap logic in error_context()\n   - Add logger = get_logger(__name__)\n\n3. **Add Result types to file I/O** (focus on core/)\n   - core/error_logger.py:log_error() - return Result\n   - core/error_logger.py:get_logger() - return Result\n   - Other file I/O functions\n\n### Medium Priority\n4. **Refactor fat CLI commands** (4 functions)\n   - commands/gather.py:run() - 130 LOC\n   - commands/maintain.py:run() - 110 LOC\n   - commands/post.py:run() - 120 LOC\n   - commands/release.py:run() - 130 LOC\n   - Move business logic to service layer\n   - Keep CLI as thin orchestration\n\n5. **Fix weak types in parsers** (2 functions)\n   - gh/parser.py:parse_release_notes() - replace Any with TypedDict\n   - gh/releases/parser.py:parse_release_description() - replace Any with TypedDict\n\n### Lower Priority\n6. **Add @retry to legacy scripts** (2 functions)\n   - legacy/check_comments.py:main()\n   - legacy/maintain_releases.py:main()\n\n## Expected Impact\n- Score increase: 58.3 → 75+ (target)\n- Retry compliance: 36.4% → 80%+\n- Result type usage: 21.5% → 40%+\n- CLI thin compliance: 50% → 100%\n\n## Implementation Order\n1. Reddit poster @retry (5 min)\n2. Fix patch.py (5 min)\n3. Add Result to core file I/O (15 min)\n4. Refactor fat CLI commands (60 min)\n5. Fix parser weak types (20 min)",
+        "testStrategy": "Run analysis script after each fix to verify score improvement. Target: 75+/100 overall score.",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 27,
+        "title": "Reduce Lazy Any and Cast Usage",
+        "description": "Reduce excessive use of Any types and cast() calls. Currently 48 dict[str, Any] for config parameters and 2 legitimate Any usages. Replace with proper Pydantic Config model throughout codebase.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "details": "Progress:\n✓ Step 1: Created Pydantic models (Config, GitHubConfig, RedditConfig, RedditTemplates, RedditFormats)\n✓ Step 3: Eliminated all 8 cast() calls (100% reduction)\n→ Step 2: Integrate Config model throughout codebase (IN PROGRESS)\n\nCurrent State:\n- cast() usage: 0 (was 8) ✓\n- dict[str, Any] for config: 48 instances\n- Legitimate Any: 2 (error_context **kwargs, container.register)\n\nNext Steps:\n1. Update load_config() to return Config model instead of dict\n2. Update all functions accepting config parameter to use Config type\n3. Change dict-style access (config[\"reddit\"][\"subreddit\"]) to attribute access (config.reddit.subreddit)\n4. Update type hints across ~20-30 files\n\nTarget:\n- 0 cast() calls ✓ ACHIEVED\n- <5 dict[str, Any] (90% reduction from 48)\n- 2 legitimate Any usages (documented)\n\nBenefits:\n- Type-safe config access with IDE autocomplete\n- Catch config access errors at type-check time\n- Self-documenting code\n- Refactoring safety",
+        "testStrategy": "",
+        "subtasks": []
+      },
+      {
+        "id": 28,
+        "title": "Restructure to proper Python package layout",
+        "description": "Move all code from src/* to src/bitbot/* and update imports to use bitbot prefix instead of src",
+        "details": "1. Reset staged changes\n2. Create src/bitbot/ directory\n3. Move all modules from src/* to src/bitbot/*\n4. Update all imports: \"from src.X\" → \"from bitbot.X\"\n5. Update all imports: \"import src.X\" → \"import bitbot.X\"\n6. Keep package name as \"bitbot\" in pyproject.toml\n7. Remove packages override in pyproject.toml (auto-discover)\n8. Reinstall: uv pip install -e .\n9. Test: uv run python -m bitbot.cli --help\n10. Commit changes",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 29,
+        "title": "Implement sync command to replace legacy sync_reddit_history",
+        "description": "Refactor sync command to synchronize Reddit state with local bot_state.json",
+        "details": "The sync command should:\n1. Load config using load_config()\n2. Initialize Reddit client with init_reddit(config)\n3. Get bot posts using get_bot_posts(reddit, config)\n4. Exit gracefully if no posts found\n5. Get latest post (first in list)\n6. Parse versions from post using parse_versions_from_post(latest_post, config)\n7. Exit with error if no versions found\n8. Load bot_state using load_bot_state()\n9. Update bot_state[\"online\"][\"last_posted_versions\"] with parsed versions\n10. Update bot_state[\"online\"][\"activePostId\"] with latest_post.id\n11. Save bot_state using save_bot_state(bot_state)\n12. Use Result types for error handling\n13. Follow existing command patterns (check.py, post.py)\n14. Add proper error logging and Rich console output\n\nReference: src/bitbot/legacy/sync_reddit_history.py (lines 1-50)\nLocation: src/bitbot/commands/sync.py",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-10-31T10:35:00.809Z",
+      "updated": "2025-11-03T05:40:00.000Z",
+      "description": "Tasks for master context"
     }
-  ]
+  },
+  "code-review": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Fix sync.py unwrap_err() crash",
+        "description": "sync.py calls unwrap_err() 5 times but Result type doesn't have this method",
+        "status": "pending",
+        "priority": "high",
+        "details": "Add unwrap_err() method to Err class in core/result.py that returns self.error"
+      },
+      {
+        "id": 2,
+        "title": "Remove duplicate model definitions",
+        "description": "Both models.py and config_models.py define Config classes",
+        "status": "pending",
+        "priority": "high",
+        "details": "Remove Config/GitHubConfig/RedditConfig from models.py, keep only BotState and PendingRelease"
+      },
+      {
+        "id": 3,
+        "title": "Fix Result type signatures",
+        "description": "Err.unwrap_or returns E but should return T, map can't change types",
+        "status": "pending",
+        "priority": "high",
+        "details": "Fix type signatures in core/result.py"
+      },
+      {
+        "id": 4,
+        "title": "Add Container type safety",
+        "description": "Container uses Any everywhere",
+        "status": "pending",
+        "priority": "medium",
+        "details": "Add generic get[T](name, service_type) method"
+      },
+      {
+        "id": 5,
+        "title": "Fix CLI context usage",
+        "description": "Commands set up own container instead of using ctx.obj",
+        "status": "pending",
+        "priority": "medium",
+        "details": "Commands should accept ctx parameter and use ctx.obj['container']"
+      },
+      {
+        "id": 6,
+        "title": "Add model validation",
+        "description": "Config models lack validators",
+        "status": "pending",
+        "priority": "medium",
+        "details": "Add validators for repo format, subreddit, post_mode, numeric constraints"
+      },
+      {
+        "id": 7,
+        "title": "Add CLI features",
+        "description": "CLI lacks --version, logging config, typed context",
+        "status": "pending",
+        "priority": "low",
+        "details": "Add standard CLI features"
+      }
+    ],
+    "metadata": {
+      "created": "2025-11-03T05:40:00.000Z",
+      "updated": "2025-11-03T05:40:00.000Z",
+      "description": "Code review findings"
+    }
+  }
 }
