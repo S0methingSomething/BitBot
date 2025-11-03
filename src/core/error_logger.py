@@ -9,8 +9,8 @@ import deal
 from beartype import beartype
 from rich.console import Console
 
-from core.error_context import get_error_context
-from core.errors import BitBotError
+from src.core.error_context import get_error_context
+from src.core.errors import BitBotError
 
 
 class LogLevel(Enum):

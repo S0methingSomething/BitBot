@@ -1,1 +1,1 @@
-"""Cryptographic operations for file patching."""
+"""Cryptographic utilities for BitBot file patching."""

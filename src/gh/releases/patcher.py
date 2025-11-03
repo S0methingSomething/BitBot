@@ -5,10 +5,10 @@ from pathlib import Path
 import deal
 from beartype import beartype
 
-import paths
-from core.errors import GitHubAPIError
-from core.result import Err, Ok, Result
-from gh.releases.fetcher import run_command
+from src import paths
+from src.core.errors import GitHubAPIError
+from src.core.result import Result
+from src.patch_file import process_file
 
 DOWNLOAD_DIR = paths.DIST_DIR
 
@@ -23,9 +23,9 @@ DOWNLOAD_DIR = paths.DIST_DIR
 )
 @beartype
 def patch_file(original_path: str, asset_name: str) -> Result[str, GitHubAPIError]:
-    """Patches the downloaded file using the Python script."""
+    """Patch the downloaded file using crypto processing."""
     patched_path = Path(DOWNLOAD_DIR) / asset_name
-    result = run_command(["python", "-m", "src.patch_file", original_path, str(patched_path)])
+    result = process_file(Path(original_path), patched_path)
     if result.is_err():
-        return Err(GitHubAPIError(f"Failed to patch file: {result.error}"))
-    return Ok(str(patched_path))
+        return result.map_err(lambda e: GitHubAPIError(f"Failed to patch file: {e}"))
+    return result.map(lambda _: str(patched_path))

@@ -5,7 +5,7 @@ import os
 import deal
 from beartype import beartype
 
-from config_models import Config
+from src.config_models import Config
 
 
 class Credentials:

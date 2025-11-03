@@ -4,9 +4,9 @@ from typing import Any
 
 from beartype import beartype
 
-from core.config import load_config
-from core.errors import BitBotError
-from core.result import Result
+from src.core.config import load_config
+from src.core.errors import BitBotError
+from src.core.result import Result
 
 
 class Container:
@@ -60,7 +60,7 @@ def reset_container() -> None:
 @beartype
 def setup_container() -> Result[Container, BitBotError]:
     """Initialize container with all services."""
-    from core.result import Ok
+    from src.core.result import Ok
 
     container = get_container()
 

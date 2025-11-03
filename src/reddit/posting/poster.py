@@ -8,7 +8,7 @@ import deal
 from beartype import beartype
 from praw.exceptions import RedditAPIException
 
-from config_models import Config
+from src.config_models import Config
 
 if TYPE_CHECKING:
     import praw

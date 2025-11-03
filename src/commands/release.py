@@ -1,24 +1,19 @@
 """Release command for BitBot CLI."""
 
-import sys
-from pathlib import Path
-
 import typer
 from beartype import beartype
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from config_models import Config
-from core.container import Container
-from core.error_context import error_context
-from core.error_logger import LogLevel, get_logger
-from core.errors import BitBotError
-from core.release_queue import clear_pending_releases, load_pending_releases
-from gh.releases.creator import create_bot_release
-from gh.releases.downloader import download_asset
-from gh.releases.patcher import patch_file
+from src.config_models import Config
+from src.core.container import Container
+from src.core.error_context import error_context
+from src.core.error_logger import LogLevel, get_logger
+from src.core.errors import BitBotError
+from src.core.release_queue import clear_pending_releases, load_pending_releases
+from src.gh.releases.creator import create_bot_release
+from src.gh.releases.downloader import download_asset
+from src.gh.releases.patcher import patch_file
 
 app = typer.Typer()
 

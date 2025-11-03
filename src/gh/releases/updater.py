@@ -3,9 +3,9 @@
 import deal
 from beartype import beartype
 
-from core.errors import GitHubAPIError
-from core.result import Err, Ok, Result
-from gh.releases.fetcher import run_command
+from src.core.errors import GitHubAPIError
+from src.core.result import Err, Ok, Result
+from src.gh.releases.fetcher import run_command
 
 
 @deal.pre(

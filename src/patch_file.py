@@ -6,11 +6,11 @@ from pathlib import Path
 import deal
 from beartype import beartype
 
-from core.result import Err, Ok, Result
-from crypto.cipher import decrypt, encrypt
-from crypto.constants import DEFAULT_CIPHER_KEY
-from crypto.modifier import modify
-from crypto.obfuscation import get_obfuscated_key
+from src.core.result import Err, Ok, Result
+from src.crypto.cipher import decrypt, encrypt
+from src.crypto.constants import DEFAULT_CIPHER_KEY
+from src.crypto.modifier import modify
+from src.crypto.obfuscation import get_obfuscated_key
 
 
 @beartype

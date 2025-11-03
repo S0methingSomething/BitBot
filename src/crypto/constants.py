@@ -1,6 +1,7 @@
-"""Cryptographic constants for BitBot."""
+"""Cryptographic constants for BitBot file patching."""
 
 DEFAULT_CIPHER_KEY = "com.wtfapps.apollo16"
+
 B64_NET_BOOLEAN_TRUE = "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAQs="
 B64_NET_BOOLEAN_FALSE = "AAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAAw="
 

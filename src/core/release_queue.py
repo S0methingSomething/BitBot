@@ -7,10 +7,10 @@ import deal
 from beartype import beartype
 from pydantic import ValidationError
 
-import paths
-from core.errors import ReleaseQueueError
-from core.result import Err, Ok, Result
-from models import PendingRelease
+from src import paths
+from src.core.errors import ReleaseQueueError
+from src.core.result import Err, Ok, Result
+from src.models import PendingRelease
 
 
 @beartype

@@ -6,7 +6,7 @@ from typing import TypedDict
 import deal
 from beartype import beartype
 
-from config_models import Config
+from src.config_models import Config
 
 
 class ParsedRelease(TypedDict):

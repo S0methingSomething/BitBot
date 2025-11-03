@@ -6,11 +6,11 @@ from typing import Any, cast
 import deal
 from beartype import beartype
 
-import paths
-from core.credentials import Credentials
-from core.errors import GitHubAPIError
-from core.result import Err, Ok, Result
-from gh.releases.fetcher import get_github_data, run_command
+from src import paths
+from src.core.credentials import Credentials
+from src.core.errors import GitHubAPIError
+from src.core.result import Err, Ok, Result
+from src.gh.releases.fetcher import get_github_data, run_command
 
 DOWNLOAD_DIR = paths.DIST_DIR
 

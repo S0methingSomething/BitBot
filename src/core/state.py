@@ -6,10 +6,10 @@ from pathlib import Path
 import deal
 from beartype import beartype
 
-import paths
-from core.errors import StateError
-from core.result import Err, Ok, Result
-from models import BotState
+from src import paths
+from src.core.errors import StateError
+from src.core.result import Err, Ok, Result
+from src.models import BotState
 
 
 @beartype

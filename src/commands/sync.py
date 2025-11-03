@@ -1,18 +1,13 @@
 """Sync command for BitBot CLI."""
 
-import sys
-from pathlib import Path
-
 import typer
 from beartype import beartype
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from core.error_context import error_context
-from core.error_logger import LogLevel, get_logger
-from core.errors import BitBotError
+from src.core.error_context import error_context
+from src.core.error_logger import LogLevel, get_logger
+from src.core.errors import BitBotError
 
 app = typer.Typer()
 console = Console()

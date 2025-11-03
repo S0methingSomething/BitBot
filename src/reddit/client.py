@@ -4,10 +4,10 @@ import deal
 import praw
 from beartype import beartype
 
-from config_models import Config
-from core.credentials import Credentials
-from core.errors import RedditAPIError
-from core.result import Err, Ok, Result
+from src.config_models import Config
+from src.core.credentials import Credentials
+from src.core.errors import RedditAPIError
+from src.core.result import Err, Ok, Result
 
 
 @deal.pre(lambda _config: _config is None or isinstance(_config, Config))

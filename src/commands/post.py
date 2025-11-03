@@ -1,9 +1,7 @@
 """Post command for BitBot CLI."""
 
 import json
-import sys
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import praw
@@ -12,19 +10,17 @@ from beartype import beartype
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-import paths
-from config_models import Config
-from core.container import Container
-from core.error_context import error_context
-from core.error_logger import LogLevel, get_logger
-from core.errors import BitBotError
-from core.release_queue import load_pending_releases
-from core.state import load_bot_state, save_bot_state
-from reddit.client import init_reddit
-from reddit.posting.body_builder import generate_post_body
-from reddit.posting.poster import post_new_release
+from src import paths
+from src.config_models import Config
+from src.core.container import Container
+from src.core.error_context import error_context
+from src.core.error_logger import LogLevel, get_logger
+from src.core.errors import BitBotError
+from src.core.release_queue import load_pending_releases
+from src.core.state import load_bot_state, save_bot_state
+from src.reddit.client import init_reddit
+from src.reddit.posting.body_builder import generate_post_body
+from src.reddit.posting.poster import post_new_release
 
 app = typer.Typer()
 

@@ -71,7 +71,7 @@ wheels = [
 [[package]]
 name = "bitbot"
 version = "1.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "beartype" },
     { name = "deal" },

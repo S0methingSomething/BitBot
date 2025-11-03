@@ -1,7 +1,7 @@
 """Reddit post body generation."""
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -9,9 +9,9 @@ import deal
 from beartype import beartype
 from jinja2 import Environment, FileSystemLoader
 
-import paths
-from config_models import Config
-from reddit.posting.changelog import generate_changelog
+from src import paths
+from src.config_models import Config
+from src.reddit.posting.changelog import generate_changelog
 
 
 @deal.pre(lambda config, _a: isinstance(config, Config))
@@ -76,7 +76,7 @@ def generate_post_body(
     changelog = generate_changelog(config, **changelog_data)
     available_list = generate_available_list(config, all_releases_data)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     update_timestamp = now.strftime("%b %d, %Y - %I:%M %p UTC")
     app_count = sum(1 for data in all_releases_data.values() if data.get("latest_release"))
 

@@ -5,21 +5,21 @@ from typing import Any
 import praw
 from beartype import beartype
 
-from config_models import Config
-from core.config import load_config as _load_config
-from core.state import (
+from src.config_models import Config
+from src.core.config import load_config as _load_config
+from src.core.state import (
     load_bot_state as _load_bot_state,
 )
-from core.state import (
+from src.core.state import (
     load_release_state as _load_release_state,
 )
-from core.state import (
+from src.core.state import (
     save_bot_state as _save_bot_state,
 )
-from core.state import (
+from src.core.state import (
     save_release_state as _save_release_state,
 )
-from reddit.client import init_reddit as _init_reddit
+from src.reddit.client import init_reddit as _init_reddit
 
 
 class DefaultConfigService:

@@ -1,12 +1,12 @@
 """Reddit post title generation."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import deal
 from beartype import beartype
 
-from config_models import Config
+from src.config_models import Config
 
 
 @deal.pre(lambda app_dict: isinstance(app_dict, dict))
@@ -54,7 +54,7 @@ def generate_dynamic_title(config: Config, added: dict[str, Any], updated: dict[
     max_changes = 3
     if total_changes > max_changes or title_key is None:
         title_key = "generic"
-        placeholders = {"{{date}}": datetime.now(timezone.utc).strftime("%Y-%m-%d")}
+        placeholders = {"{{date}}": datetime.now(UTC).strftime("%Y-%m-%d")}
 
     title_format = formats.get(title_key, "[BitBot] Default Fallback Title")
     final_title = title_format

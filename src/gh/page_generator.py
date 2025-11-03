@@ -7,9 +7,9 @@ import deal
 from beartype import beartype
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
-import paths
-from core.errors import PageGeneratorError
-from core.result import Err, Ok, Result
+from src import paths
+from src.core.errors import PageGeneratorError
+from src.core.result import Err, Ok, Result
 
 
 @deal.pre(

@@ -7,8 +7,8 @@ from typing import Any
 import deal
 from beartype import beartype
 
-from core.errors import GitHubAPIError
-from core.result import Err, Ok, Result
+from src.core.errors import GitHubAPIError
+from src.core.result import Err, Ok, Result
 
 
 @deal.pre(

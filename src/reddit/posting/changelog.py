@@ -5,7 +5,7 @@ from typing import Any
 import deal
 from beartype import beartype
 
-from config_models import Config
+from src.config_models import Config
 
 
 @deal.pre(lambda title, _d, _k, _f, _a: len(title) > 0)

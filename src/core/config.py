@@ -7,10 +7,10 @@ import toml
 from beartype import BeartypeConf, BeartypeStrategy, beartype
 from pydantic import ValidationError
 
-import paths
-from config_models import Config
-from core.errors import ConfigurationError
-from core.result import Err, Ok, Result
+from src import paths
+from src.config_models import Config
+from src.core.errors import ConfigurationError
+from src.core.result import Err, Ok, Result
 
 # Strict beartype configuration
 BEARTYPE_STRICT = BeartypeConf(strategy=BeartypeStrategy.On)

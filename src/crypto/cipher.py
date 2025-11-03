@@ -1,19 +1,35 @@
-"""Encryption/decryption for BitBot crypto."""
+"""Encryption and decryption for BitBot file patching."""
 
-import deal
+import base64
+from typing import Any
+
 from beartype import beartype
 
-from crypto.constants import B64_NET_BOOLEAN_FALSE, B64_NET_BOOLEAN_TRUE
-from crypto.encoding import b64_decode_and_xor, xor_and_b64_encode
+from .constants import B64_NET_BOOLEAN_FALSE, B64_NET_BOOLEAN_TRUE
 
 
-@deal.pre(lambda encrypted_content, obfuscated_key: len(encrypted_content) > 0)
-@deal.pre(lambda encrypted_content, obfuscated_key: len(obfuscated_key) > 0)
-@deal.post(lambda result: isinstance(result, dict))
 @beartype
-def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, str | bool]:
-    """Decrypts the content of the asset file into a Python dictionary."""
-    item_map: dict[str, str | bool] = {}
+def _xor_and_b64_encode(text: str, key: str) -> str:
+    """Perform XOR operation and Base64 encode the result."""
+    key_bytes = key.encode("latin-1")
+    text_bytes = text.encode("latin-1")
+    xor_result = bytes([b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(text_bytes)])
+    return base64.b64encode(xor_result).decode("utf-8")
+
+
+@beartype
+def _b64_decode_and_xor(b64: str, key: str) -> str:
+    """Decode Base64 string and perform XOR operation."""
+    key_bytes = key.encode("latin-1")
+    decoded_bytes = base64.b64decode(b64)
+    xor_result = bytes([b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(decoded_bytes)])
+    return xor_result.decode("latin-1")
+
+
+@beartype
+def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, Any]:
+    """Decrypt asset file content into dictionary."""
+    item_map: dict[str, Any] = {}
     for line in encrypted_content.splitlines():
         if not line.strip():
             continue
@@ -21,8 +37,8 @@ def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, str | bool
         if len(parts) != 2:
             continue
         enc_key, enc_val = parts
-        dec_key = b64_decode_and_xor(enc_key.strip(), obfuscated_key)
-        dec_val_b64 = b64_decode_and_xor(enc_val.strip(), obfuscated_key)
+        dec_key = _b64_decode_and_xor(enc_key.strip(), obfuscated_key)
+        dec_val_b64 = _b64_decode_and_xor(enc_val.strip(), obfuscated_key)
 
         if dec_val_b64 == B64_NET_BOOLEAN_TRUE:
             item_map[dec_key] = True
@@ -33,15 +49,12 @@ def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, str | bool
     return item_map
 
 
-@deal.pre(lambda data_object, obfuscated_key: isinstance(data_object, dict))
-@deal.pre(lambda data_object, obfuscated_key: len(obfuscated_key) > 0)
-@deal.post(lambda result: len(result) > 0)
 @beartype
-def encrypt(data_object: dict[str, str | bool], obfuscated_key: str) -> str:
-    """Re-encrypts the modified data object back into the file format."""
+def encrypt(data_object: dict[str, Any], obfuscated_key: str) -> str:
+    """Re-encrypt modified data object back into file format."""
     output_lines = []
     for key, value in data_object.items():
-        encrypted_key = xor_and_b64_encode(key, obfuscated_key)
+        encrypted_key = _xor_and_b64_encode(key, obfuscated_key)
 
         if value is True:
             value_to_serialize = B64_NET_BOOLEAN_TRUE
@@ -50,6 +63,6 @@ def encrypt(data_object: dict[str, str | bool], obfuscated_key: str) -> str:
         else:
             value_to_serialize = value
 
-        encrypted_value = xor_and_b64_encode(value_to_serialize, obfuscated_key)
+        encrypted_value = _xor_and_b64_encode(value_to_serialize, obfuscated_key)
         output_lines.append(f"{encrypted_key}:{encrypted_value}")
     return "\n".join(output_lines)

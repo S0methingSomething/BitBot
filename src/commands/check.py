@@ -1,9 +1,7 @@
 """Check command for BitBot CLI."""
 
 import re
-import sys
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import typer
 from beartype import beartype
@@ -11,16 +9,14 @@ from praw.models import Submission
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from config_models import Config
-from core.container import Container
-from core.error_context import error_context
-from core.error_logger import LogLevel, get_logger
-from core.errors import BitBotError, RedditAPIError
-from core.result import Err, Ok, Result
-from core.state import load_bot_state, save_bot_state
-from models import BotState
+from src.config_models import Config
+from src.core.container import Container
+from src.core.error_context import error_context
+from src.core.error_logger import LogLevel, get_logger
+from src.core.errors import BitBotError, RedditAPIError
+from src.core.result import Err, Ok, Result
+from src.core.state import load_bot_state, save_bot_state
+from src.models import BotState
 
 app = typer.Typer()
 console = Console()
@@ -96,7 +92,7 @@ def check_comments(config: Config) -> Result[bool, BitBotError]:
         return Ok(value=False)
 
     # Initialize reddit client
-    from reddit.client import init_reddit
+    from src.reddit.client import init_reddit
 
     reddit_result = init_reddit(config)
     if reddit_result.is_err():

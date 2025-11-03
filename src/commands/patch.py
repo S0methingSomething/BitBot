@@ -1,16 +1,13 @@
 """Patch command for BitBot CLI."""
 
-import sys
 from pathlib import Path
 
 import typer
 from beartype import beartype
 from rich.console import Console
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from core.error_context import error_context
-from patch_file import process_file
+from src.core.error_context import error_context
+from src.patch_file import process_file
 
 app = typer.Typer()
 console = Console()

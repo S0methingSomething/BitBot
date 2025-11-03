@@ -6,7 +6,7 @@ import deal
 import praw.models
 from beartype import beartype
 
-from config_models import Config
+from src.config_models import Config
 
 
 @deal.pre(lambda post, config: post is not None)

@@ -1,8 +1,5 @@
 """BitBot unified CLI using Typer + Rich."""
 
-import sys
-from pathlib import Path
-
 import typer
 from rich.console import Console
 from rich.traceback import install
@@ -10,11 +7,8 @@ from rich.traceback import install
 # Install rich traceback handler
 install(show_locals=True)
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
-
-from commands import check, gather, maintain, page, patch, post, release, sync
-from core.container import setup_container
+from src.commands import check, gather, maintain, page, patch, post, release, sync
+from src.core.container import setup_container
 
 # Create CLI app
 app = typer.Typer(
