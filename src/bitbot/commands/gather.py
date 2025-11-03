@@ -1,6 +1,5 @@
 """Gather command for BitBot CLI."""
 
-import traceback
 from typing import TYPE_CHECKING
 
 import typer
@@ -77,6 +76,7 @@ def run(ctx: typer.Context) -> None:
                     apps = parse_release_description(description, apps_config)
 
                     if apps:
+                        all_queued = True
                         for app in apps:
                             pending = PendingRelease(
                                 release_id=release_id,
@@ -91,11 +91,14 @@ def run(ctx: typer.Context) -> None:
                                 console.print(
                                     f"[yellow]⚠[/yellow] Failed to queue " f"{app['display_name']}"
                                 )
+                                all_queued = False
                                 continue
                             new_count += 1
 
-                        processed_ids.append(release_id)
-                        console.print(f"[cyan]Release {tag}:[/cyan] {len(apps)} app(s)")
+                        # Only mark as processed if all apps queued successfully
+                        if all_queued:
+                            processed_ids.append(release_id)
+                            console.print(f"[cyan]Release {tag}:[/cyan] {len(apps)} app(s)")
 
                 # Save state
                 if processed_ids:
@@ -111,12 +114,7 @@ def run(ctx: typer.Context) -> None:
                 else:
                     console.print(f"[green]✓[/green] Queued {new_count} app update(s)")
 
-        except BitBotError as e:
-            logger.log_error(e, LogLevel.ERROR)
-            console.print(f"[red]✗ Error:[/red] {e.message}")
-            raise typer.Exit(code=1) from None
         except Exception as e:
-            traceback.print_exc()
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)
             console.print(f"[red]✗ Error:[/red] {e}")

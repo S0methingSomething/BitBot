@@ -45,15 +45,15 @@ def post_or_update(
         try:
             submission = reddit.submission(id=existing_post_id)
             submission.edit(body)
-        except Exception:
-            # Failed to update, create new post
-            submission = post_new_release(reddit, title, body, config)
-            return (submission, False)
+        except Exception as e:
+            # Log failure and fall back to new post
+            msg = f"Failed to update post {existing_post_id}: {e}"
+            raise BitBotError(msg) from e
         else:
             return (submission, True)
-    else:
-        submission = post_new_release(reddit, title, body, config)
-        return (submission, False)
+
+    submission = post_new_release(reddit, title, body, config)
+    return (submission, False)
 
 
 @beartype
@@ -120,17 +120,14 @@ def run(
                         "old": latest.get("version", "unknown"),
                     }
 
-                # Get landing page URL from config or use default
+                # Get landing page URL
                 bot_repo = config.github.bot_repo
-                page_url = (
-                    page_url
-                    or f"https://{bot_repo.split('/')[0]}.github.io/{bot_repo.split('/')[1]}/"
-                )
+                owner, repo = bot_repo.split("/")
+                page_url = page_url or f"https://{owner}.github.io/{repo}/"
 
                 # Generate title
-                post_identifier = "[BitBot]"  # Default identifier
                 date_str = datetime.now(UTC).strftime("%Y-%m-%d")
-                title = f"{post_identifier} New Updates - {date_str}"
+                title = f"New Updates - {date_str}"
 
                 # Generate body using proper body builder
                 body = generate_post_body(config, changelog_data, all_releases_data, page_url)
@@ -174,10 +171,6 @@ def run(
                     if save_result.is_err():
                         console.print("[yellow]⚠[/yellow] Failed to update state")
 
-        except BitBotError as e:
-            logger.log_error(e, LogLevel.ERROR)
-            console.print(f"[red]✗ Error:[/red] {e.message}")
-            raise typer.Exit(code=1) from None
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)

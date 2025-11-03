@@ -20,11 +20,11 @@ from bitbot.models import BotState
 from bitbot.reddit.client import init_reddit
 
 if TYPE_CHECKING:
+    from rich.console import Console
+
     from bitbot.core.container import Container
 
 app = typer.Typer()
-console = Console()
-logger = get_logger(console=console)
 
 
 @beartype
@@ -129,6 +129,8 @@ def check_comments(config: Config) -> Result[bool, BitBotError]:
 def run(ctx: typer.Context) -> None:
     """Check Reddit comments for feedback."""
     container: Container = ctx.obj["container"]
+    console: Console = ctx.obj["console"]
+    logger = get_logger(console=console)
     config: Config = container.get("config")
 
     with error_context(operation="check_comments"):
@@ -153,10 +155,6 @@ def run(ctx: typer.Context) -> None:
                 else:
                     console.print("[green]✓[/green] No updates needed")
 
-        except BitBotError as e:
-            logger.log_error(e, LogLevel.ERROR)
-            console.print(f"[red]✗ Error:[/red] {e.message}")
-            raise typer.Exit(code=1) from None
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)

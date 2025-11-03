@@ -92,10 +92,6 @@ def run(ctx: typer.Context) -> None:
                     msg = f"Synced post {latest_post.id} (no versions found)"
                     console.print(f"[yellow]⚠[/yellow] {msg}")
 
-        except BitBotError as e:
-            logger.log_error(e, LogLevel.ERROR)
-            console.print(f"[red]✗ Error:[/red] {e.message}")
-            raise typer.Exit(code=1) from None
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)

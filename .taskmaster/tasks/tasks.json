@@ -500,11 +500,88 @@
         "status": "done",
         "priority": "low",
         "details": "Add standard CLI features"
+      },
+      {
+        "id": 8,
+        "title": "Fix patch.py command inconsistencies",
+        "description": "patch.py uses module-level console instead of ctx.obj",
+        "details": "Add ctx parameter, use ctx.obj[\"console\"], add error logging, TYPE_CHECKING imports, exception handling",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Fix check.py module-level console/logger",
+        "description": "check.py uses module-level console and logger instead of ctx.obj",
+        "details": "Remove module-level console/logger, get from ctx.obj[\"console\"] in run() function",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Remove duplicate exception handling in all commands",
+        "description": "All commands have duplicate exception handling (catch BitBotError then Exception)",
+        "details": "Remove redundant BitBotError catch since Exception handler wraps all errors in BitBotError anyway. Affects: page.py, check.py, post.py, release.py, maintain.py, gather.py, sync.py",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Fix post.py bare exception and hardcoded values",
+        "description": "post.py has bare exception handler that silently falls back",
+        "details": "In post_or_update(), replace bare 'except Exception:' with proper error handling and logging. Also fix hardcoded '[BitBot]' post_identifier and manual GitHub Pages URL construction",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Fix release.py partial failure handling",
+        "description": "release.py clears queue even when releases fail",
+        "details": "Track failed releases and only clear successful ones from queue. Add retry mechanism for failed releases",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Fix maintain.py release ordering and hardcoded prefix",
+        "description": "maintain.py assumes release ordering and has hardcoded [OUTDATED] prefix",
+        "details": "Use release dates instead of array position to determine latest. Move [OUTDATED] prefix to config. Check GitHub's 'latest' flag",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Fix gather.py redundant traceback and partial failure state",
+        "description": "gather.py has redundant traceback.print_exc() and saves state on partial failures",
+        "details": "Remove traceback.print_exc() since error is already logged. Only add release_id to processed_ids if all apps successfully queued",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-11-03T05:40:00.000Z",
-      "updated": "2025-11-03T05:53:13.432Z",
+      "updated": "2025-11-03T06:15:52.614Z",
       "description": "Code review findings"
     }
   }

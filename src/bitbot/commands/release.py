@@ -61,6 +61,7 @@ def run(ctx: typer.Context) -> None:
 
                 # Process each release
                 success_count = 0
+                successful_releases = []
                 for release in pending:
                     app_name = release.display_name
                     version = release.version
@@ -96,18 +97,15 @@ def run(ctx: typer.Context) -> None:
 
                     console.print(f"[green]✓[/green] {app_name} {version}")
                     success_count += 1
+                    successful_releases.append(release)
 
-                # Clear queue
+                # Clear queue after processing
                 clear_result = clear_pending_releases()
                 if clear_result.is_err():
                     console.print("[yellow]⚠[/yellow] Failed to clear queue")
 
                 console.print(f"[green]✓[/green] Processed {success_count}/{len(pending)} releases")
 
-        except BitBotError as e:
-            logger.log_error(e, LogLevel.ERROR)
-            console.print(f"[red]✗ Error:[/red] {e.message}")
-            raise typer.Exit(code=1) from None
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)

@@ -59,10 +59,6 @@ def run(
                 output_path = result.unwrap()
                 console.print(f"[green]✓[/green] Generated: {output_path}")
 
-        except BitBotError as e:
-            logger.log_error(e, LogLevel.ERROR)
-            console.print(f"[red]✗ Error:[/red] {e.message}")
-            raise typer.Exit(code=1) from None
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)

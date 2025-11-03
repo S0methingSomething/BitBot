@@ -1,5 +1,6 @@
 """Maintain command for BitBot CLI."""
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import typer
@@ -41,6 +42,7 @@ def run(ctx: typer.Context) -> None:
                 progress.add_task(description="Maintaining releases...", total=None)
 
                 bot_repo = config.github.bot_repo
+                outdated_prefix = config.outdated_post_handling.get("prefix", "[OUTDATED]")
 
                 # Fetch releases
                 releases_result = get_github_data(f"/repos/{bot_repo}/releases")
@@ -55,25 +57,34 @@ def run(ctx: typer.Context) -> None:
                     console.print("[yellow][i] No releases found[/yellow]")
                     return
 
+                # Find latest release by created_at date
+                latest_release = max(
+                    releases,
+                    key=lambda r: datetime.fromisoformat(
+                        r.get("created_at", "").replace("Z", "+00:00")
+                    ),
+                )
+                latest_tag = latest_release.get("tag_name", "")
+
                 # Mark old releases as outdated
                 updated_count = 0
-                for i, release in enumerate(releases):
+                for release in releases:
                     tag = release.get("tag_name", "")
                     title = release.get("name", "")
 
                     if not tag or not title:
                         continue
 
-                    # Skip most recent release
-                    if i == 0:
+                    # Skip latest release
+                    if tag == latest_tag:
                         continue
 
                     # Skip if already marked
-                    if title.startswith("[OUTDATED]"):
+                    if title.startswith(outdated_prefix):
                         continue
 
                     # Update title
-                    new_title = f"[OUTDATED] {title}"
+                    new_title = f"{outdated_prefix} {title}"
                     update_result = update_release_title(bot_repo, tag, new_title)
                     if update_result.is_err():
                         console.print(f"[yellow]⚠[/yellow] Failed to update {tag}")
@@ -87,10 +98,6 @@ def run(ctx: typer.Context) -> None:
                 else:
                     console.print(f"[green]✓[/green] Updated {updated_count} release(s)")
 
-        except BitBotError as e:
-            logger.log_error(e, LogLevel.ERROR)
-            console.print(f"[red]✗ Error:[/red] {e.message}")
-            raise typer.Exit(code=1) from None
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)
