@@ -9,6 +9,7 @@ from beartype import beartype
 
 T = TypeVar("T")
 E = TypeVar("E")
+U = TypeVar("U")
 
 
 @dataclass
@@ -39,7 +40,7 @@ class Ok[T]:
         return self.value
 
     @beartype
-    def map(self, func: Callable[[T], T]) -> "Ok[T]":
+    def map(self, func: Callable[[T], U]) -> "Ok[U]":
         """Transform Ok value."""
         return Ok(func(self.value))
 
@@ -73,12 +74,12 @@ class Err[E]:
         raise RuntimeError(msg)
 
     @beartype
-    def unwrap_or(self, default: E) -> E:
+    def unwrap_or(self, default: T) -> T:
         """Get default value."""
         return default
 
     @beartype
-    def map(self, func: Callable[[T], T]) -> "Err[E]":
+    def map(self, func: Callable[[T], U]) -> "Err[E]":
         """Transform does nothing on Err."""
         return self
 

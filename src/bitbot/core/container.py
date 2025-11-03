@@ -1,12 +1,14 @@
 """Dependency injection container for BitBot."""
 
-from typing import Any
+from typing import Any, TypeVar
 
 from beartype import beartype
 
 from bitbot.core.config import load_config
 from bitbot.core.errors import BitBotError
 from bitbot.core.result import Ok, Result
+
+T = TypeVar("T")
 
 
 class Container:
@@ -24,12 +26,16 @@ class Container:
 
     @beartype
     # Any: Returns service of unknown type, caller must cast
-    def get(self, name: str) -> Any:
-        """Get a service."""
+    def get(self, name: str, service_type: type[T] | None = None) -> Any | T:
+        """Get a service with optional type checking."""
         if name not in self._services:
             msg = f"Service '{name}' not registered"
             raise KeyError(msg)
-        return self._services[name]
+        service = self._services[name]
+        if service_type is not None and not isinstance(service, service_type):
+            msg = f"Service '{name}' is not of type {service_type}"
+            raise TypeError(msg)
+        return service
 
     @beartype
     def has(self, name: str) -> bool:

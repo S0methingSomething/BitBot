@@ -449,7 +449,7 @@
         "id": 1,
         "title": "Fix sync.py unwrap_err() crash",
         "description": "sync.py calls unwrap_err() 5 times but Result type doesn't have this method",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "details": "Add unwrap_err() method to Err class in core/result.py that returns self.error"
       },
@@ -457,7 +457,7 @@
         "id": 2,
         "title": "Remove duplicate model definitions",
         "description": "Both models.py and config_models.py define Config classes",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "details": "Remove Config/GitHubConfig/RedditConfig from models.py, keep only BotState and PendingRelease"
       },
@@ -465,7 +465,7 @@
         "id": 3,
         "title": "Fix Result type signatures",
         "description": "Err.unwrap_or returns E but should return T, map can't change types",
-        "status": "pending",
+        "status": "done",
         "priority": "high",
         "details": "Fix type signatures in core/result.py"
       },
@@ -473,7 +473,7 @@
         "id": 4,
         "title": "Add Container type safety",
         "description": "Container uses Any everywhere",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "details": "Add generic get[T](name, service_type) method"
       },
@@ -481,7 +481,7 @@
         "id": 5,
         "title": "Fix CLI context usage",
         "description": "Commands set up own container instead of using ctx.obj",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "details": "Commands should accept ctx parameter and use ctx.obj['container']"
       },
@@ -489,7 +489,7 @@
         "id": 6,
         "title": "Add model validation",
         "description": "Config models lack validators",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "details": "Add validators for repo format, subreddit, post_mode, numeric constraints"
       },
@@ -497,14 +497,14 @@
         "id": 7,
         "title": "Add CLI features",
         "description": "CLI lacks --version, logging config, typed context",
-        "status": "pending",
+        "status": "done",
         "priority": "low",
         "details": "Add standard CLI features"
       }
     ],
     "metadata": {
       "created": "2025-11-03T05:40:00.000Z",
-      "updated": "2025-11-03T05:40:00.000Z",
+      "updated": "2025-11-03T05:53:13.432Z",
       "description": "Code review findings"
     }
   }

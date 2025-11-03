@@ -1,7 +1,10 @@
 """BitBot unified CLI using Typer + Rich."""
 
+import logging
+
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.traceback import install
 
 # Install rich traceback handler
@@ -9,6 +12,8 @@ install(show_locals=True)
 
 from bitbot.commands import check, gather, maintain, page, patch, post, release, sync
 from bitbot.core.container import setup_container
+
+__version__ = "1.0.0"
 
 # Create CLI app
 app = typer.Typer(
@@ -31,12 +36,25 @@ app.add_typer(gather.app, name="gather", help="Gather post data")
 app.add_typer(maintain.app, name="maintain", help="Maintain releases")
 
 
+@app.command()
+def version() -> None:
+    """Show BitBot version."""
+    console.print(f"BitBot v{__version__}")
+
+
 @app.callback()
 def main(
     ctx: typer.Context,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
 ) -> None:
     """BitBot CLI - Automated release management and Reddit posting."""
+    # Configure logging
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO,
+        format="%(message)s",
+        handlers=[RichHandler(console=console, rich_tracebacks=True)],
+    )
+
     # Initialize DI container
     container_result = setup_container()
     if container_result.is_err():

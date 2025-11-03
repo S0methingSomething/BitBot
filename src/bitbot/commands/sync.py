@@ -19,16 +19,18 @@ if TYPE_CHECKING:
     from bitbot.core.container import Container
 
 app = typer.Typer()
-console = Console()
-logger = get_logger(console=console)
+logger = get_logger(console=Console())
 
 
 @beartype
 @app.command()
-def run() -> None:
+def run(ctx: typer.Context) -> None:
     """Sync Reddit state with local bot_state.json."""
     with error_context(operation="sync_reddit_history"):
         try:
+            container: Container = ctx.obj["container"]
+            console: Console = ctx.obj["console"]
+
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -36,14 +38,6 @@ def run() -> None:
             ) as progress:
                 progress.add_task(description="Syncing Reddit state...", total=None)
 
-                # Get container and config
-                from bitbot.core.container import setup_container
-
-                container_result = setup_container()
-                if container_result.is_err():
-                    raise container_result.unwrap_err()
-
-                container: Container = container_result.unwrap()
                 config = container.get("config")
 
                 # Initialize Reddit client

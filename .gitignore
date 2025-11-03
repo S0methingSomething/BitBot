@@ -29,11 +29,11 @@ dev-debug.log
 *.sw?
 # OS specific
 
-# Task files
-# tasks.json
-# tasks/
-
 # Q CLI conversation saves
 q
 q1
 q* 
+
+# Task files
+# tasks.json
+# tasks/ 

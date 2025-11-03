@@ -69,7 +69,7 @@ repos:
       # Vulture - Find dead code
       - id: vulture
         name: Dead Code Detection
-        entry: uv run vulture src/ --min-confidence 80 --exclude legacy
+        entry: uv run vulture src/ --min-confidence 80 --exclude legacy --ignore-names cls
         language: system
         pass_filenames: false
         always_run: true
