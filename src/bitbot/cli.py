@@ -3,7 +3,6 @@
 import logging
 
 import typer
-from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import install
 
@@ -11,7 +10,7 @@ from rich.traceback import install
 install(show_locals=True)
 
 from bitbot.commands import check, gather, maintain, page, patch, post, release, sync
-from bitbot.core.container import setup_container
+from bitbot.core.container import Container
 
 __version__ = "1.0.0"
 
@@ -22,13 +21,14 @@ app = typer.Typer(
     add_completion=False,
 )
 
-# Create console for rich output
-console = Console()
+# Create container
+container = Container()
 
 
 def configure_logging(*, verbose: bool = False) -> None:
     """Configure logging with RichHandler."""
     level = logging.DEBUG if verbose else logging.INFO
+    console = container.console()
     logging.basicConfig(
         level=level,
         format="%(message)s",
@@ -50,6 +50,7 @@ app.add_typer(maintain.app, name="maintain", help="Maintain releases")
 @app.command()
 def version() -> None:
     """Show BitBot version."""
+    console = container.console()
     console.print(f"BitBot v{__version__}")
 
 
@@ -62,28 +63,14 @@ def main(
     # Configure logging
     configure_logging(verbose=verbose)
 
-    # Store console in context for commands
+    # Wire container
+    container.wire(modules=[__name__])
+
+    # Store container in context for commands
     ctx.ensure_object(dict)
-    ctx.obj["console"] = console
-    # Configure logging
-    logging.basicConfig(
-        level=logging.DEBUG if verbose else logging.INFO,
-        format="%(message)s",
-        handlers=[RichHandler(console=console, rich_tracebacks=True)],
-    )
-
-    # Initialize DI container
-    container_result = setup_container()
-    if container_result.is_err():
-        console.print(f"[red]✗ Error:[/red] {container_result.error}")
-        raise typer.Exit(code=1)
-
-    # Store container and console in context for commands
-    ctx.obj = {
-        "container": container_result.unwrap(),
-        "console": console,
-        "verbose": verbose,
-    }
+    ctx.obj["container"] = container
+    ctx.obj["console"] = container.console()
+    ctx.obj["verbose"] = verbose
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ from beartype import beartype
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.core.error_context import error_context
-from bitbot.core.error_logger import LogLevel, get_logger
+from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
 from bitbot.core.state import load_bot_state, save_bot_state
 from bitbot.reddit.client import init_reddit
@@ -29,8 +29,8 @@ def run(ctx: typer.Context) -> None:
     with error_context(operation="sync_reddit_history"):
         try:
             container: Container = ctx.obj["container"]
-            console: Console = ctx.obj["console"]
-            logger = get_logger(console=console)
+            console: Console = container.console()
+            logger = container.logger()
 
             with Progress(
                 SpinnerColumn(),

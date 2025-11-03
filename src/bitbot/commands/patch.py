@@ -7,12 +7,14 @@ import typer
 from beartype import beartype
 
 from bitbot.core.error_context import error_context
-from bitbot.core.error_logger import LogLevel, get_logger
+from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
 from bitbot.patch_file import process_file
 
 if TYPE_CHECKING:
     from rich.console import Console
+
+    from bitbot.core.container import Container
 
 app = typer.Typer()
 
@@ -25,8 +27,9 @@ def run(
     output_file: Path = typer.Argument(..., help="Output file path"),
 ) -> None:
     """Patch an asset file by decrypting, modifying, and re-encrypting."""
-    console: Console = ctx.obj["console"]
-    logger = get_logger(console=console)
+    container: Container = ctx.obj["container"]
+    console: Console = container.console()
+    logger = container.logger()
 
     with error_context(
         operation="patch_file", input_file=str(input_file), output_file=str(output_file)

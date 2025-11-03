@@ -13,7 +13,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from bitbot import paths
 from bitbot.config_models import Config
 from bitbot.core.error_context import error_context
-from bitbot.core.error_logger import LogLevel, get_logger
+from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
 from bitbot.core.release_queue import load_pending_releases
 from bitbot.core.state import load_bot_state, save_bot_state
@@ -65,9 +65,9 @@ def run(
     """Post new releases to Reddit."""
     # Get dependencies from container
     container: Container = ctx.obj["container"]
-    console: Console = ctx.obj["console"]
-    logger = get_logger(console=console)
-    config: Config = container.get("config")
+    console: Console = container.console()
+    logger = container.logger()
+    config: Config = container.config()
 
     with error_context(command="post", page_url=page_url):
         try:

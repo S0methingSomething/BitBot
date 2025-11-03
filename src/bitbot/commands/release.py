@@ -7,7 +7,7 @@ from beartype import beartype
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.core.error_context import error_context
-from bitbot.core.error_logger import LogLevel, get_logger
+from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
 from bitbot.core.release_queue import clear_pending_releases, load_pending_releases
 from bitbot.gh.releases.creator import create_bot_release
@@ -29,9 +29,9 @@ def run(ctx: typer.Context) -> None:
     """Create GitHub releases from pending updates."""
     # Get dependencies from container
     container: Container = ctx.obj["container"]
-    console: Console = ctx.obj["console"]
-    logger = get_logger(console=console)
-    config: Config = container.get("config")
+    console: Console = container.console()
+    logger = container.logger()
+    config: Config = container.config()
 
     with error_context(command="release"):
         try:

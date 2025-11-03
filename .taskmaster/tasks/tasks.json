@@ -453,6 +453,17 @@
         "description": "Centralize logging, remove legacy bloat, consolidate duplicate parsers, and standardize command patterns",
         "details": "SCATTERED LOGIC PROBLEMS:\n\n1. LOGGING INCONSISTENCY (MAJOR):\n   - 52 print() statements scattered across commands/\n   - Only 1 get_logger() call being used\n   - 3 separate Console() instances created\n   - Should centralize on error_logger for all output\n\n2. DUPLICATE PARSERS:\n   - gh/parser.py - parses release notes\n   - gh/releases/parser.py - parses release descriptions\n   - reddit/parser.py - parses post versions\n   - Three different parsers for similar data, should consolidate\n\n3. LEGACY CODE BLOAT:\n   - 783 lines of dead code in legacy/ directory\n   - 8 legacy scripts with no imports or usage\n   - 10 deal contracts wasted on unused code\n   - All functionality replaced by new commands/\n   - Only legacy_release_migrator.py might be useful (one-time tool)\n\n4. COMMANDS INCONSISTENCY:\n   - Each command has own error handling style\n   - Mix of print() and Console() usage\n   - No shared command base class or utilities\n   - Inconsistent patterns across 8 command files\n\nPRIORITY:\n1. Fix logging (replace print with logger) - HIGH\n2. Remove legacy code - MEDIUM\n3. Consolidate parsers - MEDIUM\n4. Standardize command patterns - LOW",
         "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 32,
+        "title": "Migrate to dependency-injector framework",
+        "description": "Replace custom DI container with dependency-injector framework for better type safety, auto-wiring, and maintainability",
+        "details": "CURRENT PROBLEMS:\n- Manual service registration with string names\n- No type safety (container.get() returns Any)\n- Manual dependency wiring in every command\n- Hard to test (can't easily override services)\n- Will become painful as services grow\n\nMIGRATION PLAN:\n\n1. Add dependency-injector to dependencies:\n   - Run: uv add dependency-injector\n   - Import: from dependency_injector import containers, providers\n\n2. Create new Container class (src/bitbot/core/container.py):\n   - Replace custom Container with DeclarativeContainer\n   - Define providers for: config, reddit, logger\n   - Use Singleton for stateful services\n   - Use Factory for per-request services\n\n3. Update CLI setup (src/bitbot/cli.py):\n   - Initialize container in main()\n   - Wire container to modules\n   - Pass container via ctx.obj\n\n4. Update commands to use injection:\n   - Option A: Use Depends() pattern (FastAPI-style)\n   - Option B: Get from container with type hints\n   - Remove manual container.get() calls\n\n5. Update tests:\n   - Override providers for mocking\n   - Use container.reset() in fixtures\n\nBENEFITS:\n- Type-safe injection (no more Any types)\n- Auto-wiring of dependencies\n- Easy testing with provider overrides\n- Scoping support (singleton, factory, etc.)\n- Standard pattern, well-documented\n\nESTIMATED EFFORT: 2-3 hours\n- 30 min: Setup container with providers\n- 60 min: Update 8 commands\n- 30 min: Update CLI and tests\n- 30 min: Testing and verification\n\nREFERENCE:\n- Docs: https://python-dependency-injector.ets-labs.org/\n- Example: https://github.com/ets-labs/python-dependency-injector/tree/master/examples/miniapps/fastapi",
+        "testStrategy": "",
         "status": "pending",
         "dependencies": [],
         "priority": "high",
@@ -461,7 +472,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-03T17:13:59.772Z",
+      "updated": "2025-11-03T17:26:52.441Z",
       "description": "Tasks for master context"
     }
   },

@@ -13,7 +13,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.config_models import Config
 from bitbot.core.error_context import error_context
-from bitbot.core.error_logger import LogLevel, get_logger
+from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError, RedditAPIError
 from bitbot.core.result import Err, Ok, Result
 from bitbot.core.state import load_bot_state, save_bot_state
@@ -134,9 +134,9 @@ def check_comments(config: Config) -> Result[bool, BitBotError]:
 def run(ctx: typer.Context) -> None:
     """Check Reddit comments for feedback."""
     container: Container = ctx.obj["container"]
-    console: Console = ctx.obj["console"]
-    logger = get_logger(console=console)
-    config: Config = container.get("config")
+    console: Console = container.console()
+    logger = container.logger()
+    config: Config = container.config()
 
     with error_context(operation="check_comments"):
         try:
