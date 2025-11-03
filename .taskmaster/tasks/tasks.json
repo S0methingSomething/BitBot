@@ -420,7 +420,7 @@
         "description": "Move all code from src/* to src/bitbot/* and update imports to use bitbot prefix instead of src",
         "details": "1. Reset staged changes\n2. Create src/bitbot/ directory\n3. Move all modules from src/* to src/bitbot/*\n4. Update all imports: \"from src.X\" → \"from bitbot.X\"\n5. Update all imports: \"import src.X\" → \"import bitbot.X\"\n6. Keep package name as \"bitbot\" in pyproject.toml\n7. Remove packages override in pyproject.toml (auto-discover)\n8. Reinstall: uv pip install -e .\n9. Test: uv run python -m bitbot.cli --help\n10. Commit changes",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": []
@@ -428,7 +428,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-03T03:29:23.573Z",
+      "updated": "2025-11-03T03:54:31.763Z",
       "description": "Tasks for master context"
     }
   }

@@ -6,7 +6,7 @@ import deal
 from beartype import beartype
 
 # Determine the absolute path to the project's root directory
-ROOT_DIR: str = str(Path(__file__).parent.parent.resolve())
+ROOT_DIR: str = str(Path(__file__).parent.parent.parent.resolve())
 
 # Core Configuration and State Files
 CONFIG_FILE: str = str(Path(ROOT_DIR) / "config.toml")
