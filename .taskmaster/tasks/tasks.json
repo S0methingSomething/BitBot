@@ -464,7 +464,7 @@
         "description": "Replace custom DI container with dependency-injector framework for better type safety, auto-wiring, and maintainability",
         "details": "CURRENT PROBLEMS:\n- Manual service registration with string names\n- No type safety (container.get() returns Any)\n- Manual dependency wiring in every command\n- Hard to test (can't easily override services)\n- Will become painful as services grow\n\nMIGRATION PLAN:\n\n1. Add dependency-injector to dependencies:\n   - Run: uv add dependency-injector\n   - Import: from dependency_injector import containers, providers\n\n2. Create new Container class (src/bitbot/core/container.py):\n   - Replace custom Container with DeclarativeContainer\n   - Define providers for: config, reddit, logger\n   - Use Singleton for stateful services\n   - Use Factory for per-request services\n\n3. Update CLI setup (src/bitbot/cli.py):\n   - Initialize container in main()\n   - Wire container to modules\n   - Pass container via ctx.obj\n\n4. Update commands to use injection:\n   - Option A: Use Depends() pattern (FastAPI-style)\n   - Option B: Get from container with type hints\n   - Remove manual container.get() calls\n\n5. Update tests:\n   - Override providers for mocking\n   - Use container.reset() in fixtures\n\nBENEFITS:\n- Type-safe injection (no more Any types)\n- Auto-wiring of dependencies\n- Easy testing with provider overrides\n- Scoping support (singleton, factory, etc.)\n- Standard pattern, well-documented\n\nESTIMATED EFFORT: 2-3 hours\n- 30 min: Setup container with providers\n- 60 min: Update 8 commands\n- 30 min: Update CLI and tests\n- 30 min: Testing and verification\n\nREFERENCE:\n- Docs: https://python-dependency-injector.ets-labs.org/\n- Example: https://github.com/ets-labs/python-dependency-injector/tree/master/examples/miniapps/fastapi",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": []
@@ -472,7 +472,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-03T17:26:52.441Z",
+      "updated": "2025-11-03T17:30:25.570Z",
       "description": "Tasks for master context"
     }
   },
