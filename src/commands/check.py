@@ -79,22 +79,20 @@ def _update_check_interval(state: BotState, comment_count: int, config: Config) 
 
 
 @beartype
-def check_comments(config: Config) -> Result[bool, BitBotError]:  # noqa: PLR0911
+def check_comments(config: Config) -> Result[bool, BitBotError]:
     """Check comments and update post status. Returns whether state changed."""
     state_result = load_bot_state()
     if state_result.is_err():
-        return state_result.map(lambda _: False)
-
-    state = state_result.unwrap()
-    if not state.active_post_id:
         return Ok(value=False)
 
+    state = state_result.unwrap()
     now = datetime.now(UTC)
     last_check_str = state.last_check_timestamp or "2000-01-01T00:00:00Z"
     last_check = datetime.fromisoformat(last_check_str.replace("Z", "+00:00"))
-
     current_interval = state.current_interval_seconds or config.timing["firstCheck"]
-    if now < (last_check + timedelta(seconds=current_interval)):
+
+    # Skip check if no active post or not time yet
+    if not state.active_post_id or now < (last_check + timedelta(seconds=current_interval)):
         return Ok(value=False)
 
     # Initialize reddit client
