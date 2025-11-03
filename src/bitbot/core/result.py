@@ -92,6 +92,11 @@ class Err[E]:
         """Transform error value."""
         return Err(func(self.error))
 
+    @beartype
+    def unwrap_err(self) -> E:
+        """Get the error value."""
+        return self.error
+
 
 # Type alias for Result
 Result = Ok[T] | Err[E]
