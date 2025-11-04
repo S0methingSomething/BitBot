@@ -18,9 +18,20 @@ class GitHubConfig(BaseModel):
     @classmethod
     def validate_repo_format(cls, v: str) -> str:
         """Validate repo is in owner/name format."""
-        _ = cls
         if "/" not in v or v.count("/") != 1:
             msg = "Repository must be in 'owner/name' format"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("asset_file_name")
+    @classmethod
+    def validate_asset_name(cls, v: str) -> str:
+        """Validate asset filename has no path separators."""
+        if "/" in v or "\\" in v:
+            msg = "Asset filename cannot contain path separators"
+            raise ValueError(msg)
+        if not v.strip():
+            msg = "Asset filename cannot be empty"
             raise ValueError(msg)
         return v
 
@@ -60,10 +71,18 @@ class RedditConfig(BaseModel):
     @classmethod
     def validate_subreddit(cls, v: str) -> str:
         """Validate subreddit format."""
-        _ = cls
         v = v.removeprefix("r/")
         if not v or "/" in v:
             msg = "Invalid subreddit name"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("bot_name", "user_agent", "creator")
+    @classmethod
+    def validate_non_empty(cls, v: str) -> str:
+        """Validate string fields are non-empty."""
+        if not v.strip():
+            msg = "Field cannot be empty"
             raise ValueError(msg)
         return v
 
@@ -71,10 +90,19 @@ class RedditConfig(BaseModel):
     @classmethod
     def validate_post_mode(cls, v: str) -> str:
         """Validate post_mode is valid."""
-        _ = cls
         valid_modes = {"rolling_update", "new_post"}
         if v not in valid_modes:
             msg = f"post_mode must be one of {valid_modes}"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("download_mode")
+    @classmethod
+    def validate_download_mode(cls, v: str) -> str:
+        """Validate download_mode is valid."""
+        valid_modes = {"landing_page", "direct_link"}
+        if v not in valid_modes:
+            msg = f"download_mode must be one of {valid_modes}"
             raise ValueError(msg)
         return v
 

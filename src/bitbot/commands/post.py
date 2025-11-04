@@ -13,10 +13,11 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from bitbot import paths
 from bitbot.config_models import Config
 from bitbot.core.error_context import error_context
-from bitbot.core.error_logger import LogLevel
+from bitbot.core.error_logger import ErrorLogger, LogLevel
 from bitbot.core.errors import BitBotError
 from bitbot.core.release_queue import load_pending_releases
 from bitbot.core.state import load_bot_state, save_bot_state
+from bitbot.models import PendingRelease
 from bitbot.reddit.client import init_reddit
 from bitbot.reddit.posting.body_builder import generate_post_body
 from bitbot.reddit.posting.poster import post_new_release
@@ -29,6 +30,68 @@ if TYPE_CHECKING:
 app = typer.Typer()
 
 
+@beartype
+def _load_releases_data(console: "Console", logger: ErrorLogger) -> dict[str, Any]:
+    """Load releases.json file."""
+    releases_file = Path(paths.DIST_DIR) / "releases.json"
+    if not releases_file.exists():
+        error = BitBotError(
+            "releases.json not found. Run 'bitbot gather' first to collect release data."
+        )
+        logger.log_error(error, LogLevel.ERROR)
+        console.print(f"[red]✗ Error:[/red] {error.message}")
+        raise typer.Exit(code=1) from None
+
+    with releases_file.open() as f:
+        all_releases_data = json.load(f)
+
+    if not isinstance(all_releases_data, dict):
+        error = BitBotError("releases.json has invalid format")
+        logger.log_error(error, LogLevel.ERROR)
+        console.print(f"[red]✗ Error:[/red] {error.message}")
+        raise typer.Exit(code=1) from None
+
+    return all_releases_data
+
+
+@beartype
+def _build_changelog_data(
+    pending: list[PendingRelease], all_releases_data: dict[str, Any]
+) -> dict[str, dict[str, Any]]:
+    """Build changelog data from pending releases."""
+    changelog_data: dict[str, dict[str, Any]] = {
+        "added": {},
+        "updated": {},
+        "removed": {},
+    }
+
+    for release in pending:
+        app_id = release.app_id
+        app_data = all_releases_data.get(app_id, {})
+        latest_release = app_data.get("latest_release", {})
+
+        if not latest_release:
+            continue
+
+        # Determine if this is a new app or an update
+        if app_id not in all_releases_data or not app_data.get("releases"):
+            changelog_data["added"][app_id] = {
+                "display_name": release.display_name,
+                "version": release.version,
+            }
+        else:
+            changelog_data["updated"][app_id] = {
+                "display_name": release.display_name,
+                "old_version": app_data.get("releases", [{}])[-2].get("version", "unknown")
+                if len(app_data.get("releases", [])) > 1
+                else "unknown",
+                "new_version": release.version,
+            }
+
+    return changelog_data
+
+
+@beartype
 def post_or_update(
     reddit: praw.Reddit,
     title: str,
@@ -64,7 +127,6 @@ def run(
     page_url: str = typer.Option(None, "--page-url", help="Landing page URL to post"),
 ) -> None:
     """Post new releases to Reddit."""
-    # Get dependencies from container
     container: Container = ctx.obj["container"]
     console: Console = container.console()
     logger = container.logger()
@@ -93,58 +155,22 @@ def run(
                     return
 
                 # Load releases data
-                releases_file = Path(paths.DIST_DIR) / "releases.json"
-                if not releases_file.exists():
-                    error = BitBotError(
-                        "releases.json not found. "
-                        "Run 'bitbot gather' first to collect release data."
-                    )
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {error.message}")
-                    raise typer.Exit(code=1) from None
-
-                with releases_file.open() as f:
-                    all_releases_data = json.load(f)
-
-                if not isinstance(all_releases_data, dict):
-                    error = BitBotError("releases.json has invalid format")
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {error.message}")
-                    raise typer.Exit(code=1) from None
+                all_releases_data = _load_releases_data(console, logger)
 
                 # Build changelog data from pending releases
-                changelog_data: dict[str, dict[str, Any]] = {
-                    "added": {},
-                    "updated": {},
-                    "removed": {},
-                }
-                for release in pending:
-                    app_data = all_releases_data.get(release.app_id)
-                    if not app_data:
-                        console.print(f"[yellow]⚠[/yellow] No data for {release.app_id}, skipping")
-                        continue
-
-                    latest = app_data.get("latest_release", {})
-                    changelog_data["updated"][release.app_id] = {
-                        "new": {
-                            "display_name": release.display_name,
-                            "version": release.version,
-                            "url": latest.get("download_url", ""),
-                        },
-                        "old": latest.get("version", "unknown"),
-                    }
+                changelog_data = _build_changelog_data(pending, all_releases_data)
 
                 if not changelog_data["updated"]:
                     console.print("[yellow][i] No valid releases to post[/yellow]")
                     return
 
-                # Get landing page URL from config or parameter
+                # Get landing page URL
                 if not page_url:
                     bot_repo = config.github.bot_repo
                     owner, repo = bot_repo.split("/")
                     page_url = f"https://{owner}.github.io/{repo}/"
 
-                # Generate title from config or default
+                # Generate title
                 date_str = datetime.now(UTC).strftime("%Y-%m-%d")
                 title_template = config.reddit.formats.get("title_template", "New Updates - {date}")
                 title = title_template.replace("{date}", date_str)

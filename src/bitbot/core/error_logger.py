@@ -96,6 +96,7 @@ def get_logger(
     return _logger
 
 
+@beartype
 def reset_logger() -> None:
     """Reset the global logger (for testing)."""
     global _logger

@@ -3,6 +3,7 @@
 import logging
 
 import typer
+from beartype import beartype
 from rich.logging import RichHandler
 from rich.traceback import install
 
@@ -25,6 +26,7 @@ app = typer.Typer(
 container = Container()
 
 
+@beartype
 def configure_logging(*, verbose: bool = False) -> None:
     """Configure logging with RichHandler."""
     level = logging.DEBUG if verbose else logging.INFO
@@ -48,6 +50,7 @@ app.add_typer(maintain.app, name="maintain", help="Maintain releases")
 
 
 @app.command()
+@beartype
 def version() -> None:
     """Show BitBot version."""
     console = container.console()
@@ -55,6 +58,7 @@ def version() -> None:
 
 
 @app.callback()
+@beartype
 def main(
     ctx: typer.Context,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
