@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import deal
 import toml
 from beartype import BeartypeConf, BeartypeStrategy, beartype
 from pydantic import ValidationError
@@ -16,14 +15,6 @@ from bitbot.core.result import Err, Ok, Result
 BEARTYPE_STRICT = BeartypeConf(strategy=BeartypeStrategy.On)
 
 
-@deal.post(
-    lambda result: result.is_err() or hasattr(result.unwrap(), "github"),
-    message="Config must contain 'github' section",
-)
-@deal.post(
-    lambda result: result.is_err() or hasattr(result.unwrap(), "reddit"),
-    message="Config must contain 'reddit' section",
-)
 @beartype(conf=BEARTYPE_STRICT)
 def load_config() -> Result[Config, ConfigurationError]:
     """Loads the main configuration file (config.toml)."""
