@@ -48,6 +48,7 @@ class RedditTemplates(BaseModel):
 class RedditFormats(BaseModel):
     """Reddit post formats."""
 
+    titles: dict[str, str]
     changelog: dict[str, str]
     table: dict[str, str]
 

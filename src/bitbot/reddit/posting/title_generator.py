@@ -34,7 +34,7 @@ def generate_dynamic_title(config: Config, added: dict[str, Any], updated: dict[
     num_added = len(added)
     num_updated = len(updated)
     total_changes = num_added + num_updated
-    formats: dict[str, str] = config.reddit.formats.model_dump()["titles"]
+    formats: dict[str, str] = config.reddit.formats.titles
 
     added_list = create_app_list(added)
     updated_list = create_app_list(updated)

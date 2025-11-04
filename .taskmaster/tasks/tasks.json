@@ -640,7 +640,7 @@
         "description": "Complete QC analysis for remaining directories",
         "details": "Continue thorough quality evaluation for:\n1. crypto/ directory (cipher.py, encoding.py, constants.py, modifier.py, obfuscation.py)\n2. gh/ directory (page_generator.py, parser.py)\n3. gh/releases/ directory (fetcher.py, creator.py, patcher.py, downloader.py, parser.py, updater.py)\n4. reddit/ directory (posts.py, client.py, parser.py)\n5. reddit/posting/ directory (changelog.py, body_builder.py, poster.py, title_generator.py)\n\nUse thinking tool extensively for each file. Create tasks for any issues found.",
         "testStrategy": "",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -717,7 +717,7 @@
         "description": "Fix issues in crypto/ directory used for patching game asset files (decrypt → modify → re-encrypt workflow)",
         "details": "**Purpose**: The crypto/ directory decrypts game configuration files, modifies them to unlock premium features (False→True), then re-encrypts them.\n\n**Workflow**: decrypt(encrypted_file) → modify(dict) → encrypt(modified_dict)\n\n**cipher.py Issues**:\n- decrypt() has no error handling for base64.b64decode() failures (can raise binascii.Error)\n- decrypt() silently skips malformed lines without logging warnings\n- decrypt() can return empty dict {} when all lines malformed (violates postcondition len(result) > 0)\n- encrypt() has no validation that data_object values are serializable types\n- _b64_decode_and_xor() can raise UnicodeDecodeError on invalid latin-1 bytes\n\n**modifier.py Issues**:\n- modify() mutates input dict AND returns it (confusing - should do one or other)\n- modify() only handles False→True, no other modification types\n- Generic function name doesn't indicate it's for game asset patching\n\n**obfuscation.py Issues**:\n- OBF_CHAR_MAP only has lowercase letters (uppercase chars pass through unchanged)\n- get_obfuscated_key() calls .lower() but doesn't validate result\n- No validation that obfuscated key differs from input\n\n**constants.py Issues**:\n- Hardcoded DEFAULT_CIPHER_KEY (security issue if key rotation needed)\n- OBF_CHAR_MAP incomplete (only a-z, missing numbers/symbols)\n- No type hints on module-level constants\n\n**encoding.py Issues**:\n- Code duplication with cipher.py (_xor_and_b64_encode, _b64_decode_and_xor)\n- Postcondition violation when text is empty string\n- Should be consolidated with cipher.py or removed\n\n**Fix Priority**:\n1. Add error handling for base64/unicode decode failures\n2. Fix empty dict return violating postcondition\n3. Consolidate encoding.py with cipher.py\n4. Add validation for serializable types in encrypt()\n5. Document that this is for game asset patching",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -735,7 +735,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-04T07:02:58.755Z",
+      "updated": "2025-11-04T17:25:30.563Z",
       "description": "Tasks for master context"
     }
   },
