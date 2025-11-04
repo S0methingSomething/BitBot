@@ -13,25 +13,21 @@ from bitbot.core.result import Err, Ok, Result
 
 
 @deal.pre(
-    lambda releases_data, output_path, template_name="default_landing_page.html": isinstance(
-        releases_data, dict
-    ),
+    lambda releases_data, **_: isinstance(releases_data, dict),
     message="Releases data must be a dictionary",
 )
 @deal.pre(
-    lambda releases_data, output_path, template_name="default_landing_page.html": len(output_path)
-    > 0,
+    lambda output_path, **_: len(output_path) > 0,
     message="Output path cannot be empty - must specify where to save HTML file",
 )
 @deal.pre(
-    lambda releases_data, output_path, template_name="default_landing_page.html": len(template_name)
-    > 0,
+    lambda template_name, **_: len(template_name) > 0,
     message="Template name cannot be empty - must specify which template to use",
 )
 @beartype
 def generate_landing_page(
     releases_data: dict[str, Any],
-    output_path: str,
+    output_path: Path | str,
     template_name: str = "default_landing_page.html",
 ) -> Result[Path, PageGeneratorError]:
     """Generate HTML landing page from template."""
@@ -41,7 +37,7 @@ def generate_landing_page(
 
         rendered = template.render(**releases_data)
 
-        output = Path(output_path)
+        output = Path(output_path) if isinstance(output_path, str) else output_path
         output.parent.mkdir(parents=True, exist_ok=True)
 
         output.write_text(rendered, encoding="utf-8")
@@ -50,5 +46,5 @@ def generate_landing_page(
 
     except TemplateNotFound:
         return Err(PageGeneratorError(f"Template not found: {template_name}"))
-    except Exception as e:
+    except (OSError, ValueError) as e:
         return Err(PageGeneratorError(f"Failed to generate page: {e}"))

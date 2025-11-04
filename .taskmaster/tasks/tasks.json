@@ -530,7 +530,7 @@
         "description": "Implement atomic writes and improve error handling in state.py",
         "details": "1. Implement atomic writes (write to temp file, then rename) to prevent corruption\n2. Remove redundant deal contracts that duplicate type hints\n3. Make exception handling more specific (avoid bare Exception)\n4. Consider adding backup mechanism (.bak files)\n5. Add validation of loaded state after deserialization",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -541,7 +541,7 @@
         "description": "Fix timezone and serialization issues in errors.py",
         "details": "1. Use datetime.now(timezone.utc) instead of datetime.now() for timezone-aware timestamps\n2. Add custom __str__ and __repr__ methods to show context and timestamp\n3. Add validation or documentation that context values must be JSON-serializable\n4. Consider adding error codes for programmatic error handling\n5. Consider adding CryptoError, ParsingError, ValidationError types",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -552,7 +552,7 @@
         "description": "Add config caching and improve error handling in config.py",
         "details": "1. Remove redundant postconditions (Pydantic already enforces structure)\n2. Add config caching to avoid re-reading file on every call\n3. Make exception handling more specific (avoid bare Exception)\n4. Consider adding validation that template files exist, GitHub repos are accessible, etc.",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -563,7 +563,7 @@
         "description": "Fix type hints and safety issues in error_context.py",
         "details": "1. Fix Generator type hint to Generator[None, None, None] (complete 3-parameter form)\n2. Extract duplicate initialization check into helper function or module-level init\n3. Add stack underflow protection in finally block (check if stack is non-empty before pop)\n4. Consider alternative to context merging that doesn't lose information (keep all values)\n5. Add method to clear entire context stack for error recovery",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -574,7 +574,7 @@
         "description": "Fix consistency and validation issues in credentials.py",
         "details": "1. Make error handling consistent (all ValueError or all KeyError, not mixed)\n2. Fix get_github_output() to require non-empty string or document why empty is valid\n3. Add credential caching to avoid repeated environment lookups\n4. Add format validation (GitHub tokens start with ghp_, etc.)\n5. Consider converting class to module-level functions (no state needed)\n6. Add security note that credentials should never be logged",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -585,7 +585,7 @@
         "description": "Fix atomic writes and race conditions in release_queue.py",
         "details": "1. Implement atomic writes (write to temp file, then rename)\n2. Remove redundant preconditions that duplicate type hints\n3. Add locking mechanism to prevent race conditions in add_release()\n4. Add duplicate detection in add_release() (check if release_id already exists)\n5. Make exception handling more specific (avoid bare Exception)\n6. Consider adding queue size limits or warnings",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -607,7 +607,7 @@
         "description": "Fix error handling and add missing providers in container.py",
         "details": "1. Add error handling around config.unwrap() - currently crashes with unclear error if config fails\n2. Remove wiring_config if no @inject decorators are used (confirmed none exist)\n3. Consider adding providers for Reddit client, GitHub client, state management, release queue\n4. Document which services should be in container vs created locally",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -618,7 +618,7 @@
         "description": "Fix type hints and add missing methods in result.py",
         "details": "1. Change Err.unwrap() return type from None to NoReturn (it always raises)\n2. Fix Err.map() and Err.and_then() type hints (func parameter types are confusing)\n3. Add map_err() method to Ok class (no-op that returns self)\n4. Consider adding or_else() method for error recovery\n5. Add custom __str__/__repr__ for better debugging\n6. Fix Result type alias (current form doesn't work as generic)",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -629,7 +629,7 @@
         "description": "Fix critical issues in error_logger.py",
         "details": "1. Remove duplicate @beartype decorator on __init__ (line 31-32)\n2. Implement log rotation to prevent unbounded file growth\n3. Add thread-safe file logging (use locks)\n4. Add timestamp to console output (currently only in file)\n5. Fix hardcoded log path - use paths.py or make configurable\n6. Add default color in _get_color() to prevent KeyError\n7. Add minimum log level filtering\n8. Consider moving reset_logger() to test utilities",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "medium",
         "subtasks": []
@@ -725,7 +725,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-04T05:52:24.164Z",
+      "updated": "2025-11-04T06:20:32.916Z",
       "description": "Tasks for master context"
     }
   },

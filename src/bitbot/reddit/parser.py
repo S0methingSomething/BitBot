@@ -9,9 +9,7 @@ from beartype import beartype
 from bitbot.config_models import Config
 
 
-@deal.pre(lambda post, config: post is not None)
-@deal.pre(lambda post, config: isinstance(config, Config))
-@deal.post(lambda result: isinstance(result, dict))
+@deal.pre(lambda post, **_: post is not None, message="Post cannot be None")
 @beartype
 def parse_versions_from_post(post: praw.models.Submission, config: Config) -> dict[str, str]:
     """Parses the versions of all apps from a Reddit post.
@@ -19,8 +17,7 @@ def parse_versions_from_post(post: praw.models.Submission, config: Config) -> di
     Supports both legacy and new post formats.
     """
     versions = {}
-    apps_config = config.model_dump().get("apps", [])
-    app_map_by_display_name = {app["displayName"].lower(): app["id"] for app in apps_config}
+    app_map_by_display_name = {app["displayName"].lower(): app["id"] for app in config.apps}
 
     # New Format: Parse Changelog from Body
     changelog_match = re.search(r"## Changelog\n(.+)", post.selftext, re.DOTALL)

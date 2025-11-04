@@ -1,6 +1,5 @@
 """Reddit client initialization."""
 
-import deal
 import praw
 from beartype import beartype
 
@@ -10,7 +9,6 @@ from bitbot.core.errors import RedditAPIError
 from bitbot.core.result import Err, Ok, Result
 
 
-@deal.pre(lambda _config: _config is None or isinstance(_config, Config))
 @beartype
 def init_reddit(_config: Config | None = None) -> Result[praw.Reddit, RedditAPIError]:
     """Initializes and returns a PRAW Reddit instance."""
@@ -26,5 +24,5 @@ def init_reddit(_config: Config | None = None) -> Result[praw.Reddit, RedditAPIE
         # Test connection
         reddit.user.me()
         return Ok(reddit)
-    except Exception as e:
+    except (ValueError, praw.exceptions.PRAWException) as e:
         return Err(RedditAPIError(f"Failed to initialize Reddit client: {e}"))
