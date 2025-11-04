@@ -74,7 +74,7 @@ def run(ctx: typer.Context) -> None:
                     max(
                         stable_releases,
                         key=lambda r: datetime.fromisoformat(
-                            r.get("created_at", "1970-01-01T00:00:00Z").replace("Z", "+00:00")
+                            r.get("created_at", "1970-01-01T00:00:00Z")
                         ),
                     ),
                 )
