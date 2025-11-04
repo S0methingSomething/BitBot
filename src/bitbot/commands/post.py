@@ -17,10 +17,12 @@ from bitbot.core.error_logger import ErrorLogger, LogLevel
 from bitbot.core.errors import BitBotError
 from bitbot.core.release_queue import load_pending_releases
 from bitbot.core.state import load_account_state, save_account_state
-from bitbot.models import PendingRelease
+from bitbot.models import AccountState, PendingRelease
 from bitbot.reddit.client import init_reddit
+from bitbot.reddit.parser import parse_versions_from_post
 from bitbot.reddit.posting.body_builder import generate_post_body
 from bitbot.reddit.posting.poster import post_new_release
+from bitbot.reddit.posts import get_bot_posts
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -28,6 +30,41 @@ if TYPE_CHECKING:
     from bitbot.core.container import Container
 
 app = typer.Typer()
+
+
+@beartype
+def _verify_account_state(
+    reddit: praw.Reddit,
+    config: Config,
+    state: AccountState,
+    console: "Console",
+) -> AccountState:
+    """Verify account state against actual Reddit post."""
+    console.print("[dim]Verifying state against Reddit...[/dim]")
+    try:
+        posts_result = get_bot_posts(reddit, config)
+        if posts_result.is_ok():
+            posts = posts_result.unwrap()
+            if posts:
+                latest_post = posts[0]
+                reddit_versions = parse_versions_from_post(latest_post, config)
+
+                # Compare with local state
+                if reddit_versions != state.online:
+                    console.print(
+                        f"[yellow]⚠ State mismatch detected![/yellow]\n"
+                        f"  Local: {state.online}\n"
+                        f"  Reddit: {reddit_versions}\n"
+                        f"  Using Reddit as source of truth"
+                    )
+                    state.online = reddit_versions
+                    save_account_state(state)
+                else:
+                    console.print("[green]✓[/green] State verified")
+    except Exception as e:
+        console.print(f"[yellow]⚠ Verification failed: {e}[/yellow]")
+        # Continue with local state
+    return state
 
 
 @beartype
@@ -125,6 +162,9 @@ def post_or_update(
 def run(
     ctx: typer.Context,
     page_url: str = typer.Option(None, "--page-url", help="Landing page URL to post"),
+    verify: bool = typer.Option(  # noqa: FBT001
+        default=False, flag_value=True, help="Verify state against actual Reddit post"
+    ),
 ) -> None:
     """Post new releases to Reddit."""
     container: Container = ctx.obj["container"]
@@ -194,6 +234,10 @@ def run(
                 if post_mode == "rolling_update" and state_result.is_ok():
                     state = state_result.unwrap()
                     existing_post_id = state.active_post_id
+
+                    # Optional verification against actual Reddit post
+                    if verify and existing_post_id:
+                        state = _verify_account_state(reddit, config, state, console)
 
                 # Post or update
                 submission, was_updated = post_or_update(
