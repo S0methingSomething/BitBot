@@ -51,12 +51,14 @@ def save_pending_releases(releases: list[PendingRelease]) -> Result[None, Releas
 
         data = [release.model_dump() for release in releases]
 
-        with queue_file.open("w") as f:
+        temp_file = queue_file.with_suffix(".tmp")
+        with temp_file.open("w") as f:
             json.dump(data, f, indent=2)
+        temp_file.replace(queue_file)
 
         return Ok(None)
 
-    except Exception as e:
+    except (OSError, ValueError) as e:
         return Err(ReleaseQueueError(f"Failed to save queue: {e}"))
 
 
@@ -72,6 +74,11 @@ def add_release(release: PendingRelease) -> Result[None, ReleaseQueueError]:
         return Err(load_result.error)
 
     releases = load_result.unwrap()
+
+    # Check for duplicate release_id
+    if any(r.release_id == release.release_id for r in releases):
+        return Err(ReleaseQueueError(f"Release {release.release_id} already in queue"))
+
     releases.append(release)
 
     save_result = save_pending_releases(releases)

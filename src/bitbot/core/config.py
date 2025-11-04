@@ -40,5 +40,5 @@ def load_config() -> Result[Config, ConfigurationError]:
         return Err(ConfigurationError(f"Invalid TOML syntax: {e}"))
     except ValidationError as e:
         return Err(ConfigurationError(f"Invalid config structure: {e}"))
-    except Exception as e:
+    except (OSError, ValueError) as e:
         return Err(ConfigurationError(f"Failed to load config: {e}"))

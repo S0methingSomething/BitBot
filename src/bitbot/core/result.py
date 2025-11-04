@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import NoReturn, TypeVar
 
 import deal
 from beartype import beartype
@@ -48,6 +48,11 @@ class Ok[T]:
         """Chain Result-returning operations."""
         return func(self.value)
 
+    @beartype
+    def map_err(self, func: Callable[[E], E]) -> "Ok[T]":
+        """Transform error (no-op for Ok)."""
+        return self
+
 
 @dataclass
 class Err[E]:
@@ -67,7 +72,7 @@ class Err[E]:
 
     @deal.raises(RuntimeError, message="unwrap() on Err always raises")
     @beartype
-    def unwrap(self) -> None:
+    def unwrap(self) -> NoReturn:
         """Raise error."""
         msg = f"Called unwrap on Err: {self.error}"
         raise RuntimeError(msg)

@@ -34,4 +34,5 @@ def error_context(**context: Any) -> Generator[None]:
     try:
         yield
     finally:
-        _context_stack.stack.pop()
+        if _context_stack.stack:
+            _context_stack.stack.pop()

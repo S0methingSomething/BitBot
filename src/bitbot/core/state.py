@@ -24,7 +24,7 @@ def load_bot_state() -> Result[BotState, StateError]:
         state = BotState()
     except json.JSONDecodeError as e:
         return Err(StateError(f"Invalid JSON in bot state file: {e}"))
-    except Exception as e:
+    except (OSError, ValueError) as e:
         return Err(StateError(f"Failed to load bot state: {e}"))
 
     return Ok(state)
@@ -35,10 +35,13 @@ def load_bot_state() -> Result[BotState, StateError]:
 def save_bot_state(state: BotState) -> Result[None, StateError]:
     """Saves the bot's monitoring state."""
     try:
-        with Path(paths.BOT_STATE_FILE).open("w") as f:
+        state_file = Path(paths.BOT_STATE_FILE)
+        temp_file = state_file.with_suffix(".tmp")
+        with temp_file.open("w") as f:
             json.dump(state.model_dump(by_alias=True), f, indent=2)
+        temp_file.replace(state_file)
         return Ok(None)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         return Err(StateError(f"Failed to save bot state: {e}"))
 
 
@@ -57,7 +60,7 @@ def load_release_state() -> Result[list[int], StateError]:
         return Ok([])
     except json.JSONDecodeError as e:
         return Err(StateError(f"Invalid JSON in release state file: {e}"))
-    except Exception as e:
+    except (OSError, ValueError) as e:
         return Err(StateError(f"Failed to load release state: {e}"))
 
 
@@ -66,8 +69,11 @@ def load_release_state() -> Result[list[int], StateError]:
 def save_release_state(data: list[int]) -> Result[None, StateError]:
     """Saves the list of processed source release IDs."""
     try:
-        with Path(paths.RELEASE_STATE_FILE).open("w") as f:
+        state_file = Path(paths.RELEASE_STATE_FILE)
+        temp_file = state_file.with_suffix(".tmp")
+        with temp_file.open("w") as f:
             json.dump(data, f, indent=2)
+        temp_file.replace(state_file)
         return Ok(None)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         return Err(StateError(f"Failed to save release state: {e}"))

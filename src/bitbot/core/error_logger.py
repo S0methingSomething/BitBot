@@ -27,7 +27,6 @@ class ErrorLogger:
     """Structured error logger."""
 
     @beartype
-    @beartype
     def __init__(
         self,
         console: Console | None = None,
@@ -76,7 +75,7 @@ class ErrorLogger:
             LogLevel.ERROR: "red",
             LogLevel.CRITICAL: "bold red",
         }
-        return colors[level]
+        return colors.get(level, "white")
 
 
 # Global logger instance
