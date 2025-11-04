@@ -1,4 +1,8 @@
-"""Data modification for BitBot file patching."""
+"""Game asset data modification for unlocking premium features.
+
+This module modifies decrypted game configuration data to unlock IAP
+(In-App Purchase) features by changing False → True.
+"""
 
 from typing import Any
 
@@ -7,11 +11,21 @@ from beartype import beartype
 
 
 @deal.pre(lambda data_object: len(data_object) > 0, message="Data object cannot be empty")
-@deal.post(lambda result: isinstance(result, dict))
+@deal.post(lambda result: isinstance(result, dict) and len(result) > 0)
 @beartype
-def modify(data_object: dict[str, Any]) -> dict[str, Any]:
-    """Modify decrypted data by setting all boolean false values to true."""
-    for key, value in data_object.items():
-        if value is False:
-            data_object[key] = True
-    return data_object
+def unlock_premium_features(data_object: dict[str, Any]) -> dict[str, Any]:
+    """Unlock premium features by setting all False values to True.
+
+    Creates a new dict without mutating the input.
+
+    Args:
+        data_object: Decrypted game asset data
+
+    Returns:
+        New dict with all False values changed to True
+    """
+    return {key: True if value is False else value for key, value in data_object.items()}
+
+
+# Backward compatibility alias
+modify = unlock_premium_features
