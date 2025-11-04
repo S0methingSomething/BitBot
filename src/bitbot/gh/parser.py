@@ -30,13 +30,13 @@ def parse_release_notes(
 
     # Priority 1: New Structured Format
     parsing_keys = config.parsing
-    parsing_keys.get("app_key", "app")
-    parsing_keys.get("version_key", "version")
-    parsing_keys.get("asset_name_key", "asset_name")
+    app_key = parsing_keys.get("app_key", "app")
+    version_key = parsing_keys.get("version_key", "version")
+    asset_name_key = parsing_keys.get("asset_name_key", "asset_name")
 
-    app_match = re.search(r"^{app_key}:\s*(\S+)", body, re.MULTILINE)
-    version_match = re.search(r"^{version_key}:\s*([\d\.]+)", body, re.MULTILINE)
-    asset_match = re.search(r"^{asset_name_key}:\s*(\S+)", body, re.MULTILINE)
+    app_match = re.search(rf"^{app_key}:\s*(\S+)", body, re.MULTILINE)
+    version_match = re.search(rf"^{version_key}:\s*([\d\.]+)", body, re.MULTILINE)
+    asset_match = re.search(rf"^{asset_name_key}:\s*(\S+)", body, re.MULTILINE)
 
     if app_match and version_match and asset_match:
         app_id = app_match.group(1)
@@ -58,7 +58,7 @@ def parse_release_notes(
                     "app_id": app_id,
                     "display_name": display_name,
                     "version": version_part[1],
-                    "asset_name": config["github"]["assetFileName"],
+                    "asset_name": config.github.asset_file_name,
                 }
 
     # Priority 3: Title Format
@@ -69,7 +69,7 @@ def parse_release_notes(
                 "app_id": app_id,
                 "display_name": display_name,
                 "version": match.group(1),
-                "asset_name": config["github"]["assetFileName"],
+                "asset_name": config.github.asset_file_name,
             }
 
     # Priority 4: Fallback
@@ -80,7 +80,7 @@ def parse_release_notes(
                 "app_id": "bitlife",
                 "display_name": "BitLife",
                 "version": match.group(1),
-                "asset_name": config["github"]["assetFileName"],
+                "asset_name": config.github.asset_file_name,
             }
 
     return None

@@ -39,7 +39,7 @@ def generate_available_list(config: Config, all_releases_data: dict[str, Any]) -
     return "\n".join(table_lines)
 
 
-@deal.pre(lambda config, _ch, _ar, _p: isinstance(config, dict))
+@deal.pre(lambda config, _ch, _ar, _p: isinstance(config, Config))
 @deal.pre(lambda _c, changelog_data, _ar, _p: isinstance(changelog_data, dict))
 @deal.pre(lambda _c, _ch, all_releases_data, _p: isinstance(all_releases_data, dict))
 @deal.pre(lambda _c, _ch, _ar, page_url: len(page_url) > 0)
@@ -83,10 +83,10 @@ def generate_post_body(
     post_body = template.render(
         changelog=changelog,
         available_list=available_list,
-        bot_name=config["reddit"]["botName"],
-        bot_repo=config["github"]["botRepo"],
-        asset_name=config["github"]["assetFileName"],
-        creator_username=config["reddit"]["creator"],
+        bot_name=config.reddit.bot_name,
+        bot_repo=config.github.bot_repo,
+        asset_name=config.github.asset_file_name,
+        creator_username=config.reddit.creator,
         download_portal_url=page_url,
         update_timestamp=update_timestamp,
         app_count=app_count,

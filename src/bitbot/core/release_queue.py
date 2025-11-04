@@ -17,7 +17,7 @@ from bitbot.models import PendingRelease
 def load_pending_releases() -> Result[list[PendingRelease], ReleaseQueueError]:
     """Load pending releases from queue file."""
     try:
-        queue_file = Path(paths.RELEASES_JSON_FILE)
+        queue_file = Path(paths.RELEASE_QUEUE_FILE)
         if not queue_file.exists():
             return Ok([])
 
@@ -46,7 +46,7 @@ def load_pending_releases() -> Result[list[PendingRelease], ReleaseQueueError]:
 def save_pending_releases(releases: list[PendingRelease]) -> Result[None, ReleaseQueueError]:
     """Save pending releases to queue file."""
     try:
-        queue_file = Path(paths.RELEASES_JSON_FILE)
+        queue_file = Path(paths.RELEASE_QUEUE_FILE)
         queue_file.parent.mkdir(parents=True, exist_ok=True)
 
         data = [release.model_dump() for release in releases]

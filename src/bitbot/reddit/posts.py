@@ -92,6 +92,7 @@ def update_older_posts(
             "{{bot_name}}": config.reddit.bot_name,
         }
 
+        raw_template = ""
         if mode == "inject":
             template_name = config.reddit.templates.inject_banner
             if not template_name:

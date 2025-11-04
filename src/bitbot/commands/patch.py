@@ -35,17 +35,34 @@ def run(
         operation="patch_file", input_file=str(input_file), output_file=str(output_file)
     ):
         try:
-            console.print(f"[cyan]Patching file:[/cyan] {input_file} → {output_file}")
+            # Validate input file exists
+            if not input_file.exists():
+                error = BitBotError(f"Input file not found: {input_file}")
+                logger.log_error(error, LogLevel.ERROR)
+                console.print(f"[red]✗ Error:[/red] {error.message}")
+                raise typer.Exit(code=1) from None
+
+            # Validate input file is readable
+            if not input_file.is_file():
+                error = BitBotError(f"Input path is not a file: {input_file}")
+                logger.log_error(error, LogLevel.ERROR)
+                console.print(f"[red]✗ Error:[/red] {error.message}")
+                raise typer.Exit(code=1) from None
+
+            # Create output directory if needed
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+
+            console.print(f"[cyan]Patching:[/cyan] {input_file.name} → {output_file.name}")
 
             result = process_file(input_file, output_file)
 
             if result.is_err():
-                error = BitBotError(f"Patch error: {result.error}")
+                error = BitBotError(f"Patch failed: {result.error}")
                 logger.log_error(error, LogLevel.ERROR)
                 console.print(f"[red]✗ Error:[/red] {result.error}")
                 raise typer.Exit(code=1) from None
 
-            console.print("[green]✓ Successfully patched file[/green]")
+            console.print(f"[green]✓[/green] Patched file saved to: {output_file}")
 
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")

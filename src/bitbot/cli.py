@@ -63,14 +63,10 @@ def main(
     # Configure logging
     configure_logging(verbose=verbose)
 
-    # Wire container
-    container.wire(modules=[__name__])
-
     # Store container in context for commands
     ctx.ensure_object(dict)
     ctx.obj["container"] = container
     ctx.obj["console"] = container.console()
-    ctx.obj["verbose"] = verbose
 
 
 if __name__ == "__main__":

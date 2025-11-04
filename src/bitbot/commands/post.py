@@ -46,12 +46,13 @@ def post_or_update(
             submission = reddit.submission(id=existing_post_id)
             submission.edit(body)
         except Exception as e:
-            # Log failure and fall back to new post
-            msg = f"Failed to update post {existing_post_id}: {e}"
+            # Update failed, fall back to creating new post
+            msg = f"Failed to update post {existing_post_id}, creating new post: {e}"
             raise BitBotError(msg) from e
         else:
             return (submission, True)
 
+    # Create new post
     submission = post_new_release(reddit, title, body, config)
     return (submission, False)
 
@@ -94,13 +95,22 @@ def run(
                 # Load releases data
                 releases_file = Path(paths.DIST_DIR) / "releases.json"
                 if not releases_file.exists():
-                    error = BitBotError("releases.json not found - run gather first")
+                    error = BitBotError(
+                        "releases.json not found. "
+                        "Run 'bitbot gather' first to collect release data."
+                    )
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {error.message}")
                     raise typer.Exit(code=1) from None
 
                 with releases_file.open() as f:
                     all_releases_data = json.load(f)
+
+                if not isinstance(all_releases_data, dict):
+                    error = BitBotError("releases.json has invalid format")
+                    logger.log_error(error, LogLevel.ERROR)
+                    console.print(f"[red]✗ Error:[/red] {error.message}")
+                    raise typer.Exit(code=1) from None
 
                 # Build changelog data from pending releases
                 changelog_data: dict[str, dict[str, Any]] = {
@@ -109,7 +119,11 @@ def run(
                     "removed": {},
                 }
                 for release in pending:
-                    app_data = all_releases_data.get(release.app_id, {})
+                    app_data = all_releases_data.get(release.app_id)
+                    if not app_data:
+                        console.print(f"[yellow]⚠[/yellow] No data for {release.app_id}, skipping")
+                        continue
+
                     latest = app_data.get("latest_release", {})
                     changelog_data["updated"][release.app_id] = {
                         "new": {
@@ -120,14 +134,20 @@ def run(
                         "old": latest.get("version", "unknown"),
                     }
 
-                # Get landing page URL
-                bot_repo = config.github.bot_repo
-                owner, repo = bot_repo.split("/")
-                page_url = page_url or f"https://{owner}.github.io/{repo}/"
+                if not changelog_data["updated"]:
+                    console.print("[yellow][i] No valid releases to post[/yellow]")
+                    return
 
-                # Generate title
+                # Get landing page URL from config or parameter
+                if not page_url:
+                    bot_repo = config.github.bot_repo
+                    owner, repo = bot_repo.split("/")
+                    page_url = f"https://{owner}.github.io/{repo}/"
+
+                # Generate title from config or default
                 date_str = datetime.now(UTC).strftime("%Y-%m-%d")
-                title = f"New Updates - {date_str}"
+                title_template = config.reddit.formats.get("title_template", "New Updates - {date}")
+                title = title_template.replace("{date}", date_str)
 
                 # Generate body using proper body builder
                 body = generate_post_body(config, changelog_data, all_releases_data, page_url)
@@ -169,7 +189,12 @@ def run(
                         state.all_post_ids.append(submission.id)
                     save_result = save_bot_state(state)
                     if save_result.is_err():
-                        console.print("[yellow]⚠[/yellow] Failed to update state")
+                        error = BitBotError(f"Failed to save state: {save_result.error}")
+                        logger.log_error(error, LogLevel.ERROR)
+                        console.print(f"[yellow]⚠[/yellow] {error.message}")
+                        # Don't fail - post was successful, state update is secondary
+                else:
+                    console.print("[yellow]⚠[/yellow] Could not load state for update")
 
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
