@@ -4,7 +4,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-import deal
 import praw
 import praw.models
 from beartype import beartype
@@ -19,8 +18,6 @@ from bitbot.core.state import load_bot_state, save_bot_state
 logger = get_logger()
 
 
-@deal.pre(lambda reddit, config: reddit is not None)
-@deal.pre(lambda reddit, config: isinstance(config, Config))
 @beartype
 def get_bot_posts(
     reddit: praw.Reddit, config: Config
@@ -69,11 +66,6 @@ def get_bot_posts(
         return Err(RedditAPIError(f"Failed to fetch bot posts: {e}"))
 
 
-@deal.pre(lambda older_posts, latest_release_details, config: isinstance(older_posts, list))
-@deal.pre(
-    lambda older_posts, latest_release_details, config: isinstance(latest_release_details, dict)
-)
-@deal.pre(lambda older_posts, latest_release_details, config: isinstance(config, Config))
 @beartype
 def update_older_posts(
     older_posts: list[praw.models.Submission],

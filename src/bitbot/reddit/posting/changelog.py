@@ -9,7 +9,6 @@ from bitbot.config_models import Config
 
 
 @deal.pre(lambda title, _d, _k, _f, _a: len(title) > 0)
-@deal.pre(lambda _t, data, _k, _f, _a: isinstance(data, dict))
 @beartype
 def create_section(
     title: str,
@@ -53,10 +52,6 @@ def create_section(
     return "\n".join(lines) if len(lines) > 1 else None
 
 
-@deal.pre(lambda config, added, updated, removed: isinstance(config, Config))
-@deal.pre(lambda config, added, updated, removed: isinstance(added, dict))
-@deal.pre(lambda config, added, updated, removed: isinstance(updated, dict))
-@deal.pre(lambda config, added, updated, removed: isinstance(removed, dict))
 @deal.post(lambda result: len(result) > 0)
 @beartype
 def generate_changelog(

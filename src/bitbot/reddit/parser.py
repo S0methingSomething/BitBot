@@ -2,14 +2,12 @@
 
 import re
 
-import deal
 import praw.models
 from beartype import beartype
 
 from bitbot.config_models import Config
 
 
-@deal.pre(lambda post, **_: post is not None, message="Post cannot be None")
 @beartype
 def parse_versions_from_post(post: praw.models.Submission, config: Config) -> dict[str, str]:
     """Parses the versions of all apps from a Reddit post.

@@ -14,8 +14,6 @@ from bitbot.config_models import Config
 from bitbot.reddit.posting.changelog import generate_changelog
 
 
-@deal.pre(lambda config, _a: isinstance(config, Config))
-@deal.pre(lambda _c, all_releases_data: isinstance(all_releases_data, dict))
 @deal.post(lambda result: len(result) > 0)
 @beartype
 def generate_available_list(config: Config, all_releases_data: dict[str, Any]) -> str:
@@ -39,9 +37,6 @@ def generate_available_list(config: Config, all_releases_data: dict[str, Any]) -
     return "\n".join(table_lines)
 
 
-@deal.pre(lambda config, _ch, _ar, _p: isinstance(config, Config))
-@deal.pre(lambda _c, changelog_data, _ar, _p: isinstance(changelog_data, dict))
-@deal.pre(lambda _c, _ch, all_releases_data, _p: isinstance(all_releases_data, dict))
 @deal.pre(lambda _c, _ch, _ar, page_url: len(page_url) > 0)
 @deal.post(lambda result: len(result) > 0)
 @beartype

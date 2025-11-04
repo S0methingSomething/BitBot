@@ -9,8 +9,6 @@ from beartype import beartype
 from bitbot.config_models import Config
 
 
-@deal.pre(lambda app_dict: isinstance(app_dict, dict))
-@deal.post(lambda result: len(result) >= 0)
 @beartype
 def create_app_list(app_dict: dict[str, Any]) -> str:
     """Create formatted list of app names from dictionary."""
@@ -24,9 +22,6 @@ def create_app_list(app_dict: dict[str, Any]) -> str:
     return ", ".join(parts)
 
 
-@deal.pre(lambda config, added, updated: isinstance(config, Config))
-@deal.pre(lambda config, added, updated: isinstance(added, dict))
-@deal.pre(lambda config, added, updated: isinstance(updated, dict))
 @deal.post(lambda result: len(result) > 0)
 @beartype
 def generate_dynamic_title(config: Config, added: dict[str, Any], updated: dict[str, Any]) -> str:

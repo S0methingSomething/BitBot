@@ -35,7 +35,6 @@ class CheckResult(Enum):
     STATE_UNCHANGED = "unchanged"
 
 
-@deal.pre(lambda comments, _config: isinstance(comments, list))
 @deal.post(lambda result: len(result) > 0)
 @beartype
 def _analyze_sentiment(comments: list, config: Config) -> str:

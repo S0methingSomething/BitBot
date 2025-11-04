@@ -3,7 +3,6 @@
 import re
 from typing import TypedDict
 
-import deal
 from beartype import beartype
 
 from bitbot.config_models import Config
@@ -18,9 +17,6 @@ class ParsedRelease(TypedDict):
     asset_name: str
 
 
-@deal.pre(lambda body, tag_name, title, config: body is not None)
-@deal.pre(lambda body, tag_name, title, config: isinstance(config, Config))
-@deal.post(lambda result: result is None or isinstance(result, dict))
 @beartype
 def parse_release_notes(
     body: str, tag_name: str, title: str, config: Config

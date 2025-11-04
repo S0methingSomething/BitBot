@@ -2,7 +2,6 @@
 
 from typing import Any, TypedDict, cast
 
-import deal
 from beartype import beartype
 
 
@@ -15,8 +14,6 @@ class ParsedRelease(TypedDict):
     asset_name: str
 
 
-@deal.pre(lambda description, apps_config: isinstance(apps_config, list))
-@deal.post(lambda result: isinstance(result, list))
 @beartype
 def parse_release_description(
     description: str, apps_config: list[dict[str, Any]]

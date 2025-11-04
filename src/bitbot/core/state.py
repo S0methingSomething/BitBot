@@ -127,7 +127,6 @@ def load_release_state() -> Result[list[int], StateError]:
         return Err(StateError(f"Failed to load release state: {e}"))
 
 
-@deal.pre(lambda data: isinstance(data, list))
 @beartype
 def save_release_state(data: list[int]) -> Result[None, StateError]:
     """Saves the list of processed source release IDs."""

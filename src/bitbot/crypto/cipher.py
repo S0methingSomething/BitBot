@@ -44,7 +44,7 @@ def _b64_decode_and_xor(b64: str, key: str) -> str | None:
 
 @deal.pre(lambda encrypted_content, _obfuscated_key: len(encrypted_content) > 0)
 @deal.pre(lambda _encrypted_content, obfuscated_key: len(obfuscated_key) > 0)
-@deal.post(lambda result: isinstance(result, dict) and len(result) > 0)
+@deal.post(lambda result: len(result) > 0)
 @beartype
 def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, Any]:
     """Decrypt game asset file content into dictionary.

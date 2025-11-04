@@ -19,7 +19,6 @@ logger = get_logger()
 MAX_OUTBOUND_LINKS_ERROR = 8
 
 
-@deal.pre(lambda text: len(text) >= 0)
 @deal.post(lambda result: result >= 0)
 @beartype
 def count_outbound_links(text: str) -> int:
@@ -30,7 +29,6 @@ def count_outbound_links(text: str) -> int:
 
 @deal.pre(lambda _r, title, _p, _c: len(title) > 0)
 @deal.pre(lambda _r, _t, post_body, _c: len(post_body) > 0)
-@deal.pre(lambda _r, _t, _p, config: isinstance(config, Config))
 @beartype
 def post_new_release(
     reddit: "praw.Reddit", title: str, post_body: str, config: Config
