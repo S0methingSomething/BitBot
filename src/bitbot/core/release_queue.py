@@ -3,7 +3,6 @@
 import json
 from pathlib import Path
 
-import deal
 from beartype import beartype
 from pydantic import ValidationError
 
@@ -38,10 +37,6 @@ def load_pending_releases() -> Result[list[PendingRelease], ReleaseQueueError]:
         return Err(ReleaseQueueError(f"Failed to load queue: {e}"))
 
 
-@deal.pre(
-    lambda releases: isinstance(releases, list),
-    message="Releases must be a list of PendingRelease objects",
-)
 @beartype
 def save_pending_releases(releases: list[PendingRelease]) -> Result[None, ReleaseQueueError]:
     """Save pending releases to queue file."""
@@ -62,10 +57,6 @@ def save_pending_releases(releases: list[PendingRelease]) -> Result[None, Releas
         return Err(ReleaseQueueError(f"Failed to save queue: {e}"))
 
 
-@deal.pre(
-    lambda release: hasattr(release, "release_id"),
-    message="Release must be a PendingRelease object",
-)
 @beartype
 def add_release(release: PendingRelease) -> Result[None, ReleaseQueueError]:
     """Add a release to the queue."""

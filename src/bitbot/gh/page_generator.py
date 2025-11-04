@@ -13,10 +13,6 @@ from bitbot.core.result import Err, Ok, Result
 
 
 @deal.pre(
-    lambda releases_data, **_: isinstance(releases_data, dict),
-    message="Releases data must be a dictionary",
-)
-@deal.pre(
     lambda output_path, **_: len(output_path) > 0,
     message="Output path cannot be empty - must specify where to save HTML file",
 )
