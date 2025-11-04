@@ -16,7 +16,7 @@ from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import ErrorLogger, LogLevel
 from bitbot.core.errors import BitBotError
 from bitbot.core.release_queue import load_pending_releases
-from bitbot.core.state import load_bot_state, save_bot_state
+from bitbot.core.state import load_account_state, save_account_state
 from bitbot.models import PendingRelease
 from bitbot.reddit.client import init_reddit
 from bitbot.reddit.posting.body_builder import generate_post_body
@@ -189,7 +189,7 @@ def run(
 
                 # Check if rolling update mode and existing post
                 post_mode = config.reddit.post_mode
-                state_result = load_bot_state()
+                state_result = load_account_state()
                 existing_post_id = None
                 if post_mode == "rolling_update" and state_result.is_ok():
                     state = state_result.unwrap()
@@ -206,14 +206,14 @@ def run(
                     console.print(f"[green]✓[/green] Posted to Reddit: {submission.url}")
 
                 # Update state with post ID tracking
-                state_result = load_bot_state()
+                state_result = load_account_state()
                 if state_result.is_ok():
                     state = state_result.unwrap()
                     state.active_post_id = submission.id
                     # Track all post IDs for robust detection
                     if submission.id not in state.all_post_ids:
                         state.all_post_ids.append(submission.id)
-                    save_result = save_bot_state(state)
+                    save_result = save_account_state(state)
                     if save_result.is_err():
                         error = BitBotError(f"Failed to save state: {save_result.error}")
                         logger.log_error(error, LogLevel.ERROR)
