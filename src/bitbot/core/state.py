@@ -13,7 +13,6 @@ from bitbot.core.result import Err, Ok, Result
 from bitbot.models import AccountState, BotState, GlobalState
 
 
-@deal.post(lambda result: isinstance(result, Path), message="Must return valid Path")
 @beartype
 def get_account_state_file() -> Path:
     """Get path to account-specific state file based on Reddit username."""
@@ -21,7 +20,6 @@ def get_account_state_file() -> Path:
     return paths.ROOT_DIR / f"bot_state_{username}.json"
 
 
-@deal.post(lambda result: isinstance(result, Ok | Err))
 @beartype
 def load_global_state() -> Result[GlobalState, StateError]:
     """Load global state (offline versions from bot's repo)."""
@@ -43,7 +41,6 @@ def load_global_state() -> Result[GlobalState, StateError]:
     return Ok(state)
 
 
-@deal.post(lambda result: isinstance(result, Ok | Err))
 @beartype
 def load_account_state() -> Result[AccountState, StateError]:
     """Load account-specific state (online versions, posts)."""
@@ -63,7 +60,6 @@ def load_account_state() -> Result[AccountState, StateError]:
     return Ok(state)
 
 
-@deal.pre(lambda state: hasattr(state, "model_dump"))
 @beartype
 def save_global_state(state: GlobalState) -> Result[None, StateError]:
     """Save global state (offline versions)."""
@@ -94,21 +90,18 @@ def save_account_state(state: AccountState) -> Result[None, StateError]:
 
 
 # Backward compatibility functions
-@deal.post(lambda result: isinstance(result, Ok | Err))
 @beartype
 def load_bot_state() -> Result[BotState, StateError]:
     """Load bot state (backward compatibility - loads account state)."""
     return load_account_state()
 
 
-@deal.pre(lambda state: hasattr(state, "model_dump"))
 @beartype
 def save_bot_state(state: BotState) -> Result[None, StateError]:
     """Save bot state (backward compatibility - saves account state)."""
     return save_account_state(state)
 
 
-@deal.post(lambda result: isinstance(result, Ok | Err))
 @beartype
 def load_release_state() -> Result[list[int], StateError]:
     """Loads the list of processed source release IDs."""
