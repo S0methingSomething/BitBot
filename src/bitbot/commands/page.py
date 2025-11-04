@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import typer
 from beartype import beartype
@@ -69,7 +69,7 @@ def run(
                     raise typer.Exit(code=1) from None
 
                 # Prepare data for template
-                releases_data = {
+                releases_data: dict[str, Any] = {
                     "bot_repo": config.github.bot_repo,
                     "apps": [],
                 }

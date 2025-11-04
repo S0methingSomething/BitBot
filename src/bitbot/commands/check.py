@@ -70,7 +70,7 @@ def _update_post_status(submission: Submission, status: str, config: Config) -> 
 @beartype
 def _update_check_interval(state: BotState, comment_count: int, config: Config) -> CheckResult:
     """Update check interval based on activity."""
-    last_count = state.online.get("lastCommentCount", 0)
+    last_count = int(state.online.get("lastCommentCount", "0"))
     current_interval = state.current_interval_seconds or config.timing["firstCheck"]
     changed = False
 
@@ -84,7 +84,7 @@ def _update_check_interval(state: BotState, comment_count: int, config: Config) 
         changed = True
 
     if last_count != comment_count:
-        state.online["lastCommentCount"] = comment_count
+        state.online["lastCommentCount"] = str(comment_count)
         changed = True
 
     return CheckResult.STATE_CHANGED if changed else CheckResult.STATE_UNCHANGED
