@@ -2,13 +2,13 @@
 
 import re
 from datetime import UTC, datetime, timedelta
+from enum import Enum
 from typing import TYPE_CHECKING
 
 import deal
 import typer
 from beartype import beartype
 from praw.models import Submission
-from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.config_models import Config
@@ -26,6 +26,13 @@ if TYPE_CHECKING:
     from bitbot.core.container import Container
 
 app = typer.Typer()
+
+
+class CheckResult(Enum):
+    """Result of comment check operation."""
+
+    STATE_CHANGED = "changed"
+    STATE_UNCHANGED = "unchanged"
 
 
 @deal.pre(lambda comments, _config: isinstance(comments, list))
@@ -61,8 +68,8 @@ def _update_post_status(submission: Submission, status: str, config: Config) -> 
 
 @deal.pre(lambda _state, comment_count, _config: comment_count >= 0)
 @beartype
-def _update_check_interval(state: BotState, comment_count: int, config: Config) -> bool:
-    """Update check interval based on activity. Returns whether state changed."""
+def _update_check_interval(state: BotState, comment_count: int, config: Config) -> CheckResult:
+    """Update check interval based on activity."""
     last_count = state.online.get("lastCommentCount", 0)
     current_interval = state.current_interval_seconds or config.timing["firstCheck"]
     changed = False
@@ -80,15 +87,15 @@ def _update_check_interval(state: BotState, comment_count: int, config: Config) 
         state.online["lastCommentCount"] = comment_count
         changed = True
 
-    return changed
+    return CheckResult.STATE_CHANGED if changed else CheckResult.STATE_UNCHANGED
 
 
 @beartype
-def check_comments(config: Config) -> Result[bool, BitBotError]:
-    """Check comments and update post status. Returns whether state changed."""
+def check_comments(config: Config) -> Result[CheckResult, BitBotError]:
+    """Check comments and update post status."""
     state_result = load_bot_state()
     if state_result.is_err():
-        return Ok(value=False)
+        return Err(state_result.unwrap_err())
 
     state = state_result.unwrap()
     now = datetime.now(UTC)
@@ -98,12 +105,12 @@ def check_comments(config: Config) -> Result[bool, BitBotError]:
 
     # Skip check if no active post or not time yet
     if not state.active_post_id or now < (last_check + timedelta(seconds=current_interval)):
-        return Ok(value=False)
+        return Ok(CheckResult.STATE_UNCHANGED)
 
     # Initialize reddit client
     reddit_result = init_reddit(config)
     if reddit_result.is_err():
-        return reddit_result.map(lambda _: False)
+        return Err(reddit_result.unwrap_err())
 
     reddit = reddit_result.unwrap()
 
@@ -117,16 +124,16 @@ def check_comments(config: Config) -> Result[bool, BitBotError]:
         state_changed = _update_check_interval(state, len(comments), config)
 
     except Exception as e:
-        return Err(error=RedditAPIError(f"Failed to check comments: {e}"))
+        return Err(RedditAPIError(f"Failed to check comments: {e}"))
 
-    # Update timestamp and save state (moved out of finally to avoid B012)
+    # Update timestamp and save state
     state.last_check_timestamp = now.isoformat().replace("+00:00", "Z")
-    if state_changed:
+    if state_changed == CheckResult.STATE_CHANGED:
         save_result = save_bot_state(state)
         if save_result.is_err():
-            return save_result.map(lambda _: False)
+            return Err(save_result.unwrap_err())
 
-    return Ok(value=state_changed)
+    return Ok(state_changed)
 
 
 @beartype
@@ -154,8 +161,8 @@ def run(ctx: typer.Context) -> None:
                     console.print(f"[red]✗ Error:[/red] {error.message}")
                     raise typer.Exit(code=1)
 
-                state_changed = result.unwrap()
-                if state_changed:
+                check_result = result.unwrap()
+                if check_result == CheckResult.STATE_CHANGED:
                     console.print("[green]✓[/green] Comments checked, state updated")
                 else:
                     console.print("[green]✓[/green] No updates needed")

@@ -66,6 +66,7 @@ def run(ctx: typer.Context) -> None:
 
                 # Filter and process new releases
                 new_count = 0
+                state_modified = False
                 for release in releases:
                     release_id = release["id"]
                     if release_id in processed_ids:
@@ -73,35 +74,52 @@ def run(ctx: typer.Context) -> None:
 
                     tag = release.get("tag_name", "unknown")
                     description = release.get("body", "")
+
+                    if not description:
+                        console.print(
+                            f"[yellow]⚠[/yellow] Release {tag} has no description, skipping"
+                        )
+                        continue
+
                     apps = parse_release_description(description, apps_config)
 
-                    if apps:
-                        all_queued = True
-                        for app in apps:
-                            pending = PendingRelease(
-                                release_id=release_id,
-                                tag=tag,
-                                app_id=app["app_id"],
-                                display_name=app["display_name"],
-                                version=app.get("version", "unknown"),
-                                asset_name=app.get("asset_name"),
-                            )
-                            add_result = add_release(pending)
-                            if add_result.is_err():
-                                console.print(
-                                    f"[yellow]⚠[/yellow] Failed to queue {app['display_name']}"
-                                )
-                                all_queued = False
-                                continue
-                            new_count += 1
+                    if not apps:
+                        console.print(
+                            f"[yellow]⚠[/yellow] Release {tag} has no parseable apps, skipping"
+                        )
+                        continue
 
-                        # Only mark as processed if all apps queued successfully
-                        if all_queued:
-                            processed_ids.append(release_id)
-                            console.print(f"[cyan]Release {tag}:[/cyan] {len(apps)} app(s)")
+                    # Try to queue all apps for this release
+                    all_queued = True
+                    for app in apps:
+                        pending = PendingRelease(
+                            release_id=release_id,
+                            tag=tag,
+                            app_id=app["app_id"],
+                            display_name=app["display_name"],
+                            version=app.get("version", "unknown"),
+                            asset_name=app.get("asset_name"),
+                        )
+                        add_result = add_release(pending)
+                        if add_result.is_err():
+                            error_msg = f"Failed to queue {app['display_name']}: {add_result.error}"
+                            console.print(f"[yellow]⚠[/yellow] {error_msg}")
+                            all_queued = False
+                            # Don't break - try to queue remaining apps
 
-                # Save state
-                if processed_ids:
+                    # Only mark as processed if ALL apps queued successfully
+                    if all_queued:
+                        processed_ids.append(release_id)
+                        state_modified = True
+                        new_count += len(apps)
+                        console.print(f"[cyan]Release {tag}:[/cyan] {len(apps)} app(s) queued")
+                    else:
+                        console.print(
+                            f"[red]✗[/red] Release {tag} partially failed - will retry next run"
+                        )
+
+                # Save state only if modified
+                if state_modified:
                     save_result = save_release_state(processed_ids)
                     if save_result.is_err():
                         error = BitBotError(f"State save error: {save_result.error}")

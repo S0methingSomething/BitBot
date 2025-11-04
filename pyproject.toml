@@ -63,7 +63,6 @@ ignore = [
     "PLR0912", # CLI commands can have many branches
     "TC001",   # Runtime imports needed for DI
     "TC002",   # Runtime imports needed for Rich console
-    "FURB162", # Timezone replacement needed for GitHub API
 ]
 "src/bitbot/core/config.py" = ["PLR0911", "BLE001"]
 "src/bitbot/core/errors.py" = ["DTZ005"]

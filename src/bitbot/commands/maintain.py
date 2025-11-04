@@ -53,22 +53,40 @@ def run(ctx: typer.Context) -> None:
                     raise typer.Exit(code=1) from None
                 releases = releases_result.unwrap()
 
-                if not isinstance(releases, list) or not releases:
+                if not releases:
                     console.print("[yellow][i] No releases found[/yellow]")
                     return
 
-                # Find latest release by created_at date
-                latest_release = max(
-                    releases,
-                    key=lambda r: datetime.fromisoformat(
-                        r.get("created_at", "").replace("Z", "+00:00")
+                # Filter to only stable releases (not draft, not prerelease)
+                stable_releases = [
+                    r
+                    for r in releases
+                    if not r.get("draft", False) and not r.get("prerelease", False)
+                ]
+
+                if not stable_releases:
+                    console.print("[yellow][i] No stable releases found[/yellow]")
+                    return
+
+                # Find latest release using GitHub's latest flag, fallback to created_at
+                latest_release = next(
+                    (r for r in stable_releases if r.get("latest", False)),
+                    max(
+                        stable_releases,
+                        key=lambda r: datetime.fromisoformat(
+                            r.get("created_at", "1970-01-01T00:00:00Z").replace("Z", "+00:00")
+                        ),
                     ),
                 )
                 latest_tag = latest_release.get("tag_name", "")
 
+                if not latest_tag:
+                    console.print("[yellow][i] Could not determine latest release[/yellow]")
+                    return
+
                 # Mark old releases as outdated
                 updated_count = 0
-                for release in releases:
+                for release in stable_releases:
                     tag = release.get("tag_name", "")
                     title = release.get("name", "")
 

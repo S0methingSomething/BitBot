@@ -1,5 +1,6 @@
 """Release command for BitBot CLI."""
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
@@ -9,10 +10,11 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
-from bitbot.core.release_queue import clear_pending_releases, load_pending_releases
+from bitbot.core.release_queue import load_pending_releases, save_pending_releases
 from bitbot.gh.releases.creator import create_bot_release
 from bitbot.gh.releases.downloader import download_asset
 from bitbot.gh.releases.patcher import patch_file
+from bitbot.models import PendingRelease
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -21,6 +23,50 @@ if TYPE_CHECKING:
     from bitbot.core.container import Container
 
 app = typer.Typer()
+
+
+@beartype
+def process_single_release(
+    release: PendingRelease,
+    source_repo: str,
+    bot_repo: str,
+    default_asset: str,
+    console: "Console",
+) -> tuple[bool, list[Path]]:
+    """Process a single release. Returns (success, downloaded_files)."""
+    app_name = release.display_name
+    version = release.version
+    asset_name = release.asset_name or default_asset
+    downloaded_files: list[Path] = []
+
+    # Download
+    download_result = download_asset(source_repo, release.release_id, asset_name)
+    if download_result.is_err():
+        console.print(f"[red]✗[/red] {app_name}: {download_result.error}")
+        return (False, downloaded_files)
+
+    # Patch
+    original_path = download_result.unwrap()
+    downloaded_files.append(Path(original_path))
+    patch_result = patch_file(str(original_path), asset_name)
+    if patch_result.is_err():
+        console.print(f"[red]✗[/red] {app_name}: {patch_result.error}")
+        return (False, downloaded_files)
+
+    # Create release
+    patched_path = patch_result.unwrap()
+    downloaded_files.append(Path(patched_path))
+    release_tag = f"{release.tag}-{app_name.replace(' ', '-')}"
+    title = f"{app_name} {version}"
+    notes = f"Updated {app_name} to version {version}"
+
+    create_result = create_bot_release(bot_repo, release_tag, title, notes, patched_path)
+    if create_result.is_err():
+        console.print(f"[red]✗[/red] {app_name}: {create_result.error}")
+        return (False, downloaded_files)
+
+    console.print(f"[green]✓[/green] {app_name} {version}")
+    return (True, downloaded_files)
 
 
 @beartype
@@ -61,50 +107,56 @@ def run(ctx: typer.Context) -> None:
 
                 # Process each release
                 success_count = 0
-                successful_releases = []
+                failed_releases = []
+                all_downloaded_files = []
+
                 for release in pending:
-                    app_name = release.display_name
-                    version = release.version
-                    asset_name = release.asset_name or default_asset
-
-                    progress.update(task, description=f"Processing {app_name} {version}...")
-
-                    # Download
-                    download_result = download_asset(source_repo, release.release_id, asset_name)
-                    if download_result.is_err():
-                        console.print(f"[red]✗[/red] {app_name}: {download_result.error}")
-                        continue
-
-                    # Patch
-                    original_path = download_result.unwrap()
-                    patch_result = patch_file(str(original_path), asset_name)
-                    if patch_result.is_err():
-                        console.print(f"[red]✗[/red] {app_name}: {patch_result.error}")
-                        continue
-
-                    # Create release
-                    patched_path = patch_result.unwrap()
-                    release_tag = f"{release.tag}-{app_name.replace(' ', '-')}"
-                    title = f"{app_name} {version}"
-                    notes = f"Updated {app_name} to version {version}"
-
-                    create_result = create_bot_release(
-                        bot_repo, release_tag, title, notes, patched_path
+                    progress.update(
+                        task, description=f"Processing {release.display_name} {release.version}..."
                     )
-                    if create_result.is_err():
-                        console.print(f"[red]✗[/red] {app_name}: {create_result.error}")
-                        continue
 
-                    console.print(f"[green]✓[/green] {app_name} {version}")
-                    success_count += 1
-                    successful_releases.append(release)
+                    success, downloaded_files = process_single_release(
+                        release, source_repo, bot_repo, default_asset, console
+                    )
+                    all_downloaded_files.extend(downloaded_files)
 
-                # Clear queue after processing
-                clear_result = clear_pending_releases()
-                if clear_result.is_err():
-                    console.print("[yellow]⚠[/yellow] Failed to clear queue")
+                    if success:
+                        success_count += 1
+                    else:
+                        failed_releases.append(release)
 
-                console.print(f"[green]✓[/green] Processed {success_count}/{len(pending)} releases")
+                # Clean up downloaded files
+                for file_path in all_downloaded_files:
+                    try:
+                        if file_path.exists():
+                            file_path.unlink()
+                    except OSError:
+                        pass  # Ignore cleanup errors
+
+                # Update queue: keep only failed releases
+                if failed_releases:
+                    save_result = save_pending_releases(failed_releases)
+                    if save_result.is_err():
+                        msg = f"Failed to save queue: {save_result.error}"
+                        console.print(f"[yellow]⚠[/yellow] {msg}")
+                else:
+                    # All succeeded, clear queue
+                    save_result = save_pending_releases([])
+                    if save_result.is_err():
+                        msg = f"Failed to clear queue: {save_result.error}"
+                        console.print(f"[yellow]⚠[/yellow] {msg}")
+
+                if success_count == 0:
+                    console.print(f"[red]✗[/red] All {len(pending)} releases failed")
+                elif failed_releases:
+                    msg = (
+                        f"Processed {success_count}/{len(pending)} releases "
+                        f"({len(failed_releases)} failed, will retry)"
+                    )
+                    console.print(f"[yellow]⚠[/yellow] {msg}")
+                else:
+                    msg = f"Processed {success_count}/{len(pending)} releases"
+                    console.print(f"[green]✓[/green] {msg}")
 
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
