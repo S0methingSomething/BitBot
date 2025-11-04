@@ -53,7 +53,10 @@ def _analyze_sentiment(comments: list, config: Config) -> str:
     return config.feedback["labels"]["unknown"]
 
 
-@deal.pre(lambda _submission, status, _config: len(status) > 0)
+@deal.pre(
+    lambda _submission, status, _config: len(status) > 0,
+    message="Status cannot be empty",
+)
 @beartype
 def _update_post_status(submission: Submission, status: str, config: Config) -> None:
     """Update post status line if needed."""
@@ -65,7 +68,10 @@ def _update_post_status(submission: Submission, status: str, config: Config) -> 
         submission.edit(body=updated_body)
 
 
-@deal.pre(lambda _state, comment_count, _config: comment_count >= 0)
+@deal.pre(
+    lambda _state, comment_count, _config: comment_count >= 0,
+    message="Comment count must be non-negative",
+)
 @beartype
 def _update_check_interval(state: BotState, comment_count: int, config: Config) -> CheckResult:
     """Update check interval based on activity."""

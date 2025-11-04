@@ -37,7 +37,10 @@ def generate_available_list(config: Config, all_releases_data: dict[str, Any]) -
     return "\n".join(table_lines)
 
 
-@deal.pre(lambda _c, _ch, _ar, page_url: len(page_url) > 0)
+@deal.pre(
+    lambda _c, _ch, _ar, page_url: len(page_url) > 0,
+    message="Page URL cannot be empty",
+)
 @deal.post(lambda result: len(result) > 0)
 @beartype
 def generate_post_body(

@@ -22,9 +22,14 @@ TEMPLATES_DIR: Path = ROOT_DIR / "templates"
 DEFAULT_LANDING_PAGE: Path = TEMPLATES_DIR / "default_landing_page.html"
 
 
-@deal.pre(lambda template_name: len(template_name) > 0)
-@deal.pre(lambda template_name: ".." not in template_name and "/" not in template_name)
-@deal.post(lambda result: result.exists() or True)
+@deal.pre(
+    lambda template_name: len(template_name) > 0,
+    message="Template name cannot be empty",
+)
+@deal.pre(
+    lambda template_name: ".." not in template_name and "/" not in template_name,
+    message="Template name cannot contain path traversal characters",
+)
 @beartype
 def get_template_path(template_name: str) -> Path:
     """Return the absolute path for a given template name.

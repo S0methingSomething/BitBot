@@ -8,7 +8,10 @@ from beartype import beartype
 from bitbot.config_models import Config
 
 
-@deal.pre(lambda title, _d, _k, _f, _a: len(title) > 0)
+@deal.pre(
+    lambda title, _d, _k, _f, _a: len(title) > 0,
+    message="Title cannot be empty",
+)
 @beartype
 def create_section(
     title: str,

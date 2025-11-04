@@ -27,8 +27,14 @@ def count_outbound_links(text: str) -> int:
     return len(set(url_pattern.findall(text)))
 
 
-@deal.pre(lambda _r, title, _p, _c: len(title) > 0)
-@deal.pre(lambda _r, _t, post_body, _c: len(post_body) > 0)
+@deal.pre(
+    lambda _r, title, _p, _c: len(title) > 0,
+    message="Title cannot be empty",
+)
+@deal.pre(
+    lambda _r, _t, post_body, _c: len(post_body) > 0,
+    message="Post body cannot be empty",
+)
 @beartype
 def post_new_release(
     reddit: "praw.Reddit", title: str, post_body: str, config: Config
