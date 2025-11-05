@@ -1,19 +1,18 @@
 """Gather command for BitBot CLI."""
 
+import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+import requests
 import typer
 from beartype import beartype
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from bitbot import paths
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
-from bitbot.core.release_queue import add_release
-from bitbot.core.state import load_release_state, save_release_state
-from bitbot.gh.releases.fetcher import get_source_releases
-from bitbot.gh.releases.parser import parse_release_description
-from bitbot.models import PendingRelease
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -27,8 +26,7 @@ app = typer.Typer()
 @beartype
 @app.command()
 def run(ctx: typer.Context) -> None:
-    """Gather new releases from source repository."""
-    # Get dependencies from container
+    """Gather releases from bot repository and create releases.json."""
     container: Container = ctx.obj["container"]
     console: Console = container.console()
     logger = container.logger()
@@ -43,95 +41,71 @@ def run(ctx: typer.Context) -> None:
             ) as progress:
                 progress.add_task(description="Gathering releases...", total=None)
 
-                source_repo = config.github.source_repo
-                apps_config = config.model_dump().get("apps", [])
+                bot_repo = config.github.bot_repo
 
-                # Load release state
-                state_result = load_release_state()
-                if state_result.is_err():
-                    error = BitBotError(f"State error: {state_result.error}")
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {state_result.error}")
-                    raise typer.Exit(code=1) from None
-                processed_ids = state_result.unwrap()
+                # Fetch all releases from bot repo
+                url = f"https://api.github.com/repos/{bot_repo}/releases"
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
+                releases = response.json()
 
-                # Fetch releases
-                releases_result = get_source_releases(source_repo)
-                if releases_result.is_err():
-                    error = BitBotError(f"GitHub error: {releases_result.error}")
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {releases_result.error}")
-                    raise typer.Exit(code=1) from None
-                releases = releases_result.unwrap()
-
-                # Filter and process new releases
-                new_count = 0
-                state_modified = False
+                # Group releases by app
+                apps_data = {}
                 for release in releases:
-                    release_id = release["id"]
-                    if release_id in processed_ids:
+                    if not release.get("assets"):
                         continue
 
-                    tag = release.get("tag_name", "unknown")
-                    description = release.get("body", "")
+                    body = release.get("body", "")
+                    lines = body.split("\n")
 
-                    if not description:
-                        console.print(
-                            f"[yellow]⚠[/yellow] Release {tag} has no description, skipping"
-                        )
+                    # Parse metadata
+                    app_name = None
+                    version = None
+
+                    for line in lines:
+                        if line.startswith("app:"):
+                            app_name = line.split(":", 1)[1].strip()
+                        elif line.startswith("version:"):
+                            version = line.split(":", 1)[1].strip()
+                        elif line.startswith("asset_name:"):
+                            line.split(":", 1)[1].strip()
+
+                    if not app_name or not version:
                         continue
 
-                    apps = parse_release_description(description, apps_config)
+                    app_id = app_name.lower().replace(" ", "_")
 
-                    if not apps:
-                        console.print(
-                            f"[yellow]⚠[/yellow] Release {tag} has no parseable apps, skipping"
-                        )
-                        continue
+                    release_data = {
+                        "version": version,
+                        "download_url": release["assets"][0]["browser_download_url"],
+                        "published_at": release["published_at"],
+                    }
 
-                    # Try to queue all apps for this release
-                    all_queued = True
-                    for app in apps:
-                        pending = PendingRelease(
-                            release_id=release_id,
-                            tag=tag,
-                            app_id=app["app_id"],
-                            display_name=app["display_name"],
-                            version=app.get("version", "unknown"),
-                            asset_name=app.get("asset_name"),
-                        )
-                        add_result = add_release(pending)
-                        if add_result.is_err():
-                            error_msg = f"Failed to queue {app['display_name']}: {add_result.error}"
-                            console.print(f"[yellow]⚠[/yellow] {error_msg}")
-                            all_queued = False
-                            # Don't break - try to queue remaining apps
-
-                    # Only mark as processed if ALL apps queued successfully
-                    if all_queued:
-                        processed_ids.append(release_id)
-                        state_modified = True
-                        new_count += len(apps)
-                        console.print(f"[cyan]Release {tag}:[/cyan] {len(apps)} app(s) queued")
+                    if app_id not in apps_data:
+                        apps_data[app_id] = {
+                            "display_name": app_name,
+                            "latest_release": release_data,
+                            "previous_releases": [],
+                        }
                     else:
-                        console.print(
-                            f"[red]✗[/red] Release {tag} partially failed - will retry next run"
-                        )
+                        apps_data[app_id]["previous_releases"].append(release_data)
 
-                # Save state only if modified
-                if state_modified:
-                    save_result = save_release_state(processed_ids)
-                    if save_result.is_err():
-                        error = BitBotError(f"State save error: {save_result.error}")
-                        logger.log_error(error, LogLevel.ERROR)
-                        console.print(f"[red]✗ Error:[/red] {save_result.error}")
-                        raise typer.Exit(code=1) from None
+                # Save to releases.json
+                dist_dir = Path(paths.DIST_DIR)
+                dist_dir.mkdir(parents=True, exist_ok=True)
+                releases_file = dist_dir / "releases.json"
 
-                if new_count == 0:
-                    console.print("[green]✓[/green] No new releases found")
-                else:
-                    console.print(f"[green]✓[/green] Queued {new_count} app update(s)")
+                with releases_file.open("w") as f:
+                    json.dump(apps_data, f, indent=2)
 
+                app_count = len(apps_data)
+                console.print(f"[green]✓[/green] Gathered {app_count} app(s) from bot releases")
+
+        except requests.RequestException as e:
+            error = BitBotError(f"GitHub API error: {e}")
+            logger.log_error(error, LogLevel.ERROR)
+            console.print(f"[red]✗ Error:[/red] {e}")
+            raise typer.Exit(code=1) from None
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)
