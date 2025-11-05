@@ -33,8 +33,11 @@ Available Placeholders:
 **Q: The time machine/age down button is greyed out**  
 A: To fix this, make a new life then surrender it.
 
-**Q: How to do this on iOS/PC (emulation)?**  
-A: I don't really know nor am I planning to make one since I don't emulate nor use an iOS device.
+**Q: Can I get an APK instead?**  
+A: I'm not gonna recommend one since I don't use any and I don't have a source I trust.
+
+**Q: Is there a guide for iOS/PC (emulation)?**  
+A: I don't really know nor am I planning to make one since I don't emulate or use an iOS device.
 
 ---
 
