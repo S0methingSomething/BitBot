@@ -18,10 +18,10 @@ repos:
   # Custom validation and analysis checks
   - repo: local
     hooks:
-      # Validation coverage check (90% threshold)
+      # Validation coverage check (88% threshold - Pydantic validators excluded)
       - id: check-validation
-        name: Validation Coverage (90%)
-        entry: uv run python .github/scripts/check_validation.py 90
+        name: Validation Coverage (88%)
+        entry: uv run python .github/scripts/check_validation.py 88
         language: system
         pass_filenames: false
         always_run: true

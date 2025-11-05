@@ -5,12 +5,14 @@ import logging
 from collections.abc import Callable
 from typing import ParamSpec, TypeVar
 
+from beartype import beartype
 from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
 
+@beartype
 def retry_on_err(
     max_attempts: int = 3, min_wait: int = 1, max_wait: int = 10
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
@@ -23,9 +25,20 @@ def retry_on_err(
         max_attempts: Maximum number of retry attempts (default: 3)
         min_wait: Minimum wait time in seconds (default: 1)
         max_wait: Maximum wait time in seconds (default: 10)
+
+    Returns:
+        Decorated function that retries on Err results
     """
 
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
+        """Decorator that adds retry logic to a function.
+
+        Args:
+            func: Function to decorate
+
+        Returns:
+            Decorated function with retry logic
+        """
         logger = logging.getLogger(func.__module__)
 
         @retry(
@@ -43,6 +56,11 @@ def retry_on_err(
         )
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            """Wrapper function that executes the decorated function.
+
+            Returns:
+                Result from the decorated function
+            """
             return func(*args, **kwargs)
 
         return wrapper

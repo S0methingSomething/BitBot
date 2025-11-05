@@ -1,7 +1,5 @@
 """Tests for Pydantic models."""
 
-import pytest
-
 from bitbot.models import AccountState, GlobalState, PendingRelease
 
 
@@ -21,9 +19,7 @@ def test_global_state_empty():
 def test_account_state_validation():
     """Test AccountState model validation."""
     state = AccountState(
-        online={"app1": "1.0.0"},
-        all_post_ids=["abc123", "def456"],
-        active_post_id="abc123"
+        online={"app1": "1.0.0"}, all_post_ids=["abc123", "def456"], active_post_id="abc123"
     )
     assert state.online["app1"] == "1.0.0"
     assert len(state.all_post_ids) == 2
@@ -41,11 +37,7 @@ def test_account_state_optional_fields():
 def test_pending_release_validation():
     """Test PendingRelease model validation."""
     release = PendingRelease(
-        release_id=123,
-        tag="v1.0.0",
-        app_id="test_app",
-        display_name="Test App",
-        version="1.0.0"
+        release_id=123, tag="v1.0.0", app_id="test_app", display_name="Test App", version="1.0.0"
     )
     assert release.release_id == 123
     assert release.tag == "v1.0.0"
@@ -63,6 +55,6 @@ def test_pending_release_with_asset_name():
         app_id="test_app",
         display_name="Test App",
         version="1.0.0",
-        asset_name="custom_asset.json"
+        asset_name="custom_asset.json",
     )
     assert release.asset_name == "custom_asset.json"

@@ -3,7 +3,7 @@
 import pytest
 
 from bitbot.crypto.cipher import decrypt, encrypt
-from bitbot.crypto.modifier import modify, unlock_premium_features
+from bitbot.crypto.modifier import unlock_premium_features
 from bitbot.crypto.obfuscation import get_obfuscated_key
 
 
@@ -24,7 +24,7 @@ def test_unlock_premium_features():
     """Test unlock_premium_features changes False to True."""
     data = {"feature1": False, "feature2": True, "feature3": "value"}
     result = unlock_premium_features(data)
-    
+
     assert result["feature1"] is True
     assert result["feature2"] is True
     assert result["feature3"] == "value"
@@ -56,6 +56,6 @@ def test_encrypt_invalid_type_raises():
     """Test encrypt raises on invalid value types."""
     data = {"key": 123}  # int not allowed
     obf_key = get_obfuscated_key("testkey")
-    
+
     with pytest.raises(TypeError, match="must be bool or str"):
         encrypt(data, obf_key)
