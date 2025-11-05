@@ -101,12 +101,13 @@ jobs:
       
       - name: Deploy to Cloudflare Pages
         id: cloudflare
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: reBitBot
-          directory: dist
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm install -g wrangler
+          wrangler pages project create reBitBot --production-branch=main || true
+          wrangler pages deploy dist --project-name=reBitBot --commit-dirty=true
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Upload Pages Artifact
