@@ -32,7 +32,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: uv run python -m bitbot.cli gather run
       - name: Upload release data artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-data
           path: |
@@ -62,7 +62,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: uv run python -m bitbot.cli release run
       - name: Upload updated data
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-data-updated
           path: |
@@ -168,7 +168,7 @@ jobs:
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
         run: uv run python -m bitbot.cli post run --page-url "${{ needs.deploy_github_pages.outputs.page_url }}" --verify
       - name: Upload final state
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: final-state
           path: bot_state.json
