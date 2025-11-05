@@ -13,6 +13,7 @@ class GitHubConfig(BaseModel):
     source_repo: str = Field(alias="sourceRepo")
     bot_repo: str = Field(alias="botRepo")
     asset_file_name: str = Field(alias="assetFileName")
+    pages_url: str = Field(alias="pages_url")
 
     @field_validator("source_repo", "bot_repo")
     @classmethod

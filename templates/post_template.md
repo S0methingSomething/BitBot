@@ -39,12 +39,18 @@ Available Placeholders:
 ## 📖 How to Use
 **[BitGuides - Unlocking IAP](https://s0methingsomething.github.io/BitGuides/modding/monetizationvars/unlocking-iap/)**
 
+### ❓ FAQ
+**Q: The time machine/age down button is greyed out**  
+A: To fix this, make a new life then surrender it.
+
+**Q: How to do this on iOS/PC (emulation)?**  
+A: I don't really know nor am I planning to make one since I don't emulate nor use an iOS device.
+
 ---
 
 ## 🔧 Project Information
 **Creator:** u/{{creator_username}}
 **Repository:** {{bot_repo}}
-**Bot:** {{bot_name}}
 
 ## 🛠️ Related Projects
 **BitEdit** - [Modify MonetizationVars on the web in a human readable format JSON](https://s0methingsomething.github.io/BitEdit/)

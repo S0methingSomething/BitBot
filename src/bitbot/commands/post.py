@@ -207,9 +207,7 @@ def run(
 
                 # Get landing page URL
                 if not page_url:
-                    bot_repo = config.github.bot_repo
-                    owner, repo = bot_repo.split("/")
-                    page_url = f"https://{owner}.github.io/{repo}/"
+                    page_url = config.github.pages_url
 
                 # Generate title
                 title = generate_dynamic_title(
