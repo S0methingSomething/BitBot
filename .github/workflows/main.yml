@@ -107,7 +107,27 @@ jobs:
         run: |
           npm install -g wrangler
           wrangler pages project create rebitbot --production-branch=main || true
-          wrangler pages deploy dist --project-name=rebitbot --commit-dirty=true
+          
+          # Retry deployment up to 3 times with exponential backoff
+          max_attempts=3
+          attempt=1
+          while [ $attempt -le $max_attempts ]; do
+            echo "Deployment attempt $attempt of $max_attempts..."
+            if wrangler pages deploy dist --project-name=rebitbot --commit-dirty=true; then
+              echo "Deployment successful!"
+              exit 0
+            fi
+            
+            if [ $attempt -lt $max_attempts ]; then
+              wait_time=$((2 ** attempt * 30))
+              echo "Deployment failed. Retrying in ${wait_time}s..."
+              sleep $wait_time
+            fi
+            attempt=$((attempt + 1))
+          done
+          
+          echo "Deployment failed after $max_attempts attempts"
+          exit 1
       
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
