@@ -738,6 +738,17 @@
         "description": "Add retry decorators to API call functions for reliability",
         "details": "Add @retry decorator to 5-6 API functions:\n- gh/releases/fetcher.py: get_github_data(), get_source_releases()\n- reddit/client.py: init_reddit()\n- reddit/posts.py: get_bot_posts()\n- reddit/posting/poster.py: post_new_release()\n\nPattern:\n@retry(\n    retry=retry_if_result(lambda r: r.is_err()),\n    stop=stop_after_attempt(3),\n    wait=wait_exponential(min=1, max=10)\n)\n\nFixes critical reliability gap - network failures currently crash without retry.",
         "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 59,
+        "title": "Implement comprehensive logging with Rich",
+        "description": "Add full logging/monitoring system using Rich for production visibility",
+        "details": "Implement comprehensive logging system:\n\n1. **Rich Logging Integration**:\n   - Add RichHandler to error_logger.py setup\n   - Configure rich_tracebacks=True for better error display\n   - Set up log levels (INFO for normal, WARNING for retries, ERROR for failures)\n\n2. **Retry Logging**:\n   - Add before_sleep callback to all @retry decorators\n   - Log retry attempts with: attempt number, error type, wait time\n   - Example: \"Retry 2/3 for get_github_data after RedditAPIError (wait 2s)\"\n\n3. **Structured Logging**:\n   - Add context to all major operations (post_id, subreddit, release_id)\n   - Log successful operations: \"Posted to r/subreddit (post_id: abc123)\"\n   - Log failures with full context\n\n4. **Health Check**:\n   - Write timestamp to .bitbot/last_run.txt on successful completion\n   - Include status (success/partial/failed) and summary\n\n5. **Metrics Tracking** (optional):\n   - Count posts created, retries triggered, errors encountered\n   - Write to .bitbot/metrics.json\n\nFiles to modify:\n- core/error_logger.py: Add RichHandler\n- gh/releases/fetcher.py: Add retry logging\n- reddit/client.py: Add retry logging\n- reddit/posts.py: Add retry logging\n- reddit/posting/poster.py: Add retry logging\n- commands/*.py: Add operation logging\n\nBenefits: Production visibility, debugging, alerting capability",
+        "testStrategy": "",
         "status": "in-progress",
         "dependencies": [],
         "priority": "medium",
@@ -746,7 +757,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-05T03:27:27.483Z",
+      "updated": "2025-11-05T03:41:06.537Z",
       "description": "Tasks for master context"
     }
   },

@@ -1,6 +1,7 @@
 """GitHub release fetching."""
 
 import json
+import logging
 import subprocess
 from typing import Any
 
@@ -10,6 +11,8 @@ from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponentia
 
 from bitbot.core.errors import GitHubAPIError
 from bitbot.core.result import Err, Ok, Result
+
+logger = logging.getLogger(__name__)
 
 
 @deal.pre(
@@ -40,6 +43,11 @@ def run_command(
     retry=retry_if_result(lambda r: r.is_err()),
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=10),
+    before_sleep=lambda retry_state: logger.warning(
+        "Retry %d/3 for get_github_data after error (wait %.1fs)",
+        retry_state.attempt_number,
+        retry_state.next_action.sleep if retry_state.next_action else 0,
+    ),
 )
 @beartype
 def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIError]:
@@ -65,6 +73,11 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
     retry=retry_if_result(lambda r: r.is_err()),
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=10),
+    before_sleep=lambda retry_state: logger.warning(
+        "Retry %d/3 for get_source_releases after error (wait %.1fs)",
+        retry_state.attempt_number,
+        retry_state.next_action.sleep if retry_state.next_action else 0,
+    ),
 )
 @beartype
 def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIError]:

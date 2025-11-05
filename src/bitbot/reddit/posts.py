@@ -23,6 +23,11 @@ logger = get_logger()
     retry=retry_if_result(lambda r: r.is_err()),
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=10),
+    before_sleep=lambda retry_state: logger.warning(
+        "Retry %d/3 for get_bot_posts after error (wait %.1fs)",
+        retry_state.attempt_number,
+        retry_state.next_action.sleep if retry_state.next_action else 0,
+    ),
 )
 @beartype
 def get_bot_posts(

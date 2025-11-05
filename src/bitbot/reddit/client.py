@@ -1,5 +1,7 @@
 """Reddit client initialization."""
 
+import logging
+
 import praw
 from beartype import beartype
 from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
@@ -9,11 +11,18 @@ from bitbot.core.credentials import Credentials
 from bitbot.core.errors import RedditAPIError
 from bitbot.core.result import Err, Ok, Result
 
+logger = logging.getLogger(__name__)
+
 
 @retry(
     retry=retry_if_result(lambda r: r.is_err()),
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=10),
+    before_sleep=lambda retry_state: logger.warning(
+        "Retry %d/3 for init_reddit after error (wait %.1fs)",
+        retry_state.attempt_number,
+        retry_state.next_action.sleep if retry_state.next_action else 0,
+    ),
 )
 @beartype
 def init_reddit(_config: Config | None = None) -> Result[praw.Reddit, RedditAPIError]:
