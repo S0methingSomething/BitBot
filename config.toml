@@ -9,7 +9,7 @@ pages_url = "https://rebitbot.pages.dev"
 
 # Core settings for Reddit interaction
 [reddit]
-subreddit = "BitTest1"
+subreddit = "BitLifeRebels"
 botName = "BitBot"
 creator = "C1oudyLol"
 userAgent = "BitBot/1.0 by C1oudyLol"
