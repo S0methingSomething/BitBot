@@ -193,12 +193,86 @@ def post_or_update(
 
 
 @beartype
+def _has_new_releases(
+    all_releases_data: dict[str, Any], state: AccountState, console: Console
+) -> bool:
+    """Check if there are new releases compared to what's already posted."""
+    current_versions = {}
+    for app_id, app_data in all_releases_data.items():
+        latest = app_data.get("latest_release")
+        if latest:
+            current_versions[app_id] = latest.get("version", "unknown")
+
+    # Compare with posted versions
+    posted_versions = state.online
+
+    # Check for new apps or version changes
+    has_changes = False
+    for app_id, version in current_versions.items():
+        if app_id not in posted_versions:
+            console.print(f"[cyan]→[/cyan] New app detected: {app_id} v{version}")
+            has_changes = True
+        elif posted_versions[app_id] != version:
+            console.print(
+                f"[cyan]→[/cyan] Version change: {app_id} " f"{posted_versions[app_id]} → {version}"
+            )
+            has_changes = True
+
+    # Check for removed apps
+    for app_id in posted_versions:
+        if app_id not in current_versions:
+            console.print(f"[cyan]→[/cyan] App removed: {app_id}")
+            has_changes = True
+
+    return has_changes
+
+
+@beartype
+def _build_and_post(
+    reddit: "praw.Reddit",
+    config: Config,
+    all_releases_data: dict[str, Any],
+    state: AccountState,
+    page_url: str,
+) -> tuple["praw.models.Submission", bool] | None:
+    """Build post content and submit to Reddit."""
+    # Build changelog
+    changelog_data: dict[str, dict[str, Any]] = {
+        "added": {},
+        "updated": {},
+        "removed": {},
+    }
+    for app_id, app_data in all_releases_data.items():
+        latest = app_data.get("latest_release")
+        if latest:
+            changelog_data["updated"][app_id] = {
+                "new": {
+                    "display_name": app_data.get("display_name", app_id),
+                    "version": latest.get("version", "unknown"),
+                    "url": latest.get("download_url", ""),
+                },
+                "old": latest.get("version", "unknown"),
+            }
+
+    # Generate title and body
+    title = generate_dynamic_title(config, changelog_data["added"], changelog_data["updated"])
+    body = generate_post_body(config, changelog_data, all_releases_data, page_url)
+
+    # Post or update
+    existing_post_id = state.active_post_id if state else None
+    return post_or_update(reddit, title, body, config, existing_post_id)
+
+
+@beartype
 @app.command()
 def run(
     ctx: typer.Context,
     page_url: str = typer.Option(None, "--page-url", help="Landing page URL to post"),
     verify: bool = typer.Option(  # noqa: FBT001
         default=False, flag_value=True, help="Verify state against actual Reddit post"
+    ),
+    force: bool = typer.Option(  # noqa: FBT001
+        default=False, flag_value=True, help="Force post even if no changes detected"
     ),
 ) -> None:
     """Post new releases to Reddit."""
@@ -214,40 +288,30 @@ def run(
                 TextColumn("[progress.description]{task.description}"),
                 console=console,
             ) as progress:
-                progress.add_task(description="Posting to Reddit...", total=None)
+                progress.add_task(description="Checking for new releases...", total=None)
 
                 # Load releases data
                 all_releases_data = _load_releases_data(console, logger)
 
-                # Build changelog from all current releases
-                changelog_data: dict[str, dict[str, Any]] = {
-                    "added": {},
-                    "updated": {},
-                    "removed": {},
-                }
-                for app_id, app_data in all_releases_data.items():
-                    latest = app_data.get("latest_release")
-                    if latest:
-                        changelog_data["updated"][app_id] = {
-                            "new": {
-                                "display_name": app_data.get("display_name", app_id),
-                                "version": latest.get("version", "unknown"),
-                                "url": latest.get("download_url", ""),
-                            },
-                            "old": latest.get("version", "unknown"),
-                        }
+                # Load state to check for changes
+                state_result = load_account_state()
+                if state_result.is_err():
+                    console.print("[yellow]⚠[/yellow] No existing state, will create new post")
+                    state = AccountState()
+                else:
+                    state = state_result.unwrap()
+
+                # Check if there are actual changes
+                if not force and not _has_new_releases(all_releases_data, state, console):
+                    console.print(
+                        "[dim]No new releases detected. Skipping post update.[/dim]\n"
+                        "[dim]Use --force to post anyway.[/dim]"
+                    )
+                    return
 
                 # Get landing page URL
                 if not page_url:
                     page_url = config.github.pages_url
-
-                # Generate title
-                title = generate_dynamic_title(
-                    config, changelog_data["added"], changelog_data["updated"]
-                )
-
-                # Generate body using proper body builder
-                body = generate_post_body(config, changelog_data, all_releases_data, page_url)
 
                 # Init Reddit
                 reddit_result = init_reddit(config)
@@ -258,20 +322,12 @@ def run(
                     raise typer.Exit(code=1) from None
                 reddit = reddit_result.unwrap()
 
-                # Check if rolling update mode and existing post
-                post_mode = config.reddit.post_mode
-                state_result = load_account_state()
-                existing_post_id = None
-                if post_mode == "rolling_update" and state_result.is_ok():
-                    state = state_result.unwrap()
-                    existing_post_id = state.active_post_id
+                # Optional verification against actual Reddit post
+                if verify and state.active_post_id:
+                    state = _verify_account_state(reddit, config, state, console)
 
-                    # Optional verification against actual Reddit post
-                    if verify and existing_post_id:
-                        state = _verify_account_state(reddit, config, state, console)
-
-                # Post or update
-                result = post_or_update(reddit, title, body, config, existing_post_id)
+                # Build and post
+                result = _build_and_post(reddit, config, all_releases_data, state, page_url)
 
                 if result is None:
                     console.print(
@@ -286,22 +342,24 @@ def run(
                 else:
                     console.print(f"[green]✓[/green] Posted to Reddit: {submission.url}")
 
-                # Update state with post ID tracking
-                state_result = load_account_state()
-                if state_result.is_ok():
-                    state = state_result.unwrap()
-                    state.active_post_id = submission.id
-                    # Track all post IDs for robust detection
-                    if submission.id not in state.all_post_ids:
-                        state.all_post_ids.append(submission.id)
-                    save_result = save_account_state(state)
-                    if save_result.is_err():
-                        error = BitBotError(f"Failed to save state: {save_result.error}")
-                        logger.log_error(error, LogLevel.ERROR)
-                        console.print(f"[yellow]⚠[/yellow] {error.message}")
-                        # Don't fail - post was successful, state update is secondary
-                else:
-                    console.print("[yellow]⚠[/yellow] Could not load state for update")
+                # Update state with post ID tracking and posted versions
+                state.active_post_id = submission.id
+                # Track all post IDs for robust detection
+                if submission.id not in state.all_post_ids:
+                    state.all_post_ids.append(submission.id)
+
+                # Update posted versions to match what we just posted
+                for app_id, app_data in all_releases_data.items():
+                    latest = app_data.get("latest_release")
+                    if latest:
+                        state.online[app_id] = latest.get("version", "unknown")
+
+                save_result = save_account_state(state)
+                if save_result.is_err():
+                    error = BitBotError(f"Failed to save state: {save_result.error}")
+                    logger.log_error(error, LogLevel.ERROR)
+                    console.print(f"[yellow]⚠[/yellow] {error.message}")
+                    # Don't fail - post was successful, state update is secondary
 
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
