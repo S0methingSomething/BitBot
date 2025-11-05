@@ -108,7 +108,6 @@ jobs:
           npm install -g wrangler
           wrangler pages project create rebitbot --production-branch=main || true
           wrangler pages deploy dist --project-name=rebitbot --commit-dirty=true
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
