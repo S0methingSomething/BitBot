@@ -106,13 +106,5 @@ id = "bitlife_go"
 displayName = "BitLife Go"
 
 [[apps]]
-id = "bitlife_br"
-displayName = "BitLife BR"
-
-[[apps]]
-id = "bitlife_fr"
-displayName = "BitLife Fraçais"
-
-[[apps]]
-id = "bitlife_es"
-displayName = "BitLife Español"
+id = "intl_bitlife"
+displayName = "BitLife (International - Works with BR, FR, ES, etc.)"
