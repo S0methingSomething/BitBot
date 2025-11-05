@@ -106,8 +106,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           npm install -g wrangler
-          wrangler pages project create reBitBot --production-branch=main || true
-          wrangler pages deploy dist --project-name=reBitBot --commit-dirty=true
+          wrangler pages project create rebitbot --production-branch=main || true
+          wrangler pages deploy dist --project-name=rebitbot --commit-dirty=true
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Upload Pages Artifact
