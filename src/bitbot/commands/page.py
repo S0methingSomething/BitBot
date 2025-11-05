@@ -51,13 +51,10 @@ def run(
                 # Load releases data
                 releases_file = Path(paths.DIST_DIR) / "releases.json"
                 if not releases_file.exists():
-                    error = BitBotError(
-                        "releases.json not found. "
-                        "Run 'bitbot gather' first to collect release data."
-                    )
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {error.message}")
-                    raise typer.Exit(code=1) from None
+                    console.print("[yellow]⚠[/yellow] No releases.json found, creating empty one")
+                    releases_file.parent.mkdir(parents=True, exist_ok=True)
+                    with releases_file.open("w") as f:
+                        json.dump({}, f)
 
                 with releases_file.open() as f:
                     all_releases_data = json.load(f)
