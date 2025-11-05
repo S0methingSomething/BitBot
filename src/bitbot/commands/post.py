@@ -133,23 +133,29 @@ def post_or_update(
     body: str,
     config: Config,
     existing_post_id: str | None,
-) -> tuple[praw.models.Submission, bool]:
+) -> tuple[praw.models.Submission, bool] | None:
     """Post new or update existing Reddit post.
 
     Returns:
-        Tuple of (submission, was_updated) where was_updated is True if existing post was updated.
+        Tuple of (submission, was_updated) or None if shouldn't post.
     """
-    if existing_post_id:
+    post_mode = config.reddit.post_mode
+
+    if post_mode == "rolling_update":
+        # In rolling_update mode, ONLY update existing post
+        if not existing_post_id:
+            return None  # No existing post to update
+
         submission = reddit.submission(id=existing_post_id)
         try:
             submission.edit(body)
         except Exception as e:
-            msg = f"Failed to update post {existing_post_id}, creating new post: {e}"
+            msg = f"Failed to update post {existing_post_id}: {e}"
             raise BitBotError(msg) from e
         else:
             return (submission, True)
 
-    # Create new post
+    # new_post mode: always create new post
     result = post_new_release(reddit, title, body, config)
     if result.is_err():
         msg = f"Failed to create post: {result.error}"
@@ -238,9 +244,15 @@ def run(
                         state = _verify_account_state(reddit, config, state, console)
 
                 # Post or update
-                submission, was_updated = post_or_update(
-                    reddit, title, body, config, existing_post_id
-                )
+                result = post_or_update(reddit, title, body, config, existing_post_id)
+
+                if result is None:
+                    console.print(
+                        "[yellow][i] No existing post to update in rolling_update mode[/yellow]"
+                    )
+                    return
+
+                submission, was_updated = result
 
                 if was_updated:
                     console.print(f"[green]✓[/green] Updated existing post: {submission.url}")
