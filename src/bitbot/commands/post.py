@@ -1,13 +1,13 @@
 """Post command for BitBot CLI."""
 
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import praw
 import typer
 from beartype import beartype
+from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot import paths
@@ -15,18 +15,16 @@ from bitbot.config_models import Config
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import ErrorLogger, LogLevel
 from bitbot.core.errors import BitBotError
-from bitbot.core.release_queue import load_pending_releases
 from bitbot.core.state import load_account_state, save_account_state
 from bitbot.models import AccountState, PendingRelease
 from bitbot.reddit.client import init_reddit
 from bitbot.reddit.parser import parse_versions_from_post
 from bitbot.reddit.posting.body_builder import generate_post_body
 from bitbot.reddit.posting.poster import post_new_release
+from bitbot.reddit.posting.title_generator import generate_dynamic_title
 from bitbot.reddit.posts import get_bot_posts
 
 if TYPE_CHECKING:
-    from rich.console import Console
-
     from bitbot.core.container import Container
 
 app = typer.Typer()
@@ -37,7 +35,7 @@ def _verify_account_state(
     reddit: praw.Reddit,
     config: Config,
     state: AccountState,
-    console: "Console",
+    console: Console,
 ) -> AccountState:
     """Verify account state against actual Reddit post."""
     console.print("[dim]Verifying state against Reddit...[/dim]")
@@ -68,7 +66,7 @@ def _verify_account_state(
 
 
 @beartype
-def _load_releases_data(console: "Console", logger: ErrorLogger) -> dict[str, Any]:
+def _load_releases_data(console: Console, logger: ErrorLogger) -> dict[str, Any]:
     """Load releases.json file."""
     releases_file = Path(paths.DIST_DIR) / "releases.json"
     if not releases_file.exists():
@@ -142,19 +140,21 @@ def post_or_update(
         Tuple of (submission, was_updated) where was_updated is True if existing post was updated.
     """
     if existing_post_id:
+        submission = reddit.submission(id=existing_post_id)
         try:
-            submission = reddit.submission(id=existing_post_id)
             submission.edit(body)
         except Exception as e:
-            # Update failed, fall back to creating new post
             msg = f"Failed to update post {existing_post_id}, creating new post: {e}"
             raise BitBotError(msg) from e
         else:
             return (submission, True)
 
     # Create new post
-    submission = post_new_release(reddit, title, body, config)
-    return (submission, False)
+    result = post_new_release(reddit, title, body, config)
+    if result.is_err():
+        msg = f"Failed to create post: {result.error}"
+        raise BitBotError(msg)
+    return (result.unwrap(), False)
 
 
 @beartype
@@ -181,28 +181,26 @@ def run(
             ) as progress:
                 progress.add_task(description="Posting to Reddit...", total=None)
 
-                # Check for pending releases
-                queue_result = load_pending_releases()
-                if queue_result.is_err():
-                    error = BitBotError(f"Queue error: {queue_result.error}")
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {queue_result.error}")
-                    raise typer.Exit(code=1) from None
-                pending = queue_result.unwrap()
-
-                if not pending:
-                    console.print("[yellow][i] No releases to post[/yellow]")
-                    return
-
                 # Load releases data
                 all_releases_data = _load_releases_data(console, logger)
 
-                # Build changelog data from pending releases
-                changelog_data = _build_changelog_data(pending, all_releases_data)
-
-                if not changelog_data["updated"]:
-                    console.print("[yellow][i] No valid releases to post[/yellow]")
-                    return
+                # Build changelog from all current releases
+                changelog_data: dict[str, dict[str, Any]] = {
+                    "added": {},
+                    "updated": {},
+                    "removed": {},
+                }
+                for app_id, app_data in all_releases_data.items():
+                    latest = app_data.get("latest_release")
+                    if latest:
+                        changelog_data["updated"][app_id] = {
+                            "new": {
+                                "display_name": app_data.get("display_name", app_id),
+                                "version": latest.get("version", "unknown"),
+                                "url": latest.get("download_url", ""),
+                            },
+                            "old": latest.get("version", "unknown"),
+                        }
 
                 # Get landing page URL
                 if not page_url:
@@ -211,9 +209,9 @@ def run(
                     page_url = f"https://{owner}.github.io/{repo}/"
 
                 # Generate title
-                date_str = datetime.now(UTC).strftime("%Y-%m-%d")
-                title_template = config.reddit.formats.get("title_template", "New Updates - {date}")
-                title = title_template.replace("{date}", date_str)
+                title = generate_dynamic_title(
+                    config, changelog_data["added"], changelog_data["updated"]
+                )
 
                 # Generate body using proper body builder
                 body = generate_post_body(config, changelog_data, all_releases_data, page_url)
