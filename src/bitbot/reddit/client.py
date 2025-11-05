@@ -2,6 +2,7 @@
 
 import praw
 from beartype import beartype
+from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 from bitbot.config_models import Config
 from bitbot.core.credentials import Credentials
@@ -9,6 +10,11 @@ from bitbot.core.errors import RedditAPIError
 from bitbot.core.result import Err, Ok, Result
 
 
+@retry(
+    retry=retry_if_result(lambda r: r.is_err()),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+)
 @beartype
 def init_reddit(_config: Config | None = None) -> Result[praw.Reddit, RedditAPIError]:
     """Initializes and returns a PRAW Reddit instance."""

@@ -731,11 +731,22 @@
         "dependencies": [],
         "details": "PROBLEM: Switching Reddit accounts requires manual state deletion\n\nSOLUTION: Split into bot_state.json (offline versions) and bot_state_{username}.json (online versions, post IDs)\n\nIMPLEMENTATION (~80 lines):\n1. models.py: GlobalState and AccountState models (+15)\n2. state.py: load/save functions with decorators (+40)\n3. commands/post.py: compare offline vs online (+15)\n4. commands/release.py: update global state (+10)\n5. Migration script\n\nBENEFITS: Auto-switch accounts, no parsing, account isolation\n\nOPTIONAL VERIFICATION (--verify flag):\nWhen posting, optionally verify against actual Reddit post:\n1. Fetch latest post from Reddit\n2. Parse versions using parse_versions_from_post()\n3. Compare with account_state.online\n4. If mismatch: log warning + use Reddit as source of truth\n5. Update account_state.online to match Reddit\n\nUsage:\n  bitbot post              # Trust local state (fast)\n  bitbot post --verify     # Verify against Reddit (slow, reliable)\n\nBenefits:\n- Catch state desync issues\n- Self-healing if state file corrupted\n- Optional (not required for normal operation)\n\nImplementation: +20 lines in commands/post.py",
         "testStrategy": ""
+      },
+      {
+        "id": 58,
+        "title": "Add tenacity retry logic to API functions",
+        "description": "Add retry decorators to API call functions for reliability",
+        "details": "Add @retry decorator to 5-6 API functions:\n- gh/releases/fetcher.py: get_github_data(), get_source_releases()\n- reddit/client.py: init_reddit()\n- reddit/posts.py: get_bot_posts()\n- reddit/posting/poster.py: post_new_release()\n\nPattern:\n@retry(\n    retry=retry_if_result(lambda r: r.is_err()),\n    stop=stop_after_attempt(3),\n    wait=wait_exponential(min=1, max=10)\n)\n\nFixes critical reliability gap - network failures currently crash without retry.",
+        "testStrategy": "",
+        "status": "in-progress",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-04T17:34:01.205Z",
+      "updated": "2025-11-05T03:27:27.483Z",
       "description": "Tasks for master context"
     }
   },

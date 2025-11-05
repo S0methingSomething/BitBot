@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import deal
 from beartype import beartype
 from praw.exceptions import RedditAPIException
+from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 from bitbot.config_models import Config
 from bitbot.core.error_logger import get_logger
@@ -34,6 +35,11 @@ def count_outbound_links(text: str) -> int:
 @deal.pre(
     lambda _r, _t, post_body, _c: len(post_body) > 0,
     message="Post body cannot be empty",
+)
+@retry(
+    retry=retry_if_result(lambda r: r.is_err()),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
 )
 @beartype
 def post_new_release(

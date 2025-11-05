@@ -7,6 +7,7 @@ from typing import Any
 import praw
 import praw.models
 from beartype import beartype
+from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 from bitbot import paths
 from bitbot.config_models import Config
@@ -18,6 +19,11 @@ from bitbot.core.state import load_bot_state, save_bot_state
 logger = get_logger()
 
 
+@retry(
+    retry=retry_if_result(lambda r: r.is_err()),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+)
 @beartype
 def get_bot_posts(
     reddit: praw.Reddit, config: Config
