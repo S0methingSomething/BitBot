@@ -1,1 +1,0 @@
-"""Reddit integration and posting."""
