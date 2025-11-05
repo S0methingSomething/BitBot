@@ -26,16 +26,6 @@ Available Placeholders:
 
 ---
 
-## 📋 Latest Update ({{update_timestamp}})
-{{changelog}}
-
----
-
-## 📦 Currently Available ({{app_count}} apps)
-{{available_list}}
-
----
-
 ## 📖 How to Use
 **[BitGuides - Unlocking IAP](https://s0methingsomething.github.io/BitGuides/modding/monetizationvars/unlocking-iap/)**
 
@@ -45,6 +35,16 @@ A: To fix this, make a new life then surrender it.
 
 **Q: How to do this on iOS/PC (emulation)?**  
 A: I don't really know nor am I planning to make one since I don't emulate nor use an iOS device.
+
+---
+
+## 📋 Latest Update ({{update_timestamp}})
+{{changelog}}
+
+---
+
+## 📦 Currently Available ({{app_count}} apps)
+{{available_list}}
 
 ---
 
