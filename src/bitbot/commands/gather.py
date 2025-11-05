@@ -42,6 +42,9 @@ def run(ctx: typer.Context) -> None:
                 progress.add_task(description="Gathering releases...", total=None)
 
                 bot_repo = config.github.bot_repo
+                apps_config = {
+                    app["id"]: app["displayName"] for app in config.model_dump().get("apps", [])
+                }
 
                 # Fetch all releases from bot repo
                 url = f"https://api.github.com/repos/{bot_repo}/releases"
@@ -74,6 +77,7 @@ def run(ctx: typer.Context) -> None:
                         continue
 
                     app_id = app_name.lower().replace(" ", "_")
+                    display_name = apps_config.get(app_id, app_name)
 
                     release_data = {
                         "version": version,
@@ -83,7 +87,7 @@ def run(ctx: typer.Context) -> None:
 
                     if app_id not in apps_data:
                         apps_data[app_id] = {
-                            "display_name": app_name,
+                            "display_name": display_name,
                             "latest_release": release_data,
                             "previous_releases": [],
                         }
