@@ -8,172 +8,79 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: '0 1,16 * * *' # Run at 1 AM and 4 PM UTC
+    - cron: '0 1,16 * * *'
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
-  gather_releases:
+  main:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+    outputs:
+      page_url: ${{ steps.deploy_pages.outputs.page_url }}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install Dependencies with uv
+      
+      - name: Install
         run: |
           pip install uv
           uv sync
-      - name: Gather New Releases
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run python -m bitbot.cli gather run
-      - name: Upload release data artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-data
-          path: |
-            dist/
-            bot_state.json
-
-  create_releases:
-    needs: gather_releases
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Download release data artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: release-data
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Install Dependencies
-        run: |
-          pip install uv
-          uv sync
-      - name: Create GitHub Releases
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run python -m bitbot.cli release run
-      - name: Upload updated data
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-data-updated
-          path: |
-            dist/
-            bot_state.json
-
-  generate_page:
-    needs: create_releases
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Install Dependencies
-        run: |
-          pip install uv
-          uv sync
-      - name: Gather and Generate
+      
+      - name: Gather & Create Releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           uv run python -m bitbot.cli gather run
+          uv run python -m bitbot.cli release run
+      
+      - name: Generate Page
+        run: |
           if [ ! -f dist/releases.json ]; then
-            echo "No releases.json found, creating empty one"
             mkdir -p dist
             echo '{}' > dist/releases.json
           fi
           uv run python -m bitbot.cli page run
+      
       - name: Push to dist branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan dist
-          git rm -rf .
-          cp -r dist/* .
-          git add .
-          git commit -m "Update landing page"
+          git fetch origin dist || true
+          git checkout -B dist
+          find . -maxdepth 1 ! -name 'dist' ! -name '.git' ! -name '.' -exec rm -rf {} + 2>/dev/null || true
+          mv dist/* . 2>/dev/null || true
+          rmdir dist 2>/dev/null || true
+          git add -A
+          git commit -m "Update landing page" || true
           git push -f origin dist
-
-  deploy_github_pages:
-    needs: generate_page
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout dist branch
-        uses: actions/checkout@v4
+      
+      - name: Deploy to GitHub Pages
+        id: deploy_pages
+        uses: actions/deploy-pages@v4
         with:
-          ref: dist
+          artifact_name: github-pages
+      
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-  deploy_cloudflare:
-    needs: generate_page
-    runs-on: ubuntu-latest
-    outputs:
-      cloudflare_url: ${{ steps.cloudflare.outputs.url }}
-    steps:
-      - name: Checkout dist branch
-        uses: actions/checkout@v4
-        with:
-          ref: dist
-      - name: Deploy to Cloudflare Pages
-        id: cloudflare
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: reBitBot
-          directory: .
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-  
-  post_to_reddit:
-    needs: [create_releases, deploy_github_pages]
-    if: ${{ github.event.inputs.dry_run != 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Install Dependencies
-        run: |
-          pip install uv
-          uv sync
+          path: dist
+      
       - name: Post to Reddit
+        if: ${{ github.event.inputs.dry_run != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
-        run: uv run python -m bitbot.cli post run --page-url "${{ needs.deploy_github_pages.outputs.page_url }}" --verify
-      - name: Upload final state
-        uses: actions/upload-artifact@v4
-        with:
-          name: final-state
-          path: bot_state.json
+        run: uv run python -m bitbot.cli post run --page-url "${{ steps.deploy_pages.outputs.page_url }}" --verify
