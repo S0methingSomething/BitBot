@@ -1,6 +1,7 @@
 """Post command for BitBot CLI."""
 
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -17,7 +18,7 @@ from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import ErrorLogger, LogLevel
 from bitbot.core.errors import BitBotError
 from bitbot.core.state import load_account_state, save_account_state
-from bitbot.models import AccountState, PendingRelease
+from bitbot.models import AccountState
 from bitbot.reddit.client import init_reddit
 from bitbot.reddit.parser import parse_versions_from_post
 from bitbot.reddit.posting.body_builder import generate_post_body
@@ -91,43 +92,6 @@ def _load_releases_data(console: Console, logger: ErrorLogger) -> dict[str, Any]
 
 
 @beartype
-def _build_changelog_data(
-    pending: list[PendingRelease], all_releases_data: dict[str, Any]
-) -> dict[str, dict[str, Any]]:
-    """Build changelog data from pending releases."""
-    changelog_data: dict[str, dict[str, Any]] = {
-        "added": {},
-        "updated": {},
-        "removed": {},
-    }
-
-    for release in pending:
-        app_id = release.app_id
-        app_data = all_releases_data.get(app_id, {})
-        latest_release = app_data.get("latest_release", {})
-
-        if not latest_release:
-            continue
-
-        # Determine if this is a new app or an update
-        if app_id not in all_releases_data or not app_data.get("releases"):
-            changelog_data["added"][app_id] = {
-                "display_name": release.display_name,
-                "version": release.version,
-            }
-        else:
-            changelog_data["updated"][app_id] = {
-                "display_name": release.display_name,
-                "old_version": app_data.get("releases", [{}])[-2].get("version", "unknown")
-                if len(app_data.get("releases", [])) > 1
-                else "unknown",
-                "new_version": release.version,
-            }
-
-    return changelog_data
-
-
-@beartype
 def should_create_new_post(
     reddit: praw.Reddit, existing_post_id: str | None, config: Config
 ) -> bool:
@@ -193,74 +157,97 @@ def post_or_update(
 
 
 @beartype
-def _has_new_releases(
-    all_releases_data: dict[str, Any], state: AccountState, console: Console
-) -> bool:
-    """Check if there are new releases compared to what's already posted."""
-    current_versions = {}
-    for app_id, app_data in all_releases_data.items():
-        latest = app_data.get("latest_release")
-        if latest:
-            current_versions[app_id] = latest.get("version", "unknown")
-
-    # Compare with posted versions
-    posted_versions = state.online
-
-    # Check for new apps or version changes
-    has_changes = False
-    for app_id, version in current_versions.items():
-        if app_id not in posted_versions:
-            console.print(f"[cyan]→[/cyan] New app detected: {app_id} v{version}")
-            has_changes = True
-        elif posted_versions[app_id] != version:
-            console.print(
-                f"[cyan]→[/cyan] Version change: {app_id} " f"{posted_versions[app_id]} → {version}"
-            )
-            has_changes = True
-
-    # Check for removed apps
-    for app_id in posted_versions:
-        if app_id not in current_versions:
-            console.print(f"[cyan]→[/cyan] App removed: {app_id}")
-            has_changes = True
-
-    return has_changes
-
-
-@beartype
-def _build_and_post(
-    reddit: "praw.Reddit",
-    config: Config,
-    all_releases_data: dict[str, Any],
-    state: AccountState,
-    page_url: str,
-) -> tuple["praw.models.Submission", bool] | None:
-    """Build post content and submit to Reddit."""
-    # Build changelog
+def _build_changelog_data(
+    all_releases_data: dict[str, Any], state: AccountState
+) -> dict[str, dict[str, Any]]:
+    """Build changelog data by comparing current releases vs posted versions."""
     changelog_data: dict[str, dict[str, Any]] = {
         "added": {},
         "updated": {},
         "removed": {},
     }
+
+    # Get current versions with full release info
+    current_releases = {}
     for app_id, app_data in all_releases_data.items():
         latest = app_data.get("latest_release")
         if latest:
-            changelog_data["updated"][app_id] = {
-                "new": {
-                    "display_name": app_data.get("display_name", app_id),
-                    "version": latest.get("version", "unknown"),
-                    "url": latest.get("download_url", ""),
-                },
-                "old": latest.get("version", "unknown"),
+            current_releases[app_id] = {
+                "display_name": app_data.get("display_name", app_id),
+                "version": latest.get("version", "unknown"),
+                "url": latest.get("download_url", ""),
             }
 
+    # Check for new and updated apps
+    for app_id, release_info in current_releases.items():
+        if app_id not in state.online:
+            # New app
+            changelog_data["added"][app_id] = release_info
+        elif state.online[app_id] != release_info["version"]:
+            # Updated app - use OLD version from state
+            changelog_data["updated"][app_id] = {
+                "new": release_info,
+                "old": state.online[app_id],
+            }
+
+    # Check for removed apps
+    for app_id, old_version in state.online.items():
+        if app_id not in current_releases:
+            changelog_data["removed"][app_id] = {
+                "display_name": app_id,
+                "version": old_version,
+            }
+
+    return changelog_data
+
+
+@beartype
+def _has_new_releases(changelog_data: dict[str, dict[str, Any]], console: Console) -> bool:
+    """Check if changelog has any changes."""
+    has_changes = False
+
+    for app_id, info in changelog_data["added"].items():
+        console.print(f"[cyan]→[/cyan] New app detected: {app_id} v{info['version']}")
+        has_changes = True
+
+    for app_id, info in changelog_data["updated"].items():
+        console.print(
+            f"[cyan]→[/cyan] Version change: {app_id} {info['old']} → {info['new']['version']}"
+        )
+        has_changes = True
+
+    for app_id in changelog_data["removed"]:
+        console.print(f"[cyan]→[/cyan] App removed: {app_id}")
+        has_changes = True
+
+    return has_changes
+
+
+@dataclass
+class PostContext:
+    """Context for posting to Reddit."""
+
+    config: Config
+    page_url: str
+
+
+@beartype
+def _build_and_post(
+    reddit: "praw.Reddit",
+    context: PostContext,
+    changelog_data: dict[str, dict[str, Any]],
+    all_releases_data: dict[str, Any],
+    existing_post_id: str | None,
+) -> tuple["praw.models.Submission", bool] | None:
+    """Build post content and submit to Reddit."""
     # Generate title and body
-    title = generate_dynamic_title(config, changelog_data["added"], changelog_data["updated"])
-    body = generate_post_body(config, changelog_data, all_releases_data, page_url)
+    title = generate_dynamic_title(
+        context.config, changelog_data["added"], changelog_data["updated"]
+    )
+    body = generate_post_body(context.config, changelog_data, all_releases_data, context.page_url)
 
     # Post or update
-    existing_post_id = state.active_post_id if state else None
-    return post_or_update(reddit, title, body, config, existing_post_id)
+    return post_or_update(reddit, title, body, context.config, existing_post_id)
 
 
 @beartype
@@ -301,8 +288,11 @@ def run(
                 else:
                     state = state_result.unwrap()
 
+                # Build changelog data by comparing current vs posted
+                changelog_data = _build_changelog_data(all_releases_data, state)
+
                 # Check if there are actual changes
-                if not force and not _has_new_releases(all_releases_data, state, console):
+                if not force and not _has_new_releases(changelog_data, console):
                     console.print(
                         "[dim]No new releases detected. Skipping post update.[/dim]\n"
                         "[dim]Use --force to post anyway.[/dim]"
@@ -327,7 +317,11 @@ def run(
                     state = _verify_account_state(reddit, config, state, console)
 
                 # Build and post
-                result = _build_and_post(reddit, config, all_releases_data, state, page_url)
+                existing_post_id = state.active_post_id if state else None
+                context = PostContext(config=config, page_url=page_url)
+                result = _build_and_post(
+                    reddit, context, changelog_data, all_releases_data, existing_post_id
+                )
 
                 if result is None:
                     console.print(
