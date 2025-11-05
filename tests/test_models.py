@@ -1,55 +1,68 @@
 """Tests for Pydantic models."""
 
-import sys
-from pathlib import Path
-
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from models import AppConfig, BotState, Config, GitHubConfig, RedditConfig
+from bitbot.models import AccountState, GlobalState, PendingRelease
 
 
-def test_config_validation():
-    """Test Config model validation."""
-    valid_config = {
-        "github": {"sourceRepo": "test/repo", "botRepo": "bot/repo"},
-        "reddit": {"subreddit": "test", "postMode": "direct", "postIdentifier": "test"},
-    }
-    config = Config(**valid_config)
-    assert config.github.source_repo == "test/repo"
+def test_global_state_validation():
+    """Test GlobalState model validation."""
+    state = GlobalState(offline={"app1": "1.0.0", "app2": "2.0.0"})
+    assert state.offline["app1"] == "1.0.0"
+    assert state.offline["app2"] == "2.0.0"
 
 
-def test_config_invalid_raises():
-    """Test invalid config raises ValidationError."""
-    with pytest.raises(Exception):  # pydantic.ValidationError
-        Config(invalid="data")
+def test_global_state_empty():
+    """Test GlobalState with empty offline dict."""
+    state = GlobalState(offline={})
+    assert state.offline == {}
 
 
-def test_bot_state_validation():
-    """Test BotState model validation."""
-    valid_state = {
-        "online": {"lastPostedVersions": {}},
-        "offline": {"lastGeneratedVersions": {}},
-    }
-    state = BotState(**valid_state)
-    assert state.online is not None
+def test_account_state_validation():
+    """Test AccountState model validation."""
+    state = AccountState(
+        online={"app1": "1.0.0"},
+        all_post_ids=["abc123", "def456"],
+        active_post_id="abc123"
+    )
+    assert state.online["app1"] == "1.0.0"
+    assert len(state.all_post_ids) == 2
+    assert state.active_post_id == "abc123"
 
 
-def test_github_config():
-    """Test GitHubConfig model."""
-    config = GitHubConfig(sourceRepo="test/repo", botRepo="bot/repo")
-    assert config.source_repo == "test/repo"
+def test_account_state_optional_fields():
+    """Test AccountState with optional fields."""
+    state = AccountState(online={})
+    assert state.online == {}
+    assert state.all_post_ids == []
+    assert state.active_post_id is None
 
 
-def test_reddit_config():
-    """Test RedditConfig model."""
-    config = RedditConfig(subreddit="test", postMode="direct", postIdentifier="[Test]")
-    assert config.subreddit == "test"
+def test_pending_release_validation():
+    """Test PendingRelease model validation."""
+    release = PendingRelease(
+        release_id=123,
+        tag="v1.0.0",
+        app_id="test_app",
+        display_name="Test App",
+        version="1.0.0"
+    )
+    assert release.release_id == 123
+    assert release.tag == "v1.0.0"
+    assert release.app_id == "test_app"
+    assert release.display_name == "Test App"
+    assert release.version == "1.0.0"
+    assert release.asset_name is None
 
 
-def test_app_config():
-    """Test AppConfig model."""
-    app = AppConfig(id="test", displayName="Test App")
-    assert app.id == "test"
-    assert app.display_name == "Test App"
+def test_pending_release_with_asset_name():
+    """Test PendingRelease with optional asset_name."""
+    release = PendingRelease(
+        release_id=123,
+        tag="v1.0.0",
+        app_id="test_app",
+        display_name="Test App",
+        version="1.0.0",
+        asset_name="custom_asset.json"
+    )
+    assert release.asset_name == "custom_asset.json"

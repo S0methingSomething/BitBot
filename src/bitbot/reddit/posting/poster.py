@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING
 import deal
 from beartype import beartype
 from praw.exceptions import RedditAPIException
-from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 from bitbot.config_models import Config
 from bitbot.core.error_logger import get_logger
 from bitbot.core.errors import RedditAPIError
 from bitbot.core.result import Err, Ok, Result
+from bitbot.core.retry import retry_on_err
 
 if TYPE_CHECKING:
     import praw
@@ -36,16 +36,7 @@ def count_outbound_links(text: str) -> int:
     lambda _r, _t, post_body, _c: len(post_body) > 0,
     message="Post body cannot be empty",
 )
-@retry(
-    retry=retry_if_result(lambda r: r.is_err()),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=10),
-    before_sleep=lambda retry_state: logger.warning(
-        "Retry %d/3 for post_new_release after error (wait %.1fs)",
-        retry_state.attempt_number,
-        retry_state.next_action.sleep if retry_state.next_action else 0,
-    ),
-)
+@retry_on_err()
 @beartype
 def post_new_release(
     reddit: "praw.Reddit", title: str, post_body: str, config: Config

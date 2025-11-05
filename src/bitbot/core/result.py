@@ -1,6 +1,8 @@
 """Result type for error handling without exceptions."""
 
-from collections.abc import Callable
+from __future__ import annotations
+
+from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
 from typing import NoReturn, TypeVar
 
@@ -39,17 +41,17 @@ class Ok[T]:
         return self.value
 
     @beartype
-    def map(self, func: Callable[[T], U]) -> "Ok[U]":
+    def map(self, func: Callable[[T], U]) -> Ok[U]:
         """Transform Ok value."""
         return Ok(func(self.value))
 
     @beartype
-    def and_then(self, func: Callable[[T], "Result[T, E]"]) -> "Result[T, E]":
+    def and_then(self, func: Callable[[T], Ok[U] | Err[E]]) -> Ok[U] | Err[E]:
         """Chain Result-returning operations."""
         return func(self.value)
 
     @beartype
-    def map_err(self, func: Callable[[E], E]) -> "Ok[T]":
+    def map_err(self, func: Callable[[E], E]) -> Ok[T]:
         """Transform error (no-op for Ok)."""
         return self
 
@@ -83,17 +85,17 @@ class Err[E]:
         return default
 
     @beartype
-    def map(self, func: Callable[[T], U]) -> "Err[E]":
+    def map(self, func: Callable[[T], U]) -> Err[E]:
         """Transform does nothing on Err."""
         return self
 
     @beartype
-    def and_then(self, func: Callable[[T], "Result[T, E]"]) -> "Err[E]":
+    def and_then(self, func: Callable[[T], Ok[U] | Err[E]]) -> Err[E]:
         """Chain does nothing on Err."""
         return self
 
     @beartype
-    def map_err(self, func: Callable[[E], E]) -> "Err[E]":
+    def map_err(self, func: Callable[[E], E]) -> Err[E]:
         """Transform error value."""
         return Err(func(self.error))
 

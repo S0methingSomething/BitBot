@@ -1,18 +1,15 @@
 """GitHub release fetching."""
 
 import json
-import logging
 import subprocess
 from typing import Any
 
 import deal
 from beartype import beartype
-from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 from bitbot.core.errors import GitHubAPIError
 from bitbot.core.result import Err, Ok, Result
-
-logger = logging.getLogger(__name__)
+from bitbot.core.retry import retry_on_err
 
 
 @deal.pre(
@@ -39,16 +36,7 @@ def run_command(
     lambda url: url.startswith("/"),
     message="GitHub API URLs must start with / for relative paths",
 )
-@retry(
-    retry=retry_if_result(lambda r: r.is_err()),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=10),
-    before_sleep=lambda retry_state: logger.warning(
-        "Retry %d/3 for get_github_data after error (wait %.1fs)",
-        retry_state.attempt_number,
-        retry_state.next_action.sleep if retry_state.next_action else 0,
-    ),
-)
+@retry_on_err()
 @beartype
 def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIError]:
     """Fetches data from the GitHub API using the gh cli."""
@@ -69,16 +57,7 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
     lambda repo: "/" in repo,
     message="Repository must be in owner/name format",
 )
-@retry(
-    retry=retry_if_result(lambda r: r.is_err()),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=10),
-    before_sleep=lambda retry_state: logger.warning(
-        "Retry %d/3 for get_source_releases after error (wait %.1fs)",
-        retry_state.attempt_number,
-        retry_state.next_action.sleep if retry_state.next_action else 0,
-    ),
-)
+@retry_on_err()
 @beartype
 def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIError]:
     """Gets the last 30 releases from the source repository."""

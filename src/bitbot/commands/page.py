@@ -83,6 +83,9 @@ def run(
                     if not latest:
                         continue
 
+                    # Get previous releases for history
+                    previous = app_data.get("previous_releases", [])
+
                     releases_data["apps"].append(
                         {
                             "id": app_id,
@@ -92,9 +95,12 @@ def run(
                                 "download_url": latest.get("download_url", ""),
                                 "published_at": latest.get("published_at", ""),
                             },
-                            "releases": app_data.get("releases", []),
+                            "releases": previous,  # Previous releases for history section
                         }
                     )
+
+                # Sort apps by display name
+                releases_data["apps"].sort(key=lambda x: x["display_name"].lower())
 
                 if not releases_data["apps"]:
                     console.print("[yellow]⚠[/yellow] No release data found, generating empty page")

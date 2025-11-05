@@ -1,21 +1,15 @@
 """Tests for paths module."""
 
-import sys
-from pathlib import Path
-
 import pytest
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-import paths
+from bitbot import paths
 
 
 def test_get_template_path():
     """Test template path generation."""
     result = paths.get_template_path("test.html")
-    assert "test.html" in result
-    assert len(result) > 0
+    assert "test.html" in str(result)
+    assert len(str(result)) > 0
 
 
 def test_get_template_path_empty_raises():

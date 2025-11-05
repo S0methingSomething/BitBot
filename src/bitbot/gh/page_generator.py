@@ -13,11 +13,11 @@ from bitbot.core.result import Err, Ok, Result
 
 
 @deal.pre(
-    lambda output_path, **_: len(output_path) > 0,
+    lambda releases_data, output_path, template_name: len(str(output_path)) > 0,
     message="Output path cannot be empty - must specify where to save HTML file",
 )
 @deal.pre(
-    lambda template_name, **_: len(template_name) > 0,
+    lambda releases_data, output_path, template_name: len(template_name) > 0,
     message="Template name cannot be empty - must specify which template to use",
 )
 @beartype

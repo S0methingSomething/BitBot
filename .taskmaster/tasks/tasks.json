@@ -749,6 +749,28 @@
         "description": "Add full logging/monitoring system using Rich for production visibility",
         "details": "Implement comprehensive logging system:\n\n1. **Rich Logging Integration**:\n   - Add RichHandler to error_logger.py setup\n   - Configure rich_tracebacks=True for better error display\n   - Set up log levels (INFO for normal, WARNING for retries, ERROR for failures)\n\n2. **Retry Logging**:\n   - Add before_sleep callback to all @retry decorators\n   - Log retry attempts with: attempt number, error type, wait time\n   - Example: \"Retry 2/3 for get_github_data after RedditAPIError (wait 2s)\"\n\n3. **Structured Logging**:\n   - Add context to all major operations (post_id, subreddit, release_id)\n   - Log successful operations: \"Posted to r/subreddit (post_id: abc123)\"\n   - Log failures with full context\n\n4. **Health Check**:\n   - Write timestamp to .bitbot/last_run.txt on successful completion\n   - Include status (success/partial/failed) and summary\n\n5. **Metrics Tracking** (optional):\n   - Count posts created, retries triggered, errors encountered\n   - Write to .bitbot/metrics.json\n\nFiles to modify:\n- core/error_logger.py: Add RichHandler\n- gh/releases/fetcher.py: Add retry logging\n- reddit/client.py: Add retry logging\n- reddit/posts.py: Add retry logging\n- reddit/posting/poster.py: Add retry logging\n- commands/*.py: Add operation logging\n\nBenefits: Production visibility, debugging, alerting capability",
         "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 60,
+        "title": "Add comprehensive test suite",
+        "description": "Add comprehensive test suite for critical paths",
+        "details": "Add pytest tests for critical functionality:\n\n**1. GitHub Operations (tests/test_gh_releases.py)**:\n- test_get_github_data_success()\n- test_get_github_data_retry_on_failure()\n- test_get_source_releases()\n- test_parse_release_notes()\n- test_download_asset()\n\n**2. Reddit Operations (tests/test_reddit.py)**:\n- test_init_reddit_success()\n- test_init_reddit_retry()\n- test_get_bot_posts()\n- test_post_new_release()\n- test_parse_versions_from_post()\n\n**3. State Management (tests/test_state.py)**:\n- test_load_global_state()\n- test_save_global_state_atomic()\n- test_load_account_state()\n- test_save_account_state_atomic()\n- test_account_state_isolation()\n\n**4. Crypto Operations (tests/test_crypto.py)**:\n- test_decrypt_valid_content()\n- test_decrypt_malformed_lines()\n- test_encrypt_decrypt_roundtrip()\n- test_unlock_premium_features()\n- test_obfuscation()\n\n**5. Result Type (tests/test_result.py)**:\n- test_ok_unwrap()\n- test_err_unwrap_raises()\n- test_map_ok()\n- test_map_err()\n- test_and_then()\n\n**Setup**:\n- Use pytest with pytest-mock for mocking\n- Mock external calls (subprocess, praw, file I/O)\n- Test Result types (Ok/Err paths)\n- Test retry behavior (verify attempts)\n\n**Target**: 60%+ coverage of critical paths\n\nDependencies: pytest, pytest-mock, pytest-cov",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 61,
+        "title": "Add comprehensive test coverage for untested modules",
+        "description": "Expand test suite from 41 to 130+ tests covering all critical modules",
+        "details": "Currently: 41 passing tests (Result, retry, crypto, state, gh_releases)\n\nPriority 1 - Fix Broken (3 tests):\n- test_models.py, test_patch_file.py, test_paths.py import errors\n\nPriority 2 - Core (~30 tests):\n- Config, credentials, release_queue, expanded state, error_logger\n\nPriority 3 - GitHub (~25 tests):\n- Parser, creator, downloader, patcher, page_generator\n\nPriority 4 - Reddit (~30 tests):\n- Client, posts, parser, body_builder, changelog, title_generator, poster\n\nTarget: 130-190 total tests",
+        "testStrategy": "",
         "status": "in-progress",
         "dependencies": [],
         "priority": "medium",
@@ -757,7 +779,7 @@
     ],
     "metadata": {
       "created": "2025-10-31T10:35:00.809Z",
-      "updated": "2025-11-05T03:41:06.537Z",
+      "updated": "2025-11-05T04:57:01.083Z",
       "description": "Tasks for master context"
     }
   },
