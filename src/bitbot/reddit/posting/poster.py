@@ -29,9 +29,39 @@ def count_outbound_links(text: str) -> int:
 
 
 @deal.pre(
-    lambda _r, title, _p, _c: len(title) > 0,
-    message="Title cannot be empty",
+    lambda _r, _p, post_body, _c: len(post_body) > 0,
+    message="Post body cannot be empty",
 )
+@retry_on_err()
+@beartype
+def update_post(
+    reddit: "praw.Reddit", post_id: str, post_body: str, config: Config
+) -> Result["praw.models.Submission", RedditAPIError]:
+    """Update existing Reddit post."""
+    link_count = count_outbound_links(post_body)
+    warn_threshold: int = config.safety.get("max_outbound_links_warn", 5)
+
+    if link_count > MAX_OUTBOUND_LINKS_ERROR:
+        msg = (
+            f"Post contains {link_count} outbound links, "
+            f"exceeds limit of {MAX_OUTBOUND_LINKS_ERROR}"
+        )
+        return Err(RedditAPIError(msg))
+    if link_count > warn_threshold:
+        logger.warning(
+            "Post contains %d outbound links (threshold: %d)", link_count, warn_threshold
+        )
+
+    try:
+        submission = reddit.submission(id=post_id)
+        submission.edit(post_body)
+        return Ok(submission)
+    except RedditAPIException as e:
+        return Err(RedditAPIError(f"Reddit API error: {e}"))
+    except Exception as e:
+        return Err(RedditAPIError(f"Failed to update Reddit post: {e}"))
+
+
 @deal.pre(
     lambda _r, _t, post_body, _c: len(post_body) > 0,
     message="Post body cannot be empty",

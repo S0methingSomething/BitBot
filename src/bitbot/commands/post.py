@@ -20,7 +20,7 @@ from bitbot.models import AccountState, PendingRelease
 from bitbot.reddit.client import init_reddit
 from bitbot.reddit.parser import parse_versions_from_post
 from bitbot.reddit.posting.body_builder import generate_post_body
-from bitbot.reddit.posting.poster import post_new_release
+from bitbot.reddit.posting.poster import post_new_release, update_post
 from bitbot.reddit.posting.title_generator import generate_dynamic_title
 from bitbot.reddit.posts import get_bot_posts
 
@@ -146,14 +146,11 @@ def post_or_update(
         if not existing_post_id:
             return None  # No existing post to update
 
-        submission = reddit.submission(id=existing_post_id)
-        try:
-            submission.edit(body)
-        except Exception as e:
-            msg = f"Failed to update post {existing_post_id}: {e}"
-            raise BitBotError(msg) from e
-        else:
-            return (submission, True)
+        result = update_post(reddit, existing_post_id, body, config)
+        if result.is_err():
+            msg = f"Failed to update post {existing_post_id}: {result.error}"
+            raise BitBotError(msg)
+        return (result.unwrap(), True)
 
     # new_post mode: always create new post
     result = post_new_release(reddit, title, body, config)
