@@ -49,6 +49,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-data
+          path: .
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -88,6 +89,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-data-updated
+          path: .
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -128,6 +130,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-data-updated
+          path: .
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
