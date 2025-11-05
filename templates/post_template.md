@@ -56,4 +56,4 @@ A: I don't really know nor am I planning to make one since I don't emulate or us
 **Repository:** {{bot_repo}}
 
 ## 🛠️ Related Projects
-**BitEdit** - [Modify MonetizationVars on the web in a human readable format JSON](https://s0methingsomething.github.io/BitEdit/)
+**BitEdit** - If you don't want to keep waiting for the new MonetizationVars file, you can go to [BitEdit](https://s0methingsomething.github.io/BitEdit/) and edit MonetizationVars yourself.
