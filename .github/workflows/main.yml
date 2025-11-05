@@ -88,6 +88,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           uv run python -m bitbot.cli gather run
+          if [ ! -f dist/releases.json ]; then
+            echo "No releases.json found, creating empty one"
+            mkdir -p dist
+            echo '{}' > dist/releases.json
+          fi
           uv run python -m bitbot.cli page run
       - name: Push to dist branch
         run: |
