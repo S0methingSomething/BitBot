@@ -41,13 +41,13 @@ def run(ctx: typer.Context) -> None:
             ) as progress:
                 progress.add_task(description="Gathering releases...", total=None)
 
-                bot_repo = config.github.bot_repo
+                source_repo = config.github.source_repo
                 apps_config = {
                     app["id"]: app["displayName"] for app in config.model_dump().get("apps", [])
                 }
 
-                # Fetch all releases from bot repo
-                url = f"https://api.github.com/repos/{bot_repo}/releases"
+                # Fetch all releases from source repo
+                url = f"https://api.github.com/repos/{source_repo}/releases"
                 response = requests.get(url, timeout=30)
                 response.raise_for_status()
                 releases = response.json()
