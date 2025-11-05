@@ -15,8 +15,18 @@ from bitbot.models import AccountState, BotState, GlobalState
 
 @beartype
 def get_account_state_file() -> Path:
-    """Get path to account-specific state file based on Reddit username."""
+    """Get path to account-specific state file based on Reddit username and subreddit."""
+    from bitbot.core.config import load_config
+
     username = Credentials.get_reddit_username()
+
+    # Get subreddit from config
+    config_result = load_config()
+    if config_result.is_ok():
+        subreddit = config_result.unwrap().reddit.subreddit
+        return paths.ROOT_DIR / f"bot_state_{username}_{subreddit}.json"
+
+    # Fallback to username-only if config fails
     return paths.ROOT_DIR / f"bot_state_{username}.json"
 
 
