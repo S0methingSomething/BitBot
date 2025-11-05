@@ -107,6 +107,31 @@
             animation: pulse 2s ease-in-out infinite;
         }
         
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--card-bg-color);
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        
         /* Loading skeleton */
         @keyframes shimmer {
             0% { background-position: -1000px 0; }
@@ -203,7 +228,7 @@
                                 <h3 class="font-semibold text-lg">v{{app.latest_release.version}}</h3>
                                 <p class="release-date text-xs text-[var(--text-muted-color)] mt-1" data-date="{{app.latest_release.published_at}}"></p>
                             </div>
-                            <span class="latest-badge text-xs font-bold py-1 px-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white flex-shrink-0">Latest</span>
+                            <span class="latest-badge text-xs font-bold py-1 px-3 rounded-full bg-[var(--success-color)] text-white flex-shrink-0">Latest</span>
                         </div>
                         <a href="{{app.latest_release.download_url}}" class="download-button block w-full text-center text-sm bg-[var(--success-color)] text-white px-4 py-3 rounded-lg font-bold transition-all duration-200 hover:bg-[var(--success-hover)] hover:shadow-lg active:scale-95">
                             <span class="flex items-center justify-center gap-2">
@@ -252,6 +277,22 @@
         </div>
     </div>
 
+    <!-- Download Confirmation Modal -->
+    <div id="download-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="text-2xl font-bold mb-4">⚠️ Important Reminder</h3>
+            <p class="text-base mb-4">Before installing, make sure the downloaded file is named exactly:</p>
+            <div class="bg-[var(--input-bg-color)] border-2 border-[var(--border-color)] rounded-lg p-3 mb-4 text-center">
+                <code class="text-lg font-bold">MonetizationVars</code>
+            </div>
+            <p class="text-sm text-[var(--text-muted-color)] mb-6">If you need help, visit <a href="https://www.reddit.com/r/BitLifeRebels/" target="_blank" class="text-[var(--primary-color)] hover:underline font-medium">r/BitLifeRebels</a></p>
+            <div class="flex gap-3">
+                <button id="modal-cancel" class="flex-1 px-4 py-3 border-2 border-[var(--border-color)] rounded-lg font-bold hover:bg-[var(--input-bg-color)] transition-colors">Cancel</button>
+                <button id="modal-confirm" class="flex-1 px-4 py-3 bg-[var(--success-color)] text-white rounded-lg font-bold hover:bg-[var(--success-hover)] transition-colors">Download</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // No changes are needed to the JavaScript.
         document.addEventListener('DOMContentLoaded', () => {
@@ -260,6 +301,40 @@
             const sortSelect = document.getElementById('sort-select');
             const appListContainer = document.getElementById('app-list');
             const clearSearchBtn = document.getElementById('clearSearch');
+            const downloadModal = document.getElementById('download-modal');
+            const modalCancel = document.getElementById('modal-cancel');
+            const modalConfirm = document.getElementById('modal-confirm');
+            let pendingDownloadUrl = null;
+            
+            // Download modal handlers
+            document.addEventListener('click', (e) => {
+                const downloadBtn = e.target.closest('.download-button');
+                if (downloadBtn && downloadBtn.tagName === 'A') {
+                    e.preventDefault();
+                    pendingDownloadUrl = downloadBtn.href;
+                    downloadModal.classList.add('active');
+                }
+            });
+            
+            modalCancel.addEventListener('click', () => {
+                downloadModal.classList.remove('active');
+                pendingDownloadUrl = null;
+            });
+            
+            modalConfirm.addEventListener('click', () => {
+                if (pendingDownloadUrl) {
+                    window.location.href = pendingDownloadUrl;
+                }
+                downloadModal.classList.remove('active');
+                pendingDownloadUrl = null;
+            });
+            
+            downloadModal.addEventListener('click', (e) => {
+                if (e.target === downloadModal) {
+                    downloadModal.classList.remove('active');
+                    pendingDownloadUrl = null;
+                }
+            });
             
             const appData = Array.from(appListContainer.querySelectorAll('.app-section')).map(element => {
                 const dateStr = element.dataset.latestReleaseDate;
