@@ -1,6 +1,7 @@
 """Post command for BitBot CLI."""
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -127,6 +128,28 @@ def _build_changelog_data(
 
 
 @beartype
+def should_create_new_post(
+    reddit: praw.Reddit, existing_post_id: str | None, config: Config
+) -> bool:
+    """Check if enough time has passed to create a new post."""
+    if not existing_post_id:
+        return True  # No existing post, create new one
+
+    try:
+        submission = reddit.submission(id=existing_post_id)
+        post_created_at = datetime.fromtimestamp(submission.created_utc, tz=UTC)
+        now = datetime.now(UTC)
+        days_elapsed = (now - post_created_at).days
+
+        days_before_new = config.reddit.rolling.get("days_before_new_post", 7)
+    except Exception:
+        # If can't get post info, assume we should update existing
+        return False
+    else:
+        return days_elapsed >= days_before_new
+
+
+@beartype
 def post_or_update(
     reddit: praw.Reddit,
     title: str,
@@ -142,7 +165,16 @@ def post_or_update(
     post_mode = config.reddit.post_mode
 
     if post_mode == "rolling_update":
-        # In rolling_update mode, ONLY update existing post
+        # Check if we should create new post based on time
+        if should_create_new_post(reddit, existing_post_id, config):
+            # Time to create new post
+            result = post_new_release(reddit, title, body, config)
+            if result.is_err():
+                msg = f"Failed to create post: {result.error}"
+                raise BitBotError(msg)
+            return (result.unwrap(), False)
+
+        # Update existing post
         if not existing_post_id:
             return None  # No existing post to update
 

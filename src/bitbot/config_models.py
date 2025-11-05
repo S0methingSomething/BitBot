@@ -66,6 +66,7 @@ class RedditConfig(BaseModel):
     post_mode: str = Field(alias="postMode", default="rolling_update")
     download_mode: str = Field(alias="downloadMode", default="landing_page")
     post_manually: bool = Field(default=False)
+    rolling: dict[str, Any] = Field(default_factory=dict)
     templates: RedditTemplates
     formats: RedditFormats
 
