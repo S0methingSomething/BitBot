@@ -75,10 +75,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-      - name: Download release data artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: release-data-updated
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -87,13 +83,22 @@ jobs:
         run: |
           pip install uv
           uv sync
-      - name: Generate Landing Page
-        run: uv run python -m bitbot.cli page run
-      - name: Upload page artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: landing-page
-          path: dist/
+      - name: Gather and Generate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run python -m bitbot.cli gather run
+          uv run python -m bitbot.cli page run
+      - name: Push to dist branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan dist
+          git rm -rf .
+          cp -r dist/* .
+          git add .
+          git commit -m "Update landing page"
+          git push -f origin dist
 
   deploy_github_pages:
     needs: generate_page
@@ -107,15 +112,14 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download page artifact
-        uses: actions/download-artifact@v4
+      - name: Checkout dist branch
+        uses: actions/checkout@v4
         with:
-          name: landing-page
-          path: dist
+          ref: dist
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: .
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
@@ -126,11 +130,10 @@ jobs:
     outputs:
       cloudflare_url: ${{ steps.cloudflare.outputs.url }}
     steps:
-      - name: Download page artifact
-        uses: actions/download-artifact@v4
+      - name: Checkout dist branch
+        uses: actions/checkout@v4
         with:
-          name: landing-page
-          path: dist
+          ref: dist
       - name: Deploy to Cloudflare Pages
         id: cloudflare
         uses: cloudflare/pages-action@v1
@@ -138,7 +141,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: reBitBot
-          directory: dist
+          directory: .
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
   
   post_to_reddit:
@@ -148,10 +151,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-      - name: Download release data artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: release-data-updated
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
