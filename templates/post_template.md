@@ -57,35 +57,3 @@ If you don't want to keep waiting for the new MonetizationVars file, you can go 
 ## 🔧 Project Information
 **Creator:** u/{{creator_username}}
 **Repository:** {{bot_repo}}
-
-### ❓ FAQ
-**Q: The time machine/age down button is greyed out**  
-A: To fix this, make a new life then surrender it.
-
-**Q: Can I get an APK instead?**  
-A: I'm not gonna recommend one since I don't use any and I don't have a source I trust.
-
-**Q: Is there a guide for iOS/PC (emulation)?**  
-A: I don't really know nor am I planning to make one since I don't emulate or use an iOS device.
-
-### 🛠️ BitEdit
-If you don't want to keep waiting for the new MonetizationVars file, you can go to [BitEdit](https://s0methingsomething.github.io/BitEdit/) and edit MonetizationVars yourself.
-
----
-
-## 📋 Latest Update ({{update_timestamp}})
-{{changelog}}
-
----
-
-## 📦 Currently Available ({{app_count}} apps)
-{{available_list}}
-
----
-
-## 🔧 Project Information
-**Creator:** u/{{creator_username}}
-**Repository:** {{bot_repo}}
-
-## 🛠️ Related Projects
-**BitEdit** - If you don't want to keep waiting for the new MonetizationVars file, you can go to [BitEdit](https://s0methingsomething.github.io/BitEdit/) and edit MonetizationVars yourself.
