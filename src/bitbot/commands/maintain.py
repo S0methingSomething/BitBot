@@ -47,11 +47,17 @@ def run(ctx: typer.Context) -> None:
                 # Fetch releases
                 releases_result = get_github_data(f"/repos/{bot_repo}/releases")
                 if releases_result.is_err():
-                    error = BitBotError(f"GitHub error: {releases_result.error}")
+                    error = BitBotError(f"GitHub error: {releases_result.unwrap_err()}")
                     logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {releases_result.error}")
+                    console.print(f"[red]✗ Error:[/red] {releases_result.unwrap_err()}")
                     raise typer.Exit(code=1) from None
-                releases = releases_result.unwrap()
+                releases_data = releases_result.unwrap()
+
+                if not isinstance(releases_data, list):
+                    console.print("[yellow][i] Unexpected response format[/yellow]")
+                    return
+
+                releases: list[dict] = releases_data
 
                 if not releases:
                     console.print("[yellow][i] No releases found[/yellow]")

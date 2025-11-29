@@ -161,7 +161,7 @@ def run(ctx: typer.Context) -> None:
                 result = check_comments(config)
 
                 if result.is_err():
-                    error = result.error
+                    error = result.unwrap_err()
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {error.message}")
                     raise typer.Exit(code=1)

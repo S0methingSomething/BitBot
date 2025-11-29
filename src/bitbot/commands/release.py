@@ -43,7 +43,7 @@ def process_single_release(
     # Download
     download_result = download_asset(source_repo, release.release_id, asset_name)
     if download_result.is_err():
-        console.print(f"[red]✗[/red] {app_name}: {download_result.error}")
+        console.print(f"[red]✗[/red] {app_name}: {download_result.unwrap_err()}")
         return (False, downloaded_files)
 
     # Patch
@@ -51,7 +51,7 @@ def process_single_release(
     downloaded_files.append(Path(original_path))
     patch_result = patch_file(str(original_path), asset_name)
     if patch_result.is_err():
-        console.print(f"[red]✗[/red] {app_name}: {patch_result.error}")
+        console.print(f"[red]✗[/red] {app_name}: {patch_result.unwrap_err()}")
         return (False, downloaded_files)
 
     # Create release
@@ -66,7 +66,7 @@ def process_single_release(
 
     create_result = create_bot_release(bot_repo, release_tag, title, notes, patched_path)
     if create_result.is_err():
-        console.print(f"[red]✗[/red] {app_name}: {create_result.error}")
+        console.print(f"[red]✗[/red] {app_name}: {create_result.unwrap_err()}")
         return (False, downloaded_files)
 
     console.print(f"[green]✓[/green] {app_name} {version}")
@@ -99,9 +99,9 @@ def run(ctx: typer.Context) -> None:
                 # Load pending releases
                 queue_result = load_pending_releases()
                 if queue_result.is_err():
-                    error = BitBotError(f"Queue error: {queue_result.error}")
+                    error = BitBotError(f"Queue error: {queue_result.unwrap_err()}")
                     logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {queue_result.error}")
+                    console.print(f"[red]✗ Error:[/red] {queue_result.unwrap_err()}")
                     raise typer.Exit(code=1) from None
                 pending = queue_result.unwrap()
 
@@ -141,13 +141,13 @@ def run(ctx: typer.Context) -> None:
                 if failed_releases:
                     save_result = save_pending_releases(failed_releases)
                     if save_result.is_err():
-                        msg = f"Failed to save queue: {save_result.error}"
+                        msg = f"Failed to save queue: {save_result.unwrap_err()}"
                         console.print(f"[yellow]⚠[/yellow] {msg}")
                 else:
                     # All succeeded, clear queue
                     save_result = save_pending_releases([])
                     if save_result.is_err():
-                        msg = f"Failed to clear queue: {save_result.error}"
+                        msg = f"Failed to clear queue: {save_result.unwrap_err()}"
                         console.print(f"[yellow]⚠[/yellow] {msg}")
 
                 if success_count == 0:

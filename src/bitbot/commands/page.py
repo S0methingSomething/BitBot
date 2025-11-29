@@ -105,9 +105,9 @@ def run(
                 # Generate page
                 result = generate_landing_page(releases_data, output, template)
                 if result.is_err():
-                    error = BitBotError(f"Generation error: {result.error}")
+                    error = BitBotError(f"Generation error: {result.unwrap_err()}")
                     logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {result.error}")
+                    console.print(f"[red]✗ Error:[/red] {result.unwrap_err()}")
                     raise typer.Exit(code=1) from None
 
                 output_path = result.unwrap()

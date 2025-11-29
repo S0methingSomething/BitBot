@@ -45,7 +45,9 @@ def retry_on_err(
             retry=retry_if_result(lambda r: r.is_err()),
             stop=stop_after_attempt(max_attempts),
             wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
-            retry_error_callback=lambda retry_state: retry_state.outcome.result(),
+            retry_error_callback=lambda retry_state: retry_state.outcome.result()  # type: ignore[union-attr]
+            if retry_state.outcome
+            else None,
             before_sleep=lambda retry_state: logger.warning(
                 "Retry %d/%d for %s after error (wait %.1fs)",
                 retry_state.attempt_number,

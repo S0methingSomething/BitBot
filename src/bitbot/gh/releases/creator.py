@@ -46,5 +46,5 @@ def create_bot_release(
     )
 
     if result.is_err():
-        return Err(GitHubAPIError(f"Failed to create release: {result.error}"))
+        return Err(GitHubAPIError(f"Failed to create release: {result.unwrap_err()}"))
     return Ok(None)

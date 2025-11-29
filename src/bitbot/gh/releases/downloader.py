@@ -37,7 +37,7 @@ def download_asset(
 
         assets_result = get_github_data(f"/repos/{source_repo}/releases/{release_id}/assets")
         if assets_result.is_err():
-            return Err(assets_result.error)
+            return Err(assets_result.unwrap_err())
 
         assets = cast("list[dict[str, Any]]", assets_result.unwrap())
         asset_id = next((asset["id"] for asset in assets if asset["name"] == asset_name), None)
@@ -64,7 +64,7 @@ def download_asset(
         )
 
         if result.is_err():
-            return Err(GitHubAPIError(f"Failed to download asset: {result.error}"))
+            return Err(GitHubAPIError(f"Failed to download asset: {result.unwrap_err()}"))
 
         return Ok(output_path)
     except Exception as e:

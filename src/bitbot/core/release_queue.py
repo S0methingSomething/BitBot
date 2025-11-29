@@ -62,7 +62,7 @@ def add_release(release: PendingRelease) -> Result[None, ReleaseQueueError]:
     """Add a release to the queue."""
     load_result = load_pending_releases()
     if load_result.is_err():
-        return Err(load_result.error)
+        return Err(load_result.unwrap_err())
 
     releases = load_result.unwrap()
 
@@ -74,7 +74,7 @@ def add_release(release: PendingRelease) -> Result[None, ReleaseQueueError]:
 
     save_result = save_pending_releases(releases)
     if save_result.is_err():
-        return Err(save_result.error)
+        return Err(save_result.unwrap_err())
     return Ok(None)
 
 
@@ -83,5 +83,5 @@ def clear_pending_releases() -> Result[None, ReleaseQueueError]:
     """Clear all pending releases from queue."""
     save_result = save_pending_releases([])
     if save_result.is_err():
-        return Err(save_result.error)
+        return Err(save_result.unwrap_err())
     return Ok(None)

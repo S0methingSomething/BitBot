@@ -25,5 +25,5 @@ def update_release_title(repo: str, tag: str, title: str) -> Result[None, GitHub
     """Update a release title."""
     result = run_command(["gh", "release", "edit", tag, "--repo", repo, "--title", title])
     if result.is_err():
-        return Err(GitHubAPIError(f"Failed to update release title: {result.error}"))
+        return Err(GitHubAPIError(f"Failed to update release title: {result.unwrap_err()}"))
     return Ok(None)

@@ -55,6 +55,13 @@ class Ok[T]:
         """Transform error (no-op for Ok)."""
         return self
 
+    @deal.raises(RuntimeError, message="unwrap_err() on Ok always raises")
+    @beartype
+    def unwrap_err(self) -> NoReturn:
+        """Raise error - Ok has no error to unwrap."""
+        msg = f"Called unwrap_err on Ok: {self.value}"
+        raise RuntimeError(msg)
+
 
 @dataclass
 class Err[E]:

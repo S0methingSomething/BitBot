@@ -134,7 +134,7 @@ def post_or_update(
             # Time to create new post
             result = post_new_release(reddit, title, body, config)
             if result.is_err():
-                msg = f"Failed to create post: {result.error}"
+                msg = f"Failed to create post: {result.unwrap_err()}"
                 raise BitBotError(msg)
             return (result.unwrap(), False)
 
@@ -144,14 +144,14 @@ def post_or_update(
 
         result = update_post(reddit, existing_post_id, body, config)
         if result.is_err():
-            msg = f"Failed to update post {existing_post_id}: {result.error}"
+            msg = f"Failed to update post {existing_post_id}: {result.unwrap_err()}"
             raise BitBotError(msg)
         return (result.unwrap(), True)
 
     # new_post mode: always create new post
     result = post_new_release(reddit, title, body, config)
     if result.is_err():
-        msg = f"Failed to create post: {result.error}"
+        msg = f"Failed to create post: {result.unwrap_err()}"
         raise BitBotError(msg)
     return (result.unwrap(), False)
 
@@ -306,9 +306,9 @@ def run(
                 # Init Reddit
                 reddit_result = init_reddit(config)
                 if reddit_result.is_err():
-                    error = BitBotError(f"Reddit error: {reddit_result.error}")
+                    error = BitBotError(f"Reddit error: {reddit_result.unwrap_err()}")
                     logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {reddit_result.error}")
+                    console.print(f"[red]✗ Error:[/red] {reddit_result.unwrap_err()}")
                     raise typer.Exit(code=1) from None
                 reddit = reddit_result.unwrap()
 
@@ -350,7 +350,7 @@ def run(
 
                 save_result = save_account_state(state)
                 if save_result.is_err():
-                    error = BitBotError(f"Failed to save state: {save_result.error}")
+                    error = BitBotError(f"Failed to save state: {save_result.unwrap_err()}")
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[yellow]⚠[/yellow] {error.message}")
                     # Don't fail - post was successful, state update is secondary
