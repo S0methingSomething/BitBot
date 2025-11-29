@@ -41,7 +41,7 @@ def main() -> None:
                 "run",
                 "python",
                 "-c",
-                'from src.models import *; print("✅ Pydantic models valid")',
+                'from bitbot.models import *; print("✅ Pydantic models valid")',
             ],
         ),
         ("Complexity Check", ["uv", "run", "python", ".github/scripts/check_complexity.py", "15"]),
@@ -49,7 +49,7 @@ def main() -> None:
             "Docstring Coverage (interrogate)",
             ["uv", "run", "interrogate", "-v", "src/", "--fail-under=80"],
         ),
-        ("Dead Code (vulture)", ["uv", "run", "vulture", "src/", "--min-confidence=80"]),
+        ("Dead Code (vulture)", ["uv", "run", "vulture", "src/", ".vulture_whitelist.py", "--min-confidence=80"]),
         ("Dependency Check (deptry)", ["uv", "run", "deptry", "src/"]),
     ]
 

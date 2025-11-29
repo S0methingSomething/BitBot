@@ -71,12 +71,6 @@ def run(ctx: typer.Context) -> None:
                 # Parse versions from post
                 versions = parse_versions_from_post(latest_post, config)
 
-                if not isinstance(versions, dict):
-                    error = BitBotError("Invalid versions data from post")
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {error.message}")
-                    raise typer.Exit(code=1) from None
-
                 # Load bot state
                 state_result = load_bot_state()
                 if state_result.is_err():
@@ -87,9 +81,7 @@ def run(ctx: typer.Context) -> None:
 
                 bot_state = state_result.unwrap()
 
-                # Update state - preserve existing online fields, update versions
-                if not isinstance(bot_state.online, dict):
-                    bot_state.online = {}
+                # Update state with versions from Reddit post
                 bot_state.online.update(versions)
                 bot_state.active_post_id = latest_post.id
 

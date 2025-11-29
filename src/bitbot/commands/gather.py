@@ -100,10 +100,11 @@ def run(ctx: typer.Context) -> None:
                         apps_data[app_id] = {
                             "display_name": display_name,
                             "latest_release": release_data,
-                            "releases": [release_data],
+                            "previous_releases": [],
                         }
                     else:
-                        apps_data[app_id]["releases"].append(release_data)
+                        # Subsequent releases are previous releases
+                        apps_data[app_id]["previous_releases"].append(release_data)
 
                 # Save to releases.json
                 dist_dir = Path(paths.DIST_DIR)

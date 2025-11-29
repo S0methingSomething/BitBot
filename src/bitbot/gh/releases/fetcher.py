@@ -57,7 +57,6 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
     lambda repo: "/" in repo,
     message="Repository must be in owner/name format",
 )
-@retry_on_err()
 @beartype
 def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIError]:
     """Gets the last 30 releases from the source repository."""

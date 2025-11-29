@@ -56,10 +56,12 @@ custom_landing = "templates/custom_landing_page.example.html" # Optional
 # Safety features to prevent account flagging.
 [safety]
 max_outbound_links_warn = 5
+max_outbound_links_error = 8
 
 # Controls how old posts are marked.
 [outdatedPostHandling]
 mode = "inject" # Can be 'overwrite' or 'inject'.
+prefix = "[OUTDATED]"
 
 # Text formats for GitHub releases.
 [messages]

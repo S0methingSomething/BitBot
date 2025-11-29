@@ -7,7 +7,6 @@ import deal
 from beartype import beartype
 
 from bitbot import paths
-from bitbot.core.credentials import get_github_token
 from bitbot.core.errors import GitHubAPIError
 from bitbot.core.result import Err, Ok, Result
 from bitbot.gh.releases.fetcher import get_github_data, run_command
@@ -45,23 +44,15 @@ def download_asset(
         if not asset_id:
             return Err(GitHubAPIError(f"Asset '{asset_name}' not found in release {release_id}"))
 
-        download_url = f"https://api.github.com/repos/{source_repo}/releases/assets/{asset_id}"
         output_path = Path(DOWNLOAD_DIR) / f"original_{asset_name}"
 
-        result = run_command(
-            [
-                "curl",
-                "-sL",
-                "-J",
-                "-H",
-                "Accept: application/octet-stream",
-                "-H",
-                f"Authorization: token {get_github_token()}",
-                "-o",
-                str(output_path),
-                download_url,
-            ]
-        )
+        # Use gh api for secure download - token handled internally by gh CLI
+        result = run_command([
+            "gh", "api",
+            f"/repos/{source_repo}/releases/assets/{asset_id}",
+            "-H", "Accept: application/octet-stream",
+            "--output", str(output_path),
+        ])
 
         if result.is_err():
             return Err(GitHubAPIError(f"Failed to download asset: {result.unwrap_err()}"))
