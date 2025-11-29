@@ -4,9 +4,9 @@ from pathlib import Path
 
 import deal
 from beartype import beartype
+from returns.result import Failure, Result, Success
 
 from bitbot.core.errors import GitHubAPIError
-from bitbot.core.result import Err, Ok, Result
 from bitbot.gh.releases.fetcher import run_command
 
 
@@ -32,7 +32,7 @@ def create_bot_release(
 ) -> Result[None, GitHubAPIError]:
     """Creates a new release in the bot repository."""
     if not Path(file_path).exists():
-        return Err(GitHubAPIError(f"Asset file not found: {file_path}"))
+        return Failure(GitHubAPIError(f"Asset file not found: {file_path}"))
 
     result = run_command(
         [
@@ -50,6 +50,6 @@ def create_bot_release(
         ]
     )
 
-    if result.is_err():
-        return Err(GitHubAPIError(f"Failed to create release: {result.unwrap_err()}"))
-    return Ok(None)
+    if isinstance(result, Failure):
+        return Failure(GitHubAPIError(f"Failed to create release: {result.failure()}"))
+    return Success(None)

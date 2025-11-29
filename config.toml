@@ -100,11 +100,11 @@ asset_name_key = "asset_name"
 
 # Configuration for each app the bot manages.
 [[apps]]
-id = "bitlife"
+id = "BitLife"
 displayName = "BitLife"
 
 [[apps]]
-id = "bitlife_go"
+id = "BitLife Go"
 displayName = "BitLife Go"
 
 [[apps]]

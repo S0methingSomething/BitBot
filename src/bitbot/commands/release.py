@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import typer
 from beartype import beartype
+from returns.result import Failure
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.core.error_context import error_context
@@ -42,16 +43,16 @@ def process_single_release(
 
     # Download
     download_result = download_asset(source_repo, release.release_id, asset_name)
-    if download_result.is_err():
-        console.print(f"[red]✗[/red] {app_name}: {download_result.unwrap_err()}")
+    if isinstance(download_result, Failure):
+        console.print(f"[red]✗[/red] {app_name}: {download_result.failure()}")
         return (False, downloaded_files)
 
     # Patch
     original_path = download_result.unwrap()
     downloaded_files.append(Path(original_path))
     patch_result = patch_file(str(original_path), asset_name)
-    if patch_result.is_err():
-        console.print(f"[red]✗[/red] {app_name}: {patch_result.unwrap_err()}")
+    if isinstance(patch_result, Failure):
+        console.print(f"[red]✗[/red] {app_name}: {patch_result.failure()}")
         return (False, downloaded_files)
 
     # Create release
@@ -62,11 +63,14 @@ def process_single_release(
 
     # Calculate SHA256 of patched file
     file_hash = hashlib.sha256(Path(patched_path).read_bytes()).hexdigest()
-    notes = f"app: {app_name}\nversion: {version}\nasset_name: {asset_name}\nsha256: {file_hash}"
+    notes = (
+        f"app: {release.app_id}\nversion: {version}\n"
+        f"asset_name: {asset_name}\nsha256: {file_hash}"
+    )
 
     create_result = create_bot_release(bot_repo, release_tag, title, notes, patched_path)
-    if create_result.is_err():
-        console.print(f"[red]✗[/red] {app_name}: {create_result.unwrap_err()}")
+    if isinstance(create_result, Failure):
+        console.print(f"[red]✗[/red] {app_name}: {create_result.failure()}")
         return (False, downloaded_files)
 
     console.print(f"[green]✓[/green] {app_name} {version}")
@@ -98,10 +102,10 @@ def run(ctx: typer.Context) -> None:
 
                 # Load pending releases
                 queue_result = load_pending_releases()
-                if queue_result.is_err():
-                    error = BitBotError(f"Queue error: {queue_result.unwrap_err()}")
+                if isinstance(queue_result, Failure):
+                    error = BitBotError(f"Queue error: {queue_result.failure()}")
                     logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {queue_result.unwrap_err()}")
+                    console.print(f"[red]✗ Error:[/red] {queue_result.failure()}")
                     raise typer.Exit(code=1) from None
                 pending = queue_result.unwrap()
 
@@ -140,14 +144,14 @@ def run(ctx: typer.Context) -> None:
                 # Update queue: keep only failed releases
                 if failed_releases:
                     save_result = save_pending_releases(failed_releases)
-                    if save_result.is_err():
-                        msg = f"Failed to save queue: {save_result.unwrap_err()}"
+                    if isinstance(save_result, Failure):
+                        msg = f"Failed to save queue: {save_result.failure()}"
                         console.print(f"[yellow]⚠[/yellow] {msg}")
                 else:
                     # All succeeded, clear queue
                     save_result = save_pending_releases([])
-                    if save_result.is_err():
-                        msg = f"Failed to clear queue: {save_result.unwrap_err()}"
+                    if isinstance(save_result, Failure):
+                        msg = f"Failed to clear queue: {save_result.failure()}"
                         console.print(f"[yellow]⚠[/yellow] {msg}")
 
                 if success_count == 0:

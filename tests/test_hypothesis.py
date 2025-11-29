@@ -6,8 +6,8 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from pydantic import ValidationError
+from returns.result import Failure, Success
 
-from bitbot.core.result import Err, Ok
 from bitbot.crypto.cipher import decrypt, encrypt
 from bitbot.crypto.modifier import unlock_premium_features
 from bitbot.crypto.obfuscation import get_obfuscated_key
@@ -17,45 +17,47 @@ from bitbot.reddit.posting.poster import count_outbound_links
 
 # Result type properties
 @given(st.integers())
-def test_ok_unwrap_returns_value(value):
-    """Ok.unwrap() always returns the wrapped value."""
-    assert Ok(value).unwrap() == value
+def test_success_unwrap_returns_value(value):
+    """Success.unwrap() always returns the wrapped value."""
+    assert Success(value).unwrap() == value
 
 
 @given(st.text())
-def test_err_unwrap_or_returns_default(error):
-    """Err.unwrap_or() always returns the default."""
+def test_failure_value_or_returns_default(error):
+    """Failure.value_or() always returns the default."""
     default = "default"
-    assert Err(error).unwrap_or(default) == default
+    assert Failure(error).value_or(default) == default
 
 
 @given(st.integers(), st.integers())
-def test_ok_map_applies_function(value, add):
-    """Ok.map() applies function to value."""
-    result = Ok(value).map(lambda x: x + add)
+def test_success_map_applies_function(value, add):
+    """Success.map() applies function to value."""
+    result = Success(value).map(lambda x: x + add)
     assert result.unwrap() == value + add
 
 
 @given(st.text())
-def test_err_map_preserves_error(error):
-    """Err.map() preserves the error unchanged."""
-    result = Err(error).map(lambda x: x * 2)
-    assert result.is_err()
-    assert result.unwrap_err() == error
+def test_failure_map_preserves_error(error):
+    """Failure.map() preserves the error unchanged."""
+    result = Failure(error).map(lambda x: x * 2)
+    assert isinstance(result, Failure)
+    assert result.failure() == error
 
 
 @given(st.integers())
-def test_ok_is_ok_true(value):
-    """Ok.is_ok() is always True."""
-    assert Ok(value).is_ok() is True
-    assert Ok(value).is_err() is False
+def test_success_is_success(value):
+    """Success is instance of Success."""
+    result = Success(value)
+    assert isinstance(result, Success)
+    assert not isinstance(result, Failure)
 
 
 @given(st.text())
-def test_err_is_err_true(error):
-    """Err.is_err() is always True."""
-    assert Err(error).is_err() is True
-    assert Err(error).is_ok() is False
+def test_failure_is_failure(error):
+    """Failure is instance of Failure."""
+    result = Failure(error)
+    assert isinstance(result, Failure)
+    assert not isinstance(result, Success)
 
 
 # Crypto properties

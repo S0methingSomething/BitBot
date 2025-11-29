@@ -9,13 +9,13 @@ import deal
 import typer
 from beartype import beartype
 from praw.models import Submission
+from returns.result import Failure, Result, Success
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.config_models import Config
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError, RedditAPIError
-from bitbot.core.result import Err, Ok, Result
 from bitbot.core.state import load_bot_state, save_bot_state
 from bitbot.models import BotState
 from bitbot.reddit.client import init_reddit
@@ -99,8 +99,8 @@ def _update_check_interval(state: BotState, comment_count: int, config: Config) 
 def check_comments(config: Config) -> Result[CheckResult, BitBotError]:
     """Check comments and update post status."""
     state_result = load_bot_state()
-    if state_result.is_err():
-        return Err(state_result.unwrap_err())
+    if isinstance(state_result, Failure):
+        return Failure(state_result.failure())
 
     state = state_result.unwrap()
     now = datetime.now(UTC)
@@ -110,12 +110,12 @@ def check_comments(config: Config) -> Result[CheckResult, BitBotError]:
 
     # Skip check if no active post or not time yet
     if not state.active_post_id or now < (last_check + timedelta(seconds=current_interval)):
-        return Ok(CheckResult.STATE_UNCHANGED)
+        return Success(CheckResult.STATE_UNCHANGED)
 
     # Initialize reddit client
     reddit_result = init_reddit(config)
-    if reddit_result.is_err():
-        return Err(reddit_result.unwrap_err())
+    if isinstance(reddit_result, Failure):
+        return Failure(reddit_result.failure())
 
     reddit = reddit_result.unwrap()
 
@@ -129,16 +129,16 @@ def check_comments(config: Config) -> Result[CheckResult, BitBotError]:
         state_changed = _update_check_interval(state, len(comments), config)
 
     except Exception as e:
-        return Err(RedditAPIError(f"Failed to check comments: {e}"))
+        return Failure(RedditAPIError(f"Failed to check comments: {e}"))
 
     # Update timestamp and save state
     state.last_check_timestamp = now.isoformat().replace("+00:00", "Z")
     if state_changed == CheckResult.STATE_CHANGED:
         save_result = save_bot_state(state)
-        if save_result.is_err():
-            return Err(save_result.unwrap_err())
+        if isinstance(save_result, Failure):
+            return Failure(save_result.failure())
 
-    return Ok(state_changed)
+    return Success(state_changed)
 
 
 @beartype
@@ -160,8 +160,8 @@ def run(ctx: typer.Context) -> None:
                 progress.add_task(description="Checking comments...", total=None)
                 result = check_comments(config)
 
-                if result.is_err():
-                    error = result.unwrap_err()
+                if isinstance(result, Failure):
+                    error = result.failure()
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {error.message}")
                     raise typer.Exit(code=1)

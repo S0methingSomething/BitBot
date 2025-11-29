@@ -2,9 +2,9 @@
 
 import deal
 from beartype import beartype
+from returns.result import Failure, Result, Success
 
 from bitbot.core.errors import GitHubAPIError
-from bitbot.core.result import Err, Ok, Result
 from bitbot.gh.releases.fetcher import run_command
 
 
@@ -24,6 +24,6 @@ from bitbot.gh.releases.fetcher import run_command
 def update_release_title(repo: str, tag: str, title: str) -> Result[None, GitHubAPIError]:
     """Update a release title."""
     result = run_command(["gh", "release", "edit", tag, "--repo", repo, "--title", title])
-    if result.is_err():
-        return Err(GitHubAPIError(f"Failed to update release title: {result.unwrap_err()}"))
-    return Ok(None)
+    if isinstance(result, Failure):
+        return Failure(GitHubAPIError(f"Failed to update release title: {result.failure()}"))
+    return Success(None)

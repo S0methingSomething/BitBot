@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import typer
 from beartype import beartype
+from returns.result import Failure
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot import paths
@@ -25,24 +26,25 @@ app = typer.Typer()
 
 @beartype
 def _parse_release_metadata(release: dict[str, Any]) -> tuple[str | None, str | None]:
-    """Parse app name and version from release body."""
+    """Parse app ID and version from release body."""
     body = release.get("body", "")
-    app_name = None
+    app_id = None
     version = None
 
-    for line in body.split("\n"):
+    for raw_line in body.split("\n"):
+        line = raw_line.strip()
         if line.startswith("app:"):
-            app_name = line.split(":", 1)[1].strip()
+            app_id = line.split(":", 1)[1].strip()
         elif line.startswith("version:"):
             version = line.split(":", 1)[1].strip()
 
-    return app_name, version
+    return app_id, version
 
 
 @beartype
 @app.command()
 def run(ctx: typer.Context) -> None:
-    """Gather releases from bot repository and create releases.json."""
+    """Gather releases from source repository and create releases.json."""
     container: Container = ctx.obj["container"]
     console: Console = container.console()
     logger = container.logger()
@@ -57,54 +59,92 @@ def run(ctx: typer.Context) -> None:
             ) as progress:
                 progress.add_task(description="Gathering releases...", total=None)
 
+                source_repo = config.github.source_repo
                 bot_repo = config.github.bot_repo
                 apps_config = {
                     app["id"]: app["displayName"] for app in config.model_dump().get("apps", [])
                 }
 
-                # Fetch all releases from bot repo using authenticated gh CLI
-                releases_result = get_github_data(f"/repos/{bot_repo}/releases?per_page=100")
-                if releases_result.is_err():
-                    error = BitBotError(f"GitHub API error: {releases_result.unwrap_err()}")
+                # Fetch releases from source repo (has correct app IDs)
+                source_result = get_github_data(f"/repos/{source_repo}/releases?per_page=100")
+                if isinstance(source_result, Failure):
+                    error = BitBotError(f"GitHub API error: {source_result.failure()}")
                     logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {releases_result.unwrap_err()}")
+                    console.print(f"[red]✗ Error:[/red] {source_result.failure()}")
                     raise typer.Exit(code=1) from None
 
-                releases = releases_result.unwrap()
-                if not isinstance(releases, list):
+                source_releases = source_result.unwrap()
+                if not isinstance(source_releases, list):
                     error = BitBotError("Expected list of releases from GitHub API")
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {error.message}")
                     raise typer.Exit(code=1) from None
 
-                # Group releases by app
+                # Fetch bot repo releases for download URLs
+                bot_result = get_github_data(f"/repos/{bot_repo}/releases?per_page=100")
+                bot_data = bot_result.unwrap() if isinstance(bot_result, Failure) is False else []
+                bot_releases: list[dict[str, Any]] = bot_data if isinstance(bot_data, list) else []
+
+                # Get latest releases from source (has correct app IDs)
                 apps_data: dict[str, Any] = {}
-                for release in releases:
+                for release in source_releases:
+                    app_id, version = _parse_release_metadata(release)
+                    if not app_id or not version:
+                        continue
+                    if app_id not in apps_config:
+                        continue
+
+                    # Find download URL from bot repo
+                    download_url = ""
+                    for bot_rel in bot_releases:
+                        if not bot_rel.get("assets"):
+                            continue
+                        _, bot_ver = _parse_release_metadata(bot_rel)
+                        if bot_ver == version:
+                            download_url = bot_rel["assets"][0]["browser_download_url"]
+                            break
+
+                    if not download_url:
+                        continue
+
+                    apps_data[app_id] = {
+                        "display_name": apps_config[app_id],
+                        "latest_release": {
+                            "version": version,
+                            "download_url": download_url,
+                            "published_at": release["published_at"],
+                        },
+                        "previous_releases": [],
+                    }
+
+                # Get version history from bot repo (normalize app IDs)
+                for release in bot_releases:
                     if not release.get("assets"):
                         continue
-
-                    app_name, version = _parse_release_metadata(release)
-                    if not app_name or not version:
+                    bot_app_id, version = _parse_release_metadata(release)
+                    if not bot_app_id or not version:
                         continue
 
-                    app_id = app_name.lower().replace(" ", "_")
-                    display_name = apps_config.get(app_id, app_name)
+                    # Match to config ID via normalization
+                    normalized = bot_app_id.lower().replace(" ", "_")
+                    matched_id = None
+                    for cfg_id in apps_config:
+                        if cfg_id == bot_app_id or cfg_id.lower().replace(" ", "_") == normalized:
+                            matched_id = cfg_id
+                            break
 
-                    release_data = {
+                    if not matched_id or matched_id not in apps_data:
+                        continue
+
+                    # Skip if it's the latest version
+                    if version == apps_data[matched_id]["latest_release"]["version"]:
+                        continue
+
+                    apps_data[matched_id]["previous_releases"].append({
                         "version": version,
                         "download_url": release["assets"][0]["browser_download_url"],
                         "published_at": release["published_at"],
-                    }
-
-                    if app_id not in apps_data:
-                        apps_data[app_id] = {
-                            "display_name": display_name,
-                            "latest_release": release_data,
-                            "previous_releases": [],
-                        }
-                    else:
-                        # Subsequent releases are previous releases
-                        apps_data[app_id]["previous_releases"].append(release_data)
+                    })
 
                 # Save to releases.json
                 dist_dir = Path(paths.DIST_DIR)
@@ -115,7 +155,7 @@ def run(ctx: typer.Context) -> None:
                     json.dump(apps_data, f, indent=2)
 
                 app_count = len(apps_data)
-                console.print(f"[green]✓[/green] Gathered {app_count} app(s) from bot releases")
+                console.print(f"[green]✓[/green] Gathered {app_count} app(s) from releases")
 
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")

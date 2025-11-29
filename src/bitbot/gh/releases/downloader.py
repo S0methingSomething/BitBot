@@ -5,10 +5,10 @@ from typing import Any, cast
 
 import deal
 from beartype import beartype
+from returns.result import Failure, Result, Success
 
 from bitbot import paths
 from bitbot.core.errors import GitHubAPIError
-from bitbot.core.result import Err, Ok, Result
 from bitbot.gh.releases.fetcher import get_github_data, run_command
 
 DOWNLOAD_DIR = paths.DIST_DIR
@@ -35,14 +35,15 @@ def download_asset(
         Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
         assets_result = get_github_data(f"/repos/{source_repo}/releases/{release_id}/assets")
-        if assets_result.is_err():
-            return Err(assets_result.unwrap_err())
+        if isinstance(assets_result, Failure):
+            return Failure(assets_result.failure())
 
         assets = cast("list[dict[str, Any]]", assets_result.unwrap())
         asset_id = next((asset["id"] for asset in assets if asset["name"] == asset_name), None)
 
         if not asset_id:
-            return Err(GitHubAPIError(f"Asset '{asset_name}' not found in release {release_id}"))
+            msg = f"Asset '{asset_name}' not found in release {release_id}"
+            return Failure(GitHubAPIError(msg))
 
         output_path = Path(DOWNLOAD_DIR) / f"original_{asset_name}"
 
@@ -54,9 +55,9 @@ def download_asset(
             "--output", str(output_path),
         ])
 
-        if result.is_err():
-            return Err(GitHubAPIError(f"Failed to download asset: {result.unwrap_err()}"))
+        if isinstance(result, Failure):
+            return Failure(GitHubAPIError(f"Failed to download asset: {result.failure()}"))
 
-        return Ok(output_path)
+        return Success(output_path)
     except Exception as e:
-        return Err(GitHubAPIError(f"Failed to download asset: {e}"))
+        return Failure(GitHubAPIError(f"Failed to download asset: {e}"))

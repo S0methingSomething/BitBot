@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import typer
 from beartype import beartype
+from returns.result import Failure
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.core.error_context import error_context
@@ -42,8 +43,8 @@ def run(ctx: typer.Context) -> None:
 
                 # Initialize Reddit client
                 reddit_result = init_reddit(config)
-                if reddit_result.is_err():
-                    error = BitBotError(f"Reddit init failed: {reddit_result.unwrap_err()}")
+                if isinstance(reddit_result, Failure):
+                    error = BitBotError(f"Reddit init failed: {reddit_result.failure()}")
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {error.message}")
                     raise typer.Exit(code=1) from None
@@ -52,8 +53,8 @@ def run(ctx: typer.Context) -> None:
 
                 # Get bot posts
                 posts_result = get_bot_posts(reddit, config)
-                if posts_result.is_err():
-                    error = BitBotError(f"Failed to get posts: {posts_result.unwrap_err()}")
+                if isinstance(posts_result, Failure):
+                    error = BitBotError(f"Failed to get posts: {posts_result.failure()}")
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {error.message}")
                     raise typer.Exit(code=1) from None
@@ -73,8 +74,8 @@ def run(ctx: typer.Context) -> None:
 
                 # Load bot state
                 state_result = load_bot_state()
-                if state_result.is_err():
-                    error = BitBotError(f"Failed to load state: {state_result.unwrap_err()}")
+                if isinstance(state_result, Failure):
+                    error = BitBotError(f"Failed to load state: {state_result.failure()}")
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {error.message}")
                     raise typer.Exit(code=1) from None
@@ -91,8 +92,8 @@ def run(ctx: typer.Context) -> None:
 
                 # Save state
                 save_result = save_bot_state(bot_state)
-                if save_result.is_err():
-                    error = BitBotError(f"Failed to save state: {save_result.unwrap_err()}")
+                if isinstance(save_result, Failure):
+                    error = BitBotError(f"Failed to save state: {save_result.failure()}")
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {error.message}")
                     raise typer.Exit(code=1) from None

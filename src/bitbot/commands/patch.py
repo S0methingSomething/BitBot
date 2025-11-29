@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import typer
 from beartype import beartype
+from returns.result import Failure
 
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
@@ -56,10 +57,10 @@ def run(
 
             result = process_file(input_file, output_file)
 
-            if result.is_err():
-                error = BitBotError(f"Patch failed: {result.unwrap_err()}")
+            if isinstance(result, Failure):
+                error = BitBotError(f"Patch failed: {result.failure()}")
                 logger.log_error(error, LogLevel.ERROR)
-                console.print(f"[red]✗ Error:[/red] {result.unwrap_err()}")
+                console.print(f"[red]✗ Error:[/red] {result.failure()}")
                 raise typer.Exit(code=1) from None
 
             console.print(f"[green]✓[/green] Patched file saved to: {output_file}")

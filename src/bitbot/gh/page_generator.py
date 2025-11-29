@@ -6,10 +6,10 @@ from typing import Any
 import deal
 from beartype import beartype
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
+from returns.result import Failure, Result, Success
 
 from bitbot import paths
 from bitbot.core.errors import PageGeneratorError
-from bitbot.core.result import Err, Ok, Result
 
 
 @deal.pre(
@@ -38,9 +38,9 @@ def generate_landing_page(
 
         output.write_text(rendered, encoding="utf-8")
 
-        return Ok(output)
+        return Success(output)
 
     except TemplateNotFound:
-        return Err(PageGeneratorError(f"Template not found: {template_name}"))
+        return Failure(PageGeneratorError(f"Template not found: {template_name}"))
     except (OSError, ValueError) as e:
-        return Err(PageGeneratorError(f"Failed to generate page: {e}"))
+        return Failure(PageGeneratorError(f"Failed to generate page: {e}"))

@@ -2,6 +2,8 @@
 
 import json
 
+from returns.result import Success
+
 from bitbot.core.release_queue import (
     add_release,
     clear_pending_releases,
@@ -12,7 +14,7 @@ from bitbot.models import PendingRelease
 
 
 def test_load_pending_releases_success(tmp_path, monkeypatch):
-    """Test load_pending_releases returns Ok with valid data."""
+    """Test load_pending_releases returns Success with valid data."""
     queue_file = tmp_path / "release_queue.json"
     queue_file.write_text(
         json.dumps(
@@ -32,7 +34,7 @@ def test_load_pending_releases_success(tmp_path, monkeypatch):
 
     result = load_pending_releases()
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     releases = result.unwrap()
     assert len(releases) == 1
     assert releases[0].app_id == "test_app"
@@ -45,7 +47,7 @@ def test_load_pending_releases_missing_file(tmp_path, monkeypatch):
 
     result = load_pending_releases()
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     assert result.unwrap() == []
 
 
@@ -66,7 +68,7 @@ def test_save_pending_releases_success(tmp_path, monkeypatch):
 
     result = save_pending_releases(releases)
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     assert queue_file.exists()
     data = json.loads(queue_file.read_text())
     assert len(data) == 1
@@ -85,7 +87,7 @@ def test_add_release_success(tmp_path, monkeypatch):
 
     result = add_release(release)
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     data = json.loads(queue_file.read_text())
     assert len(data) == 1
 
@@ -98,6 +100,6 @@ def test_clear_pending_releases_success(tmp_path, monkeypatch):
 
     result = clear_pending_releases()
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     data = json.loads(queue_file.read_text())
     assert data == []

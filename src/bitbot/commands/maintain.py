@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import typer
 from beartype import beartype
+from returns.result import Failure, Success
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.core.error_context import error_context
@@ -67,10 +68,10 @@ def run(ctx: typer.Context) -> None:
 
                 # Fetch releases
                 releases_result = get_github_data(f"/repos/{bot_repo}/releases")
-                if releases_result.is_err():
-                    error = BitBotError(f"GitHub error: {releases_result.unwrap_err()}")
+                if isinstance(releases_result, Failure):
+                    error = BitBotError(f"GitHub error: {releases_result.failure()}")
                     logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {releases_result.unwrap_err()}")
+                    console.print(f"[red]✗ Error:[/red] {releases_result.failure()}")
                     raise typer.Exit(code=1) from None
 
                 releases_data = releases_result.unwrap()
@@ -112,7 +113,7 @@ def run(ctx: typer.Context) -> None:
                                 continue
                             new_title = f"{outdated_prefix} {title}"
                             update_result = update_release_title(bot_repo, tag, new_title)
-                            if update_result.is_ok():
+                            if isinstance(update_result, Success):
                                 console.print(f"[cyan]✓[/cyan] Marked {tag} (unconfigured app)")
                                 updated_count += 1
                         continue
@@ -128,7 +129,7 @@ def run(ctx: typer.Context) -> None:
                             continue
                         new_title = f"{outdated_prefix} {title}"
                         update_result = update_release_title(bot_repo, tag, new_title)
-                        if update_result.is_ok():
+                        if isinstance(update_result, Success):
                             console.print(f"[cyan]✓[/cyan] Marked {tag} as outdated")
                             updated_count += 1
 

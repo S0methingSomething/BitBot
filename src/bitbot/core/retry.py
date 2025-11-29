@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import ParamSpec, TypeVar
 
 from beartype import beartype
+from returns.result import Failure
 from tenacity import retry, retry_if_result, stop_after_attempt, wait_exponential
 
 P = ParamSpec("P")
@@ -18,8 +19,8 @@ def retry_on_err(
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """Retry decorator for functions returning Result types.
 
-    Retries when function returns Err, stops after max_attempts.
-    Returns the final Err if all attempts fail instead of raising RetryError.
+    Retries when function returns Failure, stops after max_attempts.
+    Returns the final Failure if all attempts fail instead of raising RetryError.
 
     Args:
         max_attempts: Maximum number of retry attempts (default: 3)
@@ -27,7 +28,7 @@ def retry_on_err(
         max_wait: Maximum wait time in seconds (default: 10)
 
     Returns:
-        Decorated function that retries on Err results
+        Decorated function that retries on Failure results
     """
 
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
@@ -42,7 +43,7 @@ def retry_on_err(
         logger = logging.getLogger(func.__module__)
 
         @retry(
-            retry=retry_if_result(lambda r: r.is_err()),
+            retry=retry_if_result(lambda r: isinstance(r, Failure)),
             stop=stop_after_attempt(max_attempts),
             wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
             retry_error_callback=lambda retry_state: retry_state.outcome.result()  # type: ignore[union-attr]

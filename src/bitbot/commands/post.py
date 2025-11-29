@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import praw
 import typer
 from beartype import beartype
+from returns.result import Failure, Success
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -43,7 +44,7 @@ def _verify_account_state(
     console.print("[dim]Verifying state against Reddit...[/dim]")
     try:
         posts_result = get_bot_posts(reddit, config)
-        if posts_result.is_ok():
+        if isinstance(posts_result, Success):
             posts = posts_result.unwrap()
             if posts:
                 latest_post = posts[0]
@@ -133,8 +134,8 @@ def post_or_update(
         if should_create_new_post(reddit, existing_post_id, config):
             # Time to create new post
             result = post_new_release(reddit, title, body, config)
-            if result.is_err():
-                msg = f"Failed to create post: {result.unwrap_err()}"
+            if isinstance(result, Failure):
+                msg = f"Failed to create post: {result.failure()}"
                 raise BitBotError(msg)
             return (result.unwrap(), False)
 
@@ -143,15 +144,15 @@ def post_or_update(
             return None  # No existing post to update
 
         result = update_post(reddit, existing_post_id, body, config)
-        if result.is_err():
-            msg = f"Failed to update post {existing_post_id}: {result.unwrap_err()}"
+        if isinstance(result, Failure):
+            msg = f"Failed to update post {existing_post_id}: {result.failure()}"
             raise BitBotError(msg)
         return (result.unwrap(), True)
 
     # new_post mode: always create new post
     result = post_new_release(reddit, title, body, config)
-    if result.is_err():
-        msg = f"Failed to create post: {result.unwrap_err()}"
+    if isinstance(result, Failure):
+        msg = f"Failed to create post: {result.failure()}"
         raise BitBotError(msg)
     return (result.unwrap(), False)
 
@@ -256,10 +257,10 @@ def run(
     ctx: typer.Context,
     page_url: str = typer.Option(None, "--page-url", help="Landing page URL to post"),
     verify: bool = typer.Option(  # noqa: FBT001
-        default=False, flag_value=True, help="Verify state against actual Reddit post"
+        default=False, help="Verify state against actual Reddit post"
     ),
     force: bool = typer.Option(  # noqa: FBT001
-        default=False, flag_value=True, help="Force post even if no changes detected"
+        default=False, help="Force post even if no changes detected"
     ),
 ) -> None:
     """Post new releases to Reddit."""
@@ -282,7 +283,7 @@ def run(
 
                 # Load state to check for changes
                 state_result = load_account_state()
-                if state_result.is_err():
+                if isinstance(state_result, Failure):
                     console.print("[yellow]⚠[/yellow] No existing state, will create new post")
                     state = AccountState()
                 else:
@@ -305,10 +306,10 @@ def run(
 
                 # Init Reddit
                 reddit_result = init_reddit(config)
-                if reddit_result.is_err():
-                    error = BitBotError(f"Reddit error: {reddit_result.unwrap_err()}")
+                if isinstance(reddit_result, Failure):
+                    error = BitBotError(f"Reddit error: {reddit_result.failure()}")
                     logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {reddit_result.unwrap_err()}")
+                    console.print(f"[red]✗ Error:[/red] {reddit_result.failure()}")
                     raise typer.Exit(code=1) from None
                 reddit = reddit_result.unwrap()
 
@@ -349,8 +350,8 @@ def run(
                         state.online[app_id] = latest.get("version", "unknown")
 
                 save_result = save_account_state(state)
-                if save_result.is_err():
-                    error = BitBotError(f"Failed to save state: {save_result.unwrap_err()}")
+                if isinstance(save_result, Failure):
+                    error = BitBotError(f"Failed to save state: {save_result.failure()}")
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[yellow]⚠[/yellow] {error.message}")
                     # Don't fail - post was successful, state update is secondary

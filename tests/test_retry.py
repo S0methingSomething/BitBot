@@ -1,29 +1,30 @@
 """Tests for retry decorator."""
 
+from returns.result import Failure, Result, Success
+
 from bitbot.core.errors import GitHubAPIError
-from bitbot.core.result import Err, Ok
 from bitbot.core.retry import retry_on_err
 
 
 def test_retry_on_err_success_first_attempt():
-    """Test retry_on_err returns Ok on first attempt."""
+    """Test retry_on_err returns Success on first attempt."""
     call_count = 0
 
     @retry_on_err()
     def succeeds_immediately():
         nonlocal call_count
         call_count += 1
-        return Ok("success")
+        return Success("success")
 
     result = succeeds_immediately()
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     assert result.unwrap() == "success"
     assert call_count == 1
 
 
-def test_retry_on_err_retries_on_err():
-    """Test retry_on_err retries when function returns Err."""
+def test_retry_on_err_retries_on_failure():
+    """Test retry_on_err retries when function returns Failure."""
     call_count = 0
 
     @retry_on_err(max_attempts=3)
@@ -31,30 +32,30 @@ def test_retry_on_err_retries_on_err():
         nonlocal call_count
         call_count += 1
         if call_count < 3:
-            return Err(GitHubAPIError(f"Attempt {call_count} failed"))
-        return Ok("success")
+            return Failure(GitHubAPIError(f"Attempt {call_count} failed"))
+        return Success("success")
 
     result = fails_twice_then_succeeds()
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     assert result.unwrap() == "success"
     assert call_count == 3
 
 
-def test_retry_on_err_returns_final_err():
-    """Test retry_on_err returns final Err after exhausting retries."""
+def test_retry_on_err_returns_final_failure():
+    """Test retry_on_err returns final Failure after exhausting retries."""
     call_count = 0
 
     @retry_on_err(max_attempts=3)
     def always_fails():
         nonlocal call_count
         call_count += 1
-        return Err(GitHubAPIError(f"Attempt {call_count}"))
+        return Failure(GitHubAPIError(f"Attempt {call_count}"))
 
     result = always_fails()
 
-    assert result.is_err()
-    assert "Attempt 3" in str(result.unwrap_err())
+    assert isinstance(result, Failure)
+    assert "Attempt 3" in str(result.failure())
     assert call_count == 3
 
 
@@ -62,9 +63,9 @@ def test_retry_on_err_preserves_function_signature():
     """Test retry_on_err preserves function name and docstring."""
 
     @retry_on_err()
-    def my_function(x: int, y: str) -> Ok[str] | Err[GitHubAPIError]:
+    def my_function(x: int, y: str) -> Result[str, GitHubAPIError]:
         """My docstring."""
-        return Ok(f"{x}-{y}")
+        return Success(f"{x}-{y}")
 
     assert my_function.__name__ == "my_function"
     assert my_function.__doc__ == "My docstring."
@@ -76,14 +77,14 @@ def test_retry_on_err_with_arguments():
     @retry_on_err()
     def function_with_args(a: int, b: str, c: bool = False):
         if c:
-            return Ok(f"{a}-{b}")
-        return Err(GitHubAPIError("Failed"))
+            return Success(f"{a}-{b}")
+        return Failure(GitHubAPIError("Failed"))
 
     result_err = function_with_args(1, "test")
-    assert result_err.is_err()
+    assert isinstance(result_err, Failure)
 
     result_ok = function_with_args(1, "test", c=True)
-    assert result_ok.is_ok()
+    assert isinstance(result_ok, Success)
     assert result_ok.unwrap() == "1-test"
 
 
@@ -95,25 +96,25 @@ def test_retry_on_err_custom_attempts():
     def fails_always():
         nonlocal call_count
         call_count += 1
-        return Err(GitHubAPIError("fail"))
+        return Failure(GitHubAPIError("fail"))
 
     result = fails_always()
 
-    assert result.is_err()
+    assert isinstance(result, Failure)
     assert call_count == 5
 
 
-def test_retry_on_err_no_retry_on_ok():
-    """Test retry_on_err doesn't retry when function returns Ok."""
+def test_retry_on_err_no_retry_on_success():
+    """Test retry_on_err doesn't retry when function returns Success."""
     call_count = 0
 
     @retry_on_err(max_attempts=3)
     def succeeds():
         nonlocal call_count
         call_count += 1
-        return Ok("done")
+        return Success("done")
 
     result = succeeds()
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     assert call_count == 1

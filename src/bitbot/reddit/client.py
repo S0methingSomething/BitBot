@@ -2,6 +2,7 @@
 
 import praw
 from beartype import beartype
+from returns.result import Failure, Result, Success
 
 from bitbot.config_models import Config
 from bitbot.core.credentials import (
@@ -12,7 +13,6 @@ from bitbot.core.credentials import (
     get_reddit_username,
 )
 from bitbot.core.errors import RedditAPIError
-from bitbot.core.result import Err, Ok, Result
 from bitbot.core.retry import retry_on_err
 
 
@@ -31,6 +31,6 @@ def init_reddit(_config: Config | None = None) -> Result[praw.Reddit, RedditAPIE
         )
         # Test connection
         reddit.user.me()
-        return Ok(reddit)
+        return Success(reddit)
     except (ValueError, praw.exceptions.PRAWException) as e:
-        return Err(RedditAPIError(f"Failed to initialize Reddit client: {e}"))
+        return Failure(RedditAPIError(f"Failed to initialize Reddit client: {e}"))

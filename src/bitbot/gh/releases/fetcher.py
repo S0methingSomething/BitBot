@@ -6,9 +6,9 @@ from typing import Any
 
 import deal
 from beartype import beartype
+from returns.result import Failure, Result, Success
 
 from bitbot.core.errors import GitHubAPIError
-from bitbot.core.result import Err, Ok, Result
 from bitbot.core.retry import retry_on_err
 
 
@@ -23,9 +23,9 @@ def run_command(
     """Runs a shell command and returns its result."""
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=check)
-        return Ok(result)
+        return Success(result)
     except subprocess.CalledProcessError as e:
-        return Err(GitHubAPIError(f"Command failed: {' '.join(command)}: {e.stderr}"))
+        return Failure(GitHubAPIError(f"Command failed: {' '.join(command)}: {e.stderr}"))
 
 
 @deal.pre(
@@ -43,14 +43,14 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
     command = ["gh", "api", url]
     result = run_command(command)
 
-    if result.is_err():
-        return Err(GitHubAPIError(f"Command failed: {result.unwrap_err()}"))
+    if isinstance(result, Failure):
+        return Failure(GitHubAPIError(f"Command failed: {result.failure()}"))
 
     try:
         data: dict[str, Any] | list[Any] = json.loads(result.unwrap().stdout)
-        return Ok(data)
+        return Success(data)
     except json.JSONDecodeError as e:
-        return Err(GitHubAPIError(f"Failed to parse GitHub API response: {e}"))
+        return Failure(GitHubAPIError(f"Failed to parse GitHub API response: {e}"))
 
 
 @deal.pre(
@@ -62,15 +62,15 @@ def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIErro
     """Gets the last 30 releases from the source repository."""
     result = get_github_data(f"/repos/{repo}/releases?per_page=30")
 
-    if result.is_err():
-        return Err(result.unwrap_err())
+    if isinstance(result, Failure):
+        return Failure(result.failure())
 
     data = result.unwrap()
     if not isinstance(data, list):
-        return Err(GitHubAPIError("Expected list of releases"))
+        return Failure(GitHubAPIError("Expected list of releases"))
 
     # Type narrowed by isinstance check above
-    return Ok(data)  # type: ignore[return-value]
+    return Success(data)  # type: ignore[return-value]
 
 
 @deal.pre(
@@ -86,7 +86,7 @@ def check_if_bot_release_exists(bot_repo: str, tag: str) -> Result[bool, GitHubA
     """Checks if a release with the given tag exists in the bot repo."""
     result = run_command(["gh", "release", "view", tag, "--repo", bot_repo], check=False)
 
-    if result.is_err():
-        return Ok(False)
+    if isinstance(result, Failure):
+        return Success(False)
 
-    return Ok(result.unwrap().returncode == 0)
+    return Success(result.unwrap().returncode == 0)

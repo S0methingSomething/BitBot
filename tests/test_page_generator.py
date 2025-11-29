@@ -1,5 +1,7 @@
 """Tests for landing page generator."""
 
+from returns.result import Failure, Success
+
 from bitbot.core.errors import PageGeneratorError
 from bitbot.gh.page_generator import generate_landing_page
 
@@ -21,7 +23,7 @@ def test_generate_landing_page_success(tmp_path):
 
     result = generate_landing_page(releases_data, output_path, "default_landing_page.html")
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     assert output_path.exists()
 
 
@@ -31,7 +33,7 @@ def test_generate_landing_page_creates_directory(tmp_path):
 
     result = generate_landing_page({"apps": []}, output_path, "default_landing_page.html")
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     assert output_path.parent.exists()
 
 
@@ -41,8 +43,8 @@ def test_generate_landing_page_template_not_found(tmp_path):
 
     result = generate_landing_page({}, output_path, "nonexistent_template_xyz.html")
 
-    assert result.is_err()
-    assert isinstance(result.unwrap_err(), PageGeneratorError)
+    assert isinstance(result, Failure)
+    assert isinstance(result.failure(), PageGeneratorError)
 
 
 def test_generate_landing_page_empty_data(tmp_path):
@@ -51,7 +53,7 @@ def test_generate_landing_page_empty_data(tmp_path):
 
     result = generate_landing_page({"apps": []}, output_path, "default_landing_page.html")
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     assert output_path.exists()
 
 
@@ -61,4 +63,4 @@ def test_generate_landing_page_string_path(tmp_path):
 
     result = generate_landing_page({"apps": []}, output_path, "default_landing_page.html")
 
-    assert result.is_ok()
+    assert isinstance(result, Success)

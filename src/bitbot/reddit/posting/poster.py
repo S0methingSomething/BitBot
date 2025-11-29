@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING
 import deal
 from beartype import beartype
 from praw.exceptions import RedditAPIException
+from returns.result import Failure, Result, Success
 
 from bitbot.config_models import Config
 from bitbot.core.error_logger import get_logger
 from bitbot.core.errors import RedditAPIError
-from bitbot.core.result import Err, Ok, Result
 from bitbot.core.retry import retry_on_err
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ def _check_link_safety(post_body: str, config: Config) -> Result[None, RedditAPI
     error_threshold = config.safety.get("max_outbound_links_error", 8)
 
     if link_count > error_threshold:
-        return Err(
+        return Failure(
             RedditAPIError(
                 f"Post contains {link_count} outbound links, exceeds limit of {error_threshold}"
             )
@@ -44,7 +44,7 @@ def _check_link_safety(post_body: str, config: Config) -> Result[None, RedditAPI
         logger.warning(
             "Post contains %d outbound links (threshold: %d)", link_count, warn_threshold
         )
-    return Ok(None)
+    return Success(None)
 
 
 @deal.pre(
@@ -58,17 +58,17 @@ def update_post(
 ) -> Result["praw.models.Submission", RedditAPIError]:
     """Update existing Reddit post."""
     safety_check = _check_link_safety(post_body, config)
-    if safety_check.is_err():
-        return Err(safety_check.unwrap_err())
+    if isinstance(safety_check, Failure):
+        return Failure(safety_check.failure())
 
     try:
         submission = reddit.submission(id=post_id)
         submission.edit(post_body)
-        return Ok(submission)
+        return Success(submission)
     except RedditAPIException as e:
-        return Err(RedditAPIError(f"Reddit API error: {e}"))
+        return Failure(RedditAPIError(f"Reddit API error: {e}"))
     except Exception as e:
-        return Err(RedditAPIError(f"Failed to update Reddit post: {e}"))
+        return Failure(RedditAPIError(f"Failed to update Reddit post: {e}"))
 
 
 @deal.pre(
@@ -82,13 +82,13 @@ def post_new_release(
 ) -> Result["praw.models.Submission", RedditAPIError]:
     """Post new release to Reddit."""
     safety_check = _check_link_safety(post_body, config)
-    if safety_check.is_err():
-        return Err(safety_check.unwrap_err())
+    if isinstance(safety_check, Failure):
+        return Failure(safety_check.failure())
 
     try:
         submission = reddit.subreddit(config.reddit.subreddit).submit(title, selftext=post_body)
-        return Ok(submission)
+        return Success(submission)
     except RedditAPIException as e:
-        return Err(RedditAPIError(f"Reddit API error: {e}"))
+        return Failure(RedditAPIError(f"Reddit API error: {e}"))
     except Exception as e:
-        return Err(RedditAPIError(f"Failed to post to Reddit: {e}"))
+        return Failure(RedditAPIError(f"Failed to post to Reddit: {e}"))

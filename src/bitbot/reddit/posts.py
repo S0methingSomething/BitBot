@@ -7,12 +7,12 @@ from typing import Any
 import praw
 import praw.models
 from beartype import beartype
+from returns.result import Failure, Result, Success
 
 from bitbot import paths
 from bitbot.config_models import Config
 from bitbot.core.error_logger import get_logger
 from bitbot.core.errors import RedditAPIError
-from bitbot.core.result import Err, Ok, Result
 from bitbot.core.retry import retry_on_err
 from bitbot.core.state import load_bot_state, save_bot_state
 
@@ -38,7 +38,10 @@ def get_bot_posts(
 
         # Load state for post ID tracking
         state_result = load_bot_state()
-        known_post_ids = set(state_result.unwrap().all_post_ids) if state_result.is_ok() else set()
+        if isinstance(state_result, Success):
+            known_post_ids = set(state_result.unwrap().all_post_ids)
+        else:
+            known_post_ids = set()
 
         posts = []
         newly_discovered_ids = []
@@ -58,14 +61,14 @@ def get_bot_posts(
                 newly_discovered_ids.append(submission.id)
 
         # Self-healing: save newly discovered post IDs
-        if newly_discovered_ids and state_result.is_ok():
+        if newly_discovered_ids and isinstance(state_result, Success):
             state = state_result.unwrap()
             state.all_post_ids.extend(newly_discovered_ids)
             save_bot_state(state)
 
-        return Ok(posts)
+        return Success(posts)
     except Exception as e:
-        return Err(RedditAPIError(f"Failed to fetch bot posts: {e}"))
+        return Failure(RedditAPIError(f"Failed to fetch bot posts: {e}"))
 
 
 @beartype
@@ -90,7 +93,7 @@ def update_older_posts(
         if mode == "inject":
             template_name = config.reddit.templates.inject_banner
             if not template_name:
-                return Ok(None)
+                return Success(None)
 
             template_path = paths.get_template_path(Path(template_name).name)
 
@@ -98,7 +101,7 @@ def update_older_posts(
                 with Path(template_path).open() as f:
                     raw_template = f.read()
             except FileNotFoundError:
-                return Ok(None)
+                return Success(None)
 
         ignore_block = config.skip_content
         start_marker, end_marker = ignore_block.get("startTag"), ignore_block.get("endTag")
@@ -133,6 +136,6 @@ def update_older_posts(
                 logger.warning("Failed to update post %s: %s", old_post.id, e)
                 continue
 
-        return Ok(None)
+        return Success(None)
     except Exception as e:
-        return Err(RedditAPIError(f"Failed to update older posts: {e}"))
+        return Failure(RedditAPIError(f"Failed to update older posts: {e}"))

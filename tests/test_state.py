@@ -2,6 +2,8 @@
 
 import json
 
+from returns.result import Failure, Success
+
 from bitbot.core.state import load_global_state, save_global_state
 from bitbot.models import GlobalState
 
@@ -14,7 +16,7 @@ def test_save_global_state_atomic(tmp_path, monkeypatch):
     state = GlobalState(offline={"app1": "1.0.0"})
     result = save_global_state(state)
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     assert state_file.exists()
 
     # Verify content
@@ -29,21 +31,21 @@ def test_load_global_state_missing_file(tmp_path, monkeypatch):
 
     result = load_global_state()
 
-    assert result.is_ok()
+    assert isinstance(result, Success)
     state = result.unwrap()
     assert state.offline == {}
 
 
 def test_load_global_state_invalid_json(tmp_path, monkeypatch):
-    """Test load_global_state returns Err on invalid JSON."""
+    """Test load_global_state returns Failure on invalid JSON."""
     state_file = tmp_path / "invalid.json"
     state_file.write_text("not valid json{")
     monkeypatch.setattr("bitbot.paths.BOT_STATE_FILE", state_file)
 
     result = load_global_state()
 
-    assert result.is_err()
-    assert "Invalid JSON" in str(result.unwrap_err())
+    assert isinstance(result, Failure)
+    assert "Invalid JSON" in str(result.failure())
 
 
 def test_save_load_roundtrip(tmp_path, monkeypatch):
@@ -54,10 +56,10 @@ def test_save_load_roundtrip(tmp_path, monkeypatch):
     original = GlobalState(offline={"app1": "1.0.0", "app2": "2.0.0"})
 
     save_result = save_global_state(original)
-    assert save_result.is_ok()
+    assert isinstance(save_result, Success)
 
     load_result = load_global_state()
-    assert load_result.is_ok()
+    assert isinstance(load_result, Success)
 
     loaded = load_result.unwrap()
     assert loaded.offline == original.offline
