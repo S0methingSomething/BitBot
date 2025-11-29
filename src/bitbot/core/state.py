@@ -1,5 +1,7 @@
 """State management for BitBot."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 
@@ -16,7 +18,7 @@ from bitbot.models import AccountState, BotState, GlobalState
 @beartype
 def get_account_state_file() -> Path:
     """Get path to account-specific state file based on Reddit username and subreddit."""
-    from bitbot.core.config import load_config
+    from bitbot.core.config import load_config  # noqa: PLC0415 - avoid circular import
 
     username = Credentials.get_reddit_username()
 
