@@ -2,12 +2,17 @@
   "online": {
     "intl_bitlife": "1.19.8",
     "bitlife_go": "1.1.31",
-    "bitlife": "3.21"
+    "bitlife": "3.21",
+    "bitlife_international": "1.19.8",
+    "bitlife_fran\u00e7ais": "3.18.11",
+    "bitlife_es": "1.18.11",
+    "bitlife_br": "1.18.11"
   },
-  "activePostId": "1opat86",
+  "activePostId": "1p9rf7o",
   "lastCheckTimestamp": null,
   "currentIntervalSeconds": null,
   "allPostIds": [
-    "1opat86"
+    "1opat86",
+    "1p9rf7o"
   ]
 }
