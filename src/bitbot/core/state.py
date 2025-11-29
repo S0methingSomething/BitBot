@@ -8,7 +8,7 @@ from pathlib import Path
 from beartype import beartype
 
 from bitbot import paths
-from bitbot.core.credentials import Credentials
+from bitbot.core.credentials import get_reddit_username
 from bitbot.core.errors import StateError
 from bitbot.core.result import Err, Ok, Result
 from bitbot.models import AccountState, BotState, GlobalState
@@ -19,7 +19,7 @@ def get_account_state_file() -> Path:
     """Get path to account-specific state file based on Reddit username and subreddit."""
     from bitbot.core.config import load_config  # noqa: PLC0415 - avoid circular import
 
-    username = Credentials.get_reddit_username()
+    username = get_reddit_username()
 
     # Get subreddit from config
     config_result = load_config()

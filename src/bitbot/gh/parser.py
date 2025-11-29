@@ -68,13 +68,14 @@ def parse_release_notes(
                 "asset_name": config.github.asset_file_name,
             }
 
-    # Priority 4: Fallback
-    if "bitlife" in app_map_by_id:
+    # Priority 4: Fallback - try to extract version from tag for first configured app
+    if config.apps:
+        first_app = config.apps[0]
         match = re.search(r"(\d+\.\d+\.\d+)", tag_name)
         if match:
             return {
-                "app_id": "bitlife",
-                "display_name": "BitLife",
+                "app_id": first_app["id"],
+                "display_name": first_app["displayName"],
                 "version": match.group(1),
                 "asset_name": config.github.asset_file_name,
             }

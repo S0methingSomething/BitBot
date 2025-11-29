@@ -1,5 +1,7 @@
 """GitHub release creation."""
 
+from pathlib import Path
+
 import deal
 from beartype import beartype
 
@@ -29,6 +31,9 @@ def create_bot_release(
     bot_repo: str, tag: str, title: str, notes: str, file_path: str
 ) -> Result[None, GitHubAPIError]:
     """Creates a new release in the bot repository."""
+    if not Path(file_path).exists():
+        return Err(GitHubAPIError(f"Asset file not found: {file_path}"))
+
     result = run_command(
         [
             "gh",

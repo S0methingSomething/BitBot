@@ -58,6 +58,7 @@ def version() -> None:
 
 
 @app.callback()
+@beartype
 def main(
     ctx: typer.Context,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),

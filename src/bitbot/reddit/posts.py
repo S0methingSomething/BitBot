@@ -112,7 +112,6 @@ def update_older_posts(
         for placeholder, value in placeholders.items():
             injection_banner = injection_banner.replace(placeholder, str(value))
 
-        updated_count = 0
         existence_check_string = "## ⚠️ Outdated Post"
 
         for old_post in older_posts:
@@ -130,7 +129,6 @@ def update_older_posts(
 
                 if new_body.strip() and new_body != original_body:
                     old_post.edit(body=new_body)
-                    updated_count += 1
             except Exception as e:
                 logger.warning("Failed to update post %s: %s", old_post.id, e)
                 continue

@@ -7,7 +7,7 @@ import deal
 from beartype import beartype
 
 from bitbot import paths
-from bitbot.core.credentials import Credentials
+from bitbot.core.credentials import get_github_token
 from bitbot.core.errors import GitHubAPIError
 from bitbot.core.result import Err, Ok, Result
 from bitbot.gh.releases.fetcher import get_github_data, run_command
@@ -56,7 +56,7 @@ def download_asset(
                 "-H",
                 "Accept: application/octet-stream",
                 "-H",
-                f"Authorization: token {Credentials.get_github_token()}",
+                f"Authorization: token {get_github_token()}",
                 "-o",
                 str(output_path),
                 download_url,

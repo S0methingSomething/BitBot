@@ -70,8 +70,6 @@ def run(ctx: typer.Context) -> None:
                             app_name = line.split(":", 1)[1].strip()
                         elif line.startswith("version:"):
                             version = line.split(":", 1)[1].strip()
-                        elif line.startswith("asset_name:"):
-                            line.split(":", 1)[1].strip()
 
                     if not app_name or not version:
                         continue

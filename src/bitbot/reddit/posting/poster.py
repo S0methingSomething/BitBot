@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     import praw
 
 logger = get_logger()
-MAX_OUTBOUND_LINKS_ERROR = 8
 
 
 @deal.post(lambda result: result >= 0)
@@ -26,6 +25,26 @@ def count_outbound_links(text: str) -> int:
     """Count outbound links in text."""
     url_pattern = re.compile(r"https?://[^\s/$.?#].[^\s]*|www\.[^\s/$.?#].[^\s]*")
     return len(set(url_pattern.findall(text)))
+
+
+@beartype
+def _check_link_safety(post_body: str, config: Config) -> Result[None, RedditAPIError]:
+    """Check if post has too many outbound links."""
+    link_count = count_outbound_links(post_body)
+    warn_threshold = config.safety.get("max_outbound_links_warn", 5)
+    error_threshold = config.safety.get("max_outbound_links_error", 8)
+
+    if link_count > error_threshold:
+        return Err(
+            RedditAPIError(
+                f"Post contains {link_count} outbound links, exceeds limit of {error_threshold}"
+            )
+        )
+    if link_count > warn_threshold:
+        logger.warning(
+            "Post contains %d outbound links (threshold: %d)", link_count, warn_threshold
+        )
+    return Ok(None)
 
 
 @deal.pre(
@@ -38,19 +57,9 @@ def update_post(
     reddit: "praw.Reddit", post_id: str, post_body: str, config: Config
 ) -> Result["praw.models.Submission", RedditAPIError]:
     """Update existing Reddit post."""
-    link_count = count_outbound_links(post_body)
-    warn_threshold: int = config.safety.get("max_outbound_links_warn", 5)
-
-    if link_count > MAX_OUTBOUND_LINKS_ERROR:
-        msg = (
-            f"Post contains {link_count} outbound links, "
-            f"exceeds limit of {MAX_OUTBOUND_LINKS_ERROR}"
-        )
-        return Err(RedditAPIError(msg))
-    if link_count > warn_threshold:
-        logger.warning(
-            "Post contains %d outbound links (threshold: %d)", link_count, warn_threshold
-        )
+    safety_check = _check_link_safety(post_body, config)
+    if safety_check.is_err():
+        return Err(safety_check.unwrap_err())
 
     try:
         submission = reddit.submission(id=post_id)
@@ -72,19 +81,9 @@ def post_new_release(
     reddit: "praw.Reddit", title: str, post_body: str, config: Config
 ) -> Result["praw.models.Submission", RedditAPIError]:
     """Post new release to Reddit."""
-    link_count = count_outbound_links(post_body)
-    warn_threshold: int = config.safety.get("max_outbound_links_warn", 5)
-
-    if link_count > MAX_OUTBOUND_LINKS_ERROR:
-        msg = (
-            f"Post contains {link_count} outbound links, "
-            f"exceeds limit of {MAX_OUTBOUND_LINKS_ERROR}"
-        )
-        return Err(RedditAPIError(msg))
-    if link_count > warn_threshold:
-        logger.warning(
-            "Post contains %d outbound links (threshold: %d)", link_count, warn_threshold
-        )
+    safety_check = _check_link_safety(post_body, config)
+    if safety_check.is_err():
+        return Err(safety_check.unwrap_err())
 
     try:
         submission = reddit.subreddit(config.reddit.subreddit).submit(title, selftext=post_body)

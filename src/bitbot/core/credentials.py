@@ -73,16 +73,3 @@ def get_reddit_password() -> str:
         msg = "REDDIT_PASSWORD environment variable not set"
         raise ValueError(msg)
     return value
-
-
-# Backward compatibility - keep Credentials class as namespace
-class Credentials:
-    """Credential access (use module functions directly instead)."""
-
-    get_github_token = staticmethod(get_github_token)
-    get_github_output = staticmethod(get_github_output)
-    get_reddit_client_id = staticmethod(get_reddit_client_id)
-    get_reddit_client_secret = staticmethod(get_reddit_client_secret)
-    get_reddit_user_agent = staticmethod(get_reddit_user_agent)
-    get_reddit_username = staticmethod(get_reddit_username)
-    get_reddit_password = staticmethod(get_reddit_password)
