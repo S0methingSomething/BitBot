@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-import deal
+import icontract
 from beartype import beartype
 
 from bitbot.config_models import Config
@@ -22,7 +22,7 @@ def create_app_list(app_dict: dict[str, Any]) -> str:
     return ", ".join(parts)
 
 
-@deal.post(lambda result: len(result) > 0)
+@icontract.ensure(lambda result: len(result) > 0)
 @beartype
 def generate_dynamic_title(config: Config, added: dict[str, Any], updated: dict[str, Any]) -> str:
     """Generate dynamic title based on changes."""

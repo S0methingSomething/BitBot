@@ -6,12 +6,15 @@ This module modifies decrypted game configuration data to unlock IAP
 
 from typing import Any
 
-import deal
+import icontract
 from beartype import beartype
 
 
-@deal.pre(lambda data_object: len(data_object) > 0, message="Data object cannot be empty")
-@deal.post(lambda result: len(result) > 0)
+@icontract.require(
+    lambda data_object: len(data_object) > 0,
+    description="Data object cannot be empty",
+)
+@icontract.ensure(lambda result: len(result) > 0)
 @beartype
 def unlock_premium_features(data_object: dict[str, Any]) -> dict[str, Any]:
     """Unlock premium features by setting all False values to True.

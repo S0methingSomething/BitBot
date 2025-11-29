@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Any, cast
 
-import deal
+import icontract
 from beartype import beartype
 from returns.result import Failure, Result, Success
 
@@ -14,17 +14,17 @@ from bitbot.gh.releases.fetcher import get_github_data, run_command
 DOWNLOAD_DIR = paths.DIST_DIR
 
 
-@deal.pre(
-    lambda source_repo, release_id, asset_name: "/" in source_repo,
-    message="Repository must be in owner/name format",
+@icontract.require(
+    lambda source_repo: "/" in source_repo,
+    description="Repository must be in owner/name format",
 )
-@deal.pre(
-    lambda source_repo, release_id, asset_name: release_id > 0,
-    message="Release ID must be positive - invalid release ID provided",
+@icontract.require(
+    lambda release_id: release_id > 0,
+    description="Release ID must be positive - invalid release ID provided",
 )
-@deal.pre(
-    lambda source_repo, release_id, asset_name: len(asset_name) > 0,
-    message="Asset name cannot be empty - must specify which file to download",
+@icontract.require(
+    lambda asset_name: len(asset_name) > 0,
+    description="Asset name cannot be empty - must specify which file to download",
 )
 @beartype
 def download_asset(

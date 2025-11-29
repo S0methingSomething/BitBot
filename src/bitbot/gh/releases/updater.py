@@ -1,6 +1,6 @@
 """GitHub release updating."""
 
-import deal
+import icontract
 from beartype import beartype
 from returns.result import Failure, Result, Success
 
@@ -8,17 +8,17 @@ from bitbot.core.errors import GitHubAPIError
 from bitbot.gh.releases.fetcher import run_command
 
 
-@deal.pre(
-    lambda repo, tag, title: "/" in repo,
-    message="Repository must be in owner/name format",
+@icontract.require(
+    lambda repo: "/" in repo,
+    description="Repository must be in owner/name format",
 )
-@deal.pre(
-    lambda repo, tag, title: len(tag) > 0,
-    message="Tag cannot be empty - GitHub API requires a version tag",
+@icontract.require(
+    lambda tag: len(tag) > 0,
+    description="Tag cannot be empty - GitHub API requires a version tag",
 )
-@deal.pre(
-    lambda repo, tag, title: len(title) > 0,
-    message="Title cannot be empty - release must have a title",
+@icontract.require(
+    lambda title: len(title) > 0,
+    description="Title cannot be empty - release must have a title",
 )
 @beartype
 def update_release_title(repo: str, tag: str, title: str) -> Result[None, GitHubAPIError]:

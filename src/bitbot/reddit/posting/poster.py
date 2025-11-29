@@ -3,7 +3,7 @@
 import re
 from typing import TYPE_CHECKING
 
-import deal
+import icontract
 from beartype import beartype
 from praw.exceptions import RedditAPIException
 from returns.result import Failure, Result, Success
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 logger = get_logger()
 
 
-@deal.post(lambda result: result >= 0)
+@icontract.ensure(lambda result: result >= 0)
 @beartype
 def count_outbound_links(text: str) -> int:
     """Count outbound links in text."""
@@ -47,9 +47,9 @@ def _check_link_safety(post_body: str, config: Config) -> Result[None, RedditAPI
     return Success(None)
 
 
-@deal.pre(
-    lambda _r, _p, post_body, _c: len(post_body) > 0,
-    message="Post body cannot be empty",
+@icontract.require(
+    lambda post_body: len(post_body) > 0,
+    description="Post body cannot be empty",
 )
 @retry_on_err()
 @beartype
@@ -71,9 +71,9 @@ def update_post(
         return Failure(RedditAPIError(f"Failed to update Reddit post: {e}"))
 
 
-@deal.pre(
-    lambda _r, _t, post_body, _c: len(post_body) > 0,
-    message="Post body cannot be empty",
+@icontract.require(
+    lambda post_body: len(post_body) > 0,
+    description="Post body cannot be empty",
 )
 @retry_on_err()
 @beartype

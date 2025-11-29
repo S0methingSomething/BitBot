@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-import deal
+import icontract
 from beartype import beartype
 from returns.result import Failure, Result, Success
 
@@ -10,21 +10,21 @@ from bitbot.core.errors import GitHubAPIError
 from bitbot.gh.releases.fetcher import run_command
 
 
-@deal.pre(
-    lambda bot_repo, tag, title, notes, file_path: "/" in bot_repo,
-    message="Repository must be in owner/name format",
+@icontract.require(
+    lambda bot_repo: "/" in bot_repo,
+    description="Repository must be in owner/name format",
 )
-@deal.pre(
-    lambda bot_repo, tag, title, notes, file_path: len(tag) > 0,
-    message="Tag cannot be empty - GitHub requires a version tag for releases",
+@icontract.require(
+    lambda tag: len(tag) > 0,
+    description="Tag cannot be empty - GitHub requires a version tag for releases",
 )
-@deal.pre(
-    lambda bot_repo, tag, title, notes, file_path: len(title) > 0,
-    message="Title cannot be empty - release must have a title",
+@icontract.require(
+    lambda title: len(title) > 0,
+    description="Title cannot be empty - release must have a title",
 )
-@deal.pre(
-    lambda bot_repo, tag, title, notes, file_path: len(file_path) > 0,
-    message="File path cannot be empty - release must include an asset file",
+@icontract.require(
+    lambda file_path: len(file_path) > 0,
+    description="File path cannot be empty - release must include an asset file",
 )
 @beartype
 def create_bot_release(

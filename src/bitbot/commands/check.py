@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING
 
-import deal
+import icontract
 import typer
 from beartype import beartype
 from praw.models import Submission
@@ -35,7 +35,7 @@ class CheckResult(Enum):
     STATE_UNCHANGED = "unchanged"
 
 
-@deal.post(lambda result: len(result) > 0)
+@icontract.ensure(lambda result: len(result) > 0)
 @beartype
 def _analyze_sentiment(comments: list, config: Config) -> str:
     """Analyze comment sentiment and return status."""
@@ -53,9 +53,9 @@ def _analyze_sentiment(comments: list, config: Config) -> str:
     return config.feedback["labels"]["unknown"]
 
 
-@deal.pre(
-    lambda _submission, status, _config: len(status) > 0,
-    message="Status cannot be empty",
+@icontract.require(
+    lambda status: len(status) > 0,
+    description="Status cannot be empty",
 )
 @beartype
 def _update_post_status(submission: Submission, status: str, config: Config) -> None:
@@ -68,9 +68,9 @@ def _update_post_status(submission: Submission, status: str, config: Config) -> 
         submission.edit(body=updated_body)
 
 
-@deal.pre(
-    lambda _state, comment_count, _config: comment_count >= 0,
-    message="Comment count must be non-negative",
+@icontract.require(
+    lambda comment_count: comment_count >= 0,
+    description="Comment count must be non-negative",
 )
 @beartype
 def _update_check_interval(state: BotState, comment_count: int, config: Config) -> CheckResult:

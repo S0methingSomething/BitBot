@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Any
 
-import deal
+import icontract
 from beartype import beartype
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from returns.result import Failure, Result, Success
@@ -12,13 +12,13 @@ from bitbot import paths
 from bitbot.core.errors import PageGeneratorError
 
 
-@deal.pre(
-    lambda releases_data, output_path, template_name: len(str(output_path)) > 0,
-    message="Output path cannot be empty - must specify where to save HTML file",
+@icontract.require(
+    lambda output_path: len(str(output_path)) > 0,
+    description="Output path cannot be empty - must specify where to save HTML file",
 )
-@deal.pre(
-    lambda releases_data, output_path, template_name: len(template_name) > 0,
-    message="Template name cannot be empty - must specify which template to use",
+@icontract.require(
+    lambda template_name: len(template_name) > 0,
+    description="Template name cannot be empty - must specify which template to use",
 )
 @beartype
 def generate_landing_page(

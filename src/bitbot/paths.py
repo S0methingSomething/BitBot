@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-import deal
+import icontract
 from beartype import beartype
 
 # Determine the absolute path to the project's root directory
@@ -22,13 +22,13 @@ TEMPLATES_DIR: Path = ROOT_DIR / "templates"
 DEFAULT_LANDING_PAGE: Path = TEMPLATES_DIR / "default_landing_page.html"
 
 
-@deal.pre(
+@icontract.require(
     lambda template_name: len(template_name) > 0,
-    message="Template name cannot be empty",
+    description="Template name cannot be empty",
 )
-@deal.pre(
+@icontract.require(
     lambda template_name: ".." not in template_name and "/" not in template_name,
-    message="Template name cannot contain path traversal characters",
+    description="Template name cannot contain path traversal characters",
 )
 @beartype
 def get_template_path(template_name: str) -> Path:

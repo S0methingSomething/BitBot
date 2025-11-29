@@ -26,11 +26,14 @@ wheels = [
 
 [[package]]
 name = "asttokens"
-version = "3.0.0"
+version = "2.4.1"
 source = { registry = "https://pkgs.safetycli.com/repository/na-205d5/project/bitbot/pypi/simple/" }
-sdist = { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/4a/e7/82da0a03e7ba5141f05cce0d302e6eed121ae055e0456ca228bf693984bc/asttokens-3.0.0.tar.gz", hash = "sha256:0dcd8baa8d62b0c1d118b399b2ddba3c4aff271d0d7a9e0d4c1681c79035bbc7", size = 61978, upload-time = "2024-11-30T04:30:14.439Z" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/45/1d/f03bcb60c4a3212e15f99a56085d93093a497718adf828d050b9d675da81/asttokens-2.4.1.tar.gz", hash = "sha256:b03869718ba9a6eb027e134bfdf69f38a236d681c83c160d510768af11254ba0", size = 62284, upload-time = "2023-10-26T10:03:05.06Z" }
 wheels = [
-    { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/25/8a/c46dcc25341b5bce5472c718902eb3d38600a903b14fa6aeecef3f21a46f/asttokens-3.0.0-py3-none-any.whl", hash = "sha256:e3078351a059199dd5138cb1c706e6430c05eff2ff136af5eb4790f9d28932e2", size = 26918, upload-time = "2024-11-30T04:30:10.946Z" },
+    { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/45/86/4736ac618d82a20d87d2f92ae19441ebc7ac9e7a581d7e58bbe79233b24a/asttokens-2.4.1-py2.py3-none-any.whl", hash = "sha256:051ed49c3dcae8913ea7cd08e46a606dba30b79993209636c4875bc1d637bc24", size = 27764, upload-time = "2023-10-26T10:03:01.789Z" },
 ]
 
 [[package]]
@@ -69,8 +72,8 @@ version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "beartype" },
-    { name = "deal" },
     { name = "dependency-injector" },
+    { name = "icontract" },
     { name = "jinja2" },
     { name = "praw" },
     { name = "pydantic" },
@@ -112,8 +115,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "beartype", specifier = ">=0.22.4" },
-    { name = "deal", specifier = ">=4.24.5" },
     { name = "dependency-injector", specifier = ">=4.48.2" },
+    { name = "icontract", specifier = ">=2.7.0" },
+    { name = "icontract", specifier = ">=2.7.2" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.7.0" },
     { name = "praw", specifier = ">=7.7.1" },
@@ -364,15 +368,6 @@ wheels = [
 ]
 
 [[package]]
-name = "deal"
-version = "4.24.5"
-source = { registry = "https://pkgs.safetycli.com/repository/na-205d5/project/bitbot/pypi/simple/" }
-sdist = { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/2d/a0/5563ace6f8d1ccb5d869ae745c157796c4d3744435615ca2ae58461b99bf/deal-4.24.5.tar.gz", hash = "sha256:81a98d532b5225e429dcab543316b8aee6b7327051e10ca9299ba9ea90464b28", size = 723784, upload-time = "2025-03-02T09:46:44.394Z" }
-wheels = [
-    { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/65/06/bda68d484f3a1efeacf3ed8fab6d87d2b34005acadeaaff5f196c160ee81/deal-4.24.5-py3-none-any.whl", hash = "sha256:5f630456cecb518f968bdba01c6c6bebaa42a8422cd08b7c122413ab9c37c2ce", size = 206963, upload-time = "2025-03-02T09:46:41.301Z" },
-]
-
-[[package]]
 name = "defusedxml"
 version = "0.7.1"
 source = { registry = "https://pkgs.safetycli.com/repository/na-205d5/project/bitbot/pypi/simple/" }
@@ -513,6 +508,19 @@ dependencies = [
 sdist = { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/e1/3d/41da3727e5f3e6b0c79b9657946c742e2f61d24edcde3e1660e337509586/hypothesis-6.148.3.tar.gz", hash = "sha256:bd81221740d8658473060ad900dc831f889f156fdb41210ba2f47cfad10a66ed", size = 469896, upload-time = "2025-11-27T06:34:09.419Z" }
 wheels = [
     { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/0a/61/8c9fd9397eb46ac54d974be8b9e619c386d6b47a462d8df962ebb79980f9/hypothesis-6.148.3-py3-none-any.whl", hash = "sha256:e7dd193da9800234ec5e1541c1eddde4bddff49b53faf690ba68a0af55a7abb3", size = 536925, upload-time = "2025-11-27T06:34:06.978Z" },
+]
+
+[[package]]
+name = "icontract"
+version = "2.7.2"
+source = { registry = "https://pkgs.safetycli.com/repository/na-205d5/project/bitbot/pypi/simple/" }
+dependencies = [
+    { name = "asttokens" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/0e/ac/340fcc96909bc140fd84c05c1c7e5eb5d311111d18da8708b9f86e2dcec4/icontract-2.7.2.tar.gz", hash = "sha256:281ec16f1d09bbcca7a4227e82cd10b4d5fb291f638df77c29b7acf493dd3178", size = 67442, upload-time = "2025-11-08T09:35:06.929Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/7e/11/94cfede21fa15f493ae423887c3bb5c7a1c19b4ec00e39473b181211d649/icontract-2.7.2-py3-none-any.whl", hash = "sha256:2eb86290ef1d2d8c7af157361d419f178b3eb5b4c72a292c5722fa6fd40a1e0a", size = 40794, upload-time = "2025-11-08T09:35:05.63Z" },
 ]
 
 [[package]]
@@ -1259,6 +1267,15 @@ source = { registry = "https://pkgs.safetycli.com/repository/na-205d5/project/bi
 sdist = { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/58/15/8b3609fd3830ef7b27b655beb4b4e9c62313a4e8da8c676e142cc210d58e/shellingham-1.5.4.tar.gz", hash = "sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de", size = 10310, upload-time = "2023-10-24T04:13:40.426Z" }
 wheels = [
     { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl", hash = "sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686", size = 9755, upload-time = "2023-10-24T04:13:38.866Z" },
+]
+
+[[package]]
+name = "six"
+version = "1.17.0"
+source = { registry = "https://pkgs.safetycli.com/repository/na-205d5/project/bitbot/pypi/simple/" }
+sdist = { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/na-205d5/pypi/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
 ]
 
 [[package]]

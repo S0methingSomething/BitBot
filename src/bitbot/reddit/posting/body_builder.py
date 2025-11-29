@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import deal
+import icontract
 from beartype import beartype
 from jinja2 import Environment, FileSystemLoader
 
@@ -14,7 +14,7 @@ from bitbot.config_models import Config
 from bitbot.reddit.posting.changelog import generate_changelog
 
 
-@deal.post(lambda result: len(result) > 0)
+@icontract.ensure(lambda result: len(result) > 0)
 @beartype
 def generate_available_list(config: Config, all_releases_data: dict[str, Any]) -> str:
     """Generate available apps table."""
@@ -37,11 +37,11 @@ def generate_available_list(config: Config, all_releases_data: dict[str, Any]) -
     return "\n".join(table_lines)
 
 
-@deal.pre(
-    lambda _c, _ch, _ar, page_url: len(page_url) > 0,
-    message="Page URL cannot be empty",
+@icontract.require(
+    lambda page_url: len(page_url) > 0,
+    description="Page URL cannot be empty",
 )
-@deal.post(lambda result: len(result) > 0)
+@icontract.ensure(lambda result: len(result) > 0)
 @beartype
 def generate_post_body(
     config: Config,

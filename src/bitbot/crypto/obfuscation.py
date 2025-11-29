@@ -4,14 +4,14 @@ NOTE: OBF_CHAR_MAP only handles lowercase a-z. Uppercase letters, numbers,
 and special characters pass through unchanged.
 """
 
-import deal
+import icontract
 from beartype import beartype
 
 from bitbot.crypto.constants import OBF_CHAR_MAP
 
 
-@deal.pre(lambda key: len(key) > 0, message="Key cannot be empty")
-@deal.post(lambda result: len(result) > 0, message="Obfuscated key cannot be empty")
+@icontract.require(lambda key: len(key) > 0, description="Key cannot be empty")
+@icontract.ensure(lambda result: len(result) > 0, description="Obfuscated key cannot be empty")
 @beartype
 def get_obfuscated_key(key: str) -> str:
     """Apply character substitution obfuscation to cipher key.

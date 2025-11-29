@@ -2,15 +2,15 @@
 
 from typing import Any
 
-import deal
+import icontract
 from beartype import beartype
 
 from bitbot.config_models import Config
 
 
-@deal.pre(
-    lambda title, _d, _k, _f, _a: len(title) > 0,
-    message="Title cannot be empty",
+@icontract.require(
+    lambda title: len(title) > 0,
+    description="Title cannot be empty",
 )
 @beartype
 def create_section(
@@ -55,7 +55,7 @@ def create_section(
     return "\n".join(lines) if len(lines) > 1 else None
 
 
-@deal.post(lambda result: len(result) > 0)
+@icontract.ensure(lambda result: len(result) > 0)
 @beartype
 def generate_changelog(
     config: Config,

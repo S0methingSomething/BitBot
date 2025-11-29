@@ -4,7 +4,7 @@ import json
 import subprocess
 from typing import Any
 
-import deal
+import icontract
 from beartype import beartype
 from returns.result import Failure, Result, Success
 
@@ -12,9 +12,9 @@ from bitbot.core.errors import GitHubAPIError
 from bitbot.core.retry import retry_on_err
 
 
-@deal.pre(
-    lambda command, check=True: isinstance(command, list) and len(command) > 0,
-    message="Command must be a non-empty list",
+@icontract.require(
+    lambda command: isinstance(command, list) and len(command) > 0,
+    description="Command must be a non-empty list",
 )
 @beartype
 def run_command(
@@ -28,13 +28,13 @@ def run_command(
         return Failure(GitHubAPIError(f"Command failed: {' '.join(command)}: {e.stderr}"))
 
 
-@deal.pre(
+@icontract.require(
     lambda url: len(url) > 0,
-    message="URL cannot be empty",
+    description="URL cannot be empty",
 )
-@deal.pre(
+@icontract.require(
     lambda url: url.startswith("/"),
-    message="GitHub API URLs must start with / for relative paths",
+    description="GitHub API URLs must start with / for relative paths",
 )
 @retry_on_err()
 @beartype
@@ -53,9 +53,9 @@ def get_github_data(url: str) -> Result[dict[str, Any] | list[Any], GitHubAPIErr
         return Failure(GitHubAPIError(f"Failed to parse GitHub API response: {e}"))
 
 
-@deal.pre(
+@icontract.require(
     lambda repo: "/" in repo,
-    message="Repository must be in owner/name format",
+    description="Repository must be in owner/name format",
 )
 @beartype
 def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIError]:
@@ -73,13 +73,13 @@ def get_source_releases(repo: str) -> Result[list[dict[str, Any]], GitHubAPIErro
     return Success(data)  # type: ignore[return-value]
 
 
-@deal.pre(
-    lambda bot_repo, tag: "/" in bot_repo,
-    message="Repository must be in owner/name format",
+@icontract.require(
+    lambda bot_repo: "/" in bot_repo,
+    description="Repository must be in owner/name format",
 )
-@deal.pre(
-    lambda bot_repo, tag: len(tag) > 0,
-    message="Tag cannot be empty - required to check release existence",
+@icontract.require(
+    lambda tag: len(tag) > 0,
+    description="Tag cannot be empty - required to check release existence",
 )
 @beartype
 def check_if_bot_release_exists(bot_repo: str, tag: str) -> Result[bool, GitHubAPIError]:

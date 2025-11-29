@@ -9,7 +9,7 @@ import binascii
 import logging
 from typing import Any
 
-import deal
+import icontract
 from beartype import beartype
 
 from .constants import B64_NET_BOOLEAN_FALSE, B64_NET_BOOLEAN_TRUE
@@ -42,15 +42,15 @@ def _b64_decode_and_xor(b64: str, key: str) -> str | None:
         return None
 
 
-@deal.pre(
-    lambda encrypted_content, _obfuscated_key: len(encrypted_content) > 0,
-    message="Encrypted content cannot be empty",
+@icontract.require(
+    lambda encrypted_content: len(encrypted_content) > 0,
+    description="Encrypted content cannot be empty",
 )
-@deal.pre(
-    lambda _encrypted_content, obfuscated_key: len(obfuscated_key) > 0,
-    message="Obfuscated key cannot be empty",
+@icontract.require(
+    lambda obfuscated_key: len(obfuscated_key) > 0,
+    description="Obfuscated key cannot be empty",
 )
-@deal.post(lambda result: len(result) > 0)
+@icontract.ensure(lambda result: len(result) > 0)
 @beartype
 def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, Any]:
     """Decrypt game asset file content into dictionary.
@@ -105,15 +105,15 @@ def decrypt(encrypted_content: str, obfuscated_key: str) -> dict[str, Any]:
     return item_map
 
 
-@deal.pre(
-    lambda data_object, _obfuscated_key: len(data_object) > 0,
-    message="Data object cannot be empty",
+@icontract.require(
+    lambda data_object: len(data_object) > 0,
+    description="Data object cannot be empty",
 )
-@deal.pre(
-    lambda _data_object, obfuscated_key: len(obfuscated_key) > 0,
-    message="Obfuscated key cannot be empty",
+@icontract.require(
+    lambda obfuscated_key: len(obfuscated_key) > 0,
+    description="Obfuscated key cannot be empty",
 )
-@deal.post(lambda result: len(result) > 0)
+@icontract.ensure(lambda result: len(result) > 0)
 @beartype
 def encrypt(data_object: dict[str, Any], obfuscated_key: str) -> str:
     """Re-encrypt modified data object back into game asset file format.

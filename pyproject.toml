@@ -8,13 +8,14 @@ dependencies = [
     "toml>=0.10.2",
     "beartype>=0.22.4",
     "pydantic>=2.12.3",
-    "deal>=4.24.5",
+    "icontract>=2.7.0",
     "typer>=0.20.0",
     "rich>=14.2.0",
     "jinja2>=3.1.6",
     "dependency-injector>=4.48.2",
     "tenacity>=9.1.2",
     "returns[compatible-mypy]>=0.26.0",
+    "icontract>=2.7.2",
 ]
 
 [project.scripts]
@@ -111,7 +112,7 @@ module = "beartype"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "deal"
+module = "icontract"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

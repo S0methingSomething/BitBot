@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-import deal
+import icontract
 from beartype import beartype
 from returns.result import Failure, Result, Success
 
@@ -13,13 +13,13 @@ from bitbot.patch_file import process_file
 DOWNLOAD_DIR = paths.DIST_DIR
 
 
-@deal.pre(
-    lambda original_path, asset_name: len(original_path) > 0,
-    message="Original path cannot be empty - must specify source file to patch",
+@icontract.require(
+    lambda original_path: len(original_path) > 0,
+    description="Original path cannot be empty - must specify source file to patch",
 )
-@deal.pre(
-    lambda original_path, asset_name: len(asset_name) > 0,
-    message="Asset name cannot be empty - must specify output filename",
+@icontract.require(
+    lambda asset_name: len(asset_name) > 0,
+    description="Asset name cannot be empty - must specify output filename",
 )
 @beartype
 def patch_file(original_path: str, asset_name: str) -> Result[str, GitHubAPIError]:
