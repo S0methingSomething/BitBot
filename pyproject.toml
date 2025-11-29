@@ -156,6 +156,7 @@ default = false
 dev = [
     "coverage>=7.11.0",
     "deptry>=0.23.1",
+    "hypothesis>=6.148.3",
     "interrogate>=1.7.0",
     "pdbpp>=0.11.7",
     "pip-audit>=2.8.0",

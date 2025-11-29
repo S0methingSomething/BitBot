@@ -37,3 +37,6 @@ q*
 # Task files
 # tasks.json
 # tasks/ 
+
+# Hypothesis
+.hypothesis/
