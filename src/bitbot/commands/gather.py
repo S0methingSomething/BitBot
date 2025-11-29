@@ -2,9 +2,8 @@
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-import requests
 import typer
 from beartype import beartype
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -13,6 +12,7 @@ from bitbot import paths
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
+from bitbot.gh.releases.fetcher import get_github_data
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -21,6 +21,22 @@ if TYPE_CHECKING:
     from bitbot.core.container import Container
 
 app = typer.Typer()
+
+
+@beartype
+def _parse_release_metadata(release: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Parse app name and version from release body."""
+    body = release.get("body", "")
+    app_name = None
+    version = None
+
+    for line in body.split("\n"):
+        if line.startswith("app:"):
+            app_name = line.split(":", 1)[1].strip()
+        elif line.startswith("version:"):
+            version = line.split(":", 1)[1].strip()
+
+    return app_name, version
 
 
 @beartype
@@ -41,36 +57,33 @@ def run(ctx: typer.Context) -> None:
             ) as progress:
                 progress.add_task(description="Gathering releases...", total=None)
 
-                source_repo = config.github.source_repo
+                bot_repo = config.github.bot_repo
                 apps_config = {
                     app["id"]: app["displayName"] for app in config.model_dump().get("apps", [])
                 }
 
-                # Fetch all releases from source repo
-                url = f"https://api.github.com/repos/{source_repo}/releases"
-                response = requests.get(url, timeout=30)
-                response.raise_for_status()
-                releases = response.json()
+                # Fetch all releases from bot repo using authenticated gh CLI
+                releases_result = get_github_data(f"/repos/{bot_repo}/releases?per_page=100")
+                if releases_result.is_err():
+                    error = BitBotError(f"GitHub API error: {releases_result.unwrap_err()}")
+                    logger.log_error(error, LogLevel.ERROR)
+                    console.print(f"[red]✗ Error:[/red] {releases_result.unwrap_err()}")
+                    raise typer.Exit(code=1) from None
+
+                releases = releases_result.unwrap()
+                if not isinstance(releases, list):
+                    error = BitBotError("Expected list of releases from GitHub API")
+                    logger.log_error(error, LogLevel.ERROR)
+                    console.print(f"[red]✗ Error:[/red] {error.message}")
+                    raise typer.Exit(code=1) from None
 
                 # Group releases by app
-                apps_data = {}
+                apps_data: dict[str, Any] = {}
                 for release in releases:
                     if not release.get("assets"):
                         continue
 
-                    body = release.get("body", "")
-                    lines = body.split("\n")
-
-                    # Parse metadata
-                    app_name = None
-                    version = None
-
-                    for line in lines:
-                        if line.startswith("app:"):
-                            app_name = line.split(":", 1)[1].strip()
-                        elif line.startswith("version:"):
-                            version = line.split(":", 1)[1].strip()
-
+                    app_name, version = _parse_release_metadata(release)
                     if not app_name or not version:
                         continue
 
@@ -90,7 +103,6 @@ def run(ctx: typer.Context) -> None:
                             "releases": [release_data],
                         }
                     else:
-                        # Add to history (releases are newest first from API)
                         apps_data[app_id]["releases"].append(release_data)
 
                 # Save to releases.json
@@ -104,11 +116,6 @@ def run(ctx: typer.Context) -> None:
                 app_count = len(apps_data)
                 console.print(f"[green]✓[/green] Gathered {app_count} app(s) from bot releases")
 
-        except requests.RequestException as e:
-            error = BitBotError(f"GitHub API error: {e}")
-            logger.log_error(error, LogLevel.ERROR)
-            console.print(f"[red]✗ Error:[/red] {e}")
-            raise typer.Exit(code=1) from None
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
             logger.log_error(error, LogLevel.CRITICAL)
