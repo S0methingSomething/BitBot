@@ -1,0 +1,103 @@
+{
+  "mcpServers": {
+    "sequential_thinking": {
+      "url": "",
+      "headers": {},
+      "oauthScopes": [
+        "openid",
+        "email",
+        "profile",
+        "offline_access"
+      ],
+      "command": "/home/codespace/nvm/current/bin/npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking@latest"
+      ],
+      "env": {},
+      "timeout": 120000,
+      "disabled": false,
+      "disabledTools": []
+    },
+    "context7": {
+      "url": "",
+      "headers": {},
+      "oauthScopes": [
+        "openid",
+        "email",
+        "profile",
+        "offline_access"
+      ],
+      "command": "/home/codespace/nvm/current/bin/npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest",
+        "--api-key",
+        "ctx7sk-ed027833-9b2c-4a83-95d3-9473aaf4f13f"
+      ],
+      "env": {},
+      "timeout": 120000,
+      "disabled": false,
+      "disabledTools": []
+    },
+    "exa": {
+      "url": "",
+      "headers": {},
+      "oauthScopes": [
+        "openid",
+        "email",
+        "profile",
+        "offline_access"
+      ],
+      "command": "/home/codespace/nvm/current/bin/npx",
+      "args": [
+        "-y",
+        "exa-mcp-server@latest"
+      ],
+      "env": {},
+      "timeout": 120000,
+      "disabled": false,
+      "disabledTools": []
+    },
+    "ref": {
+      "url": "",
+      "headers": {},
+      "oauthScopes": [
+        "openid",
+        "email",
+        "profile",
+        "offline_access"
+      ],
+      "command": "/home/codespace/nvm/current/bin/npx",
+      "args": [
+        "-y",
+        "ref-tools-mcp@latest"
+      ],
+      "env": {},
+      "timeout": 120000,
+      "disabled": false,
+      "disabledTools": []
+    },
+    "chrome-devtools": {
+      "url": "",
+      "headers": {},
+      "oauthScopes": [
+        "openid",
+        "email",
+        "profile",
+        "offline_access"
+      ],
+      "command": "/home/codespace/nvm/current/bin/npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--headless=true",
+        "--isolated=true"
+      ],
+      "env": {},
+      "timeout": 120000,
+      "disabled": false,
+      "disabledTools": []
+    }
+  }
+}

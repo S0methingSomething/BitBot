@@ -1,5 +1,6 @@
 """Release command for BitBot CLI."""
 
+import hashlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -58,7 +59,10 @@ def process_single_release(
     downloaded_files.append(Path(patched_path))
     release_tag = f"{release.tag}-{app_name.replace(' ', '-')}"
     title = f"{app_name} {version}"
-    notes = f"Updated {app_name} to version {version}"
+
+    # Calculate SHA256 of patched file
+    file_hash = hashlib.sha256(Path(patched_path).read_bytes()).hexdigest()
+    notes = f"app: {app_name}\nversion: {version}\nasset_name: {asset_name}\nsha256: {file_hash}"
 
     create_result = create_bot_release(bot_repo, release_tag, title, notes, patched_path)
     if create_result.is_err():
