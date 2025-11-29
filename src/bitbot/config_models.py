@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from beartype import beartype
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -17,6 +18,7 @@ class GitHubConfig(BaseModel):
 
     @field_validator("source_repo", "bot_repo")
     @classmethod
+    @beartype
     def validate_repo_format(cls, v: str) -> str:
         """Validate repo is in owner/name format."""
         if "/" not in v or v.count("/") != 1:
@@ -26,6 +28,7 @@ class GitHubConfig(BaseModel):
 
     @field_validator("asset_file_name")
     @classmethod
+    @beartype
     def validate_asset_name(cls, v: str) -> str:
         """Validate asset filename has no path separators."""
         if "/" in v or "\\" in v:
@@ -72,6 +75,7 @@ class RedditConfig(BaseModel):
 
     @field_validator("subreddit")
     @classmethod
+    @beartype
     def validate_subreddit(cls, v: str) -> str:
         """Validate subreddit format."""
         v = v.removeprefix("r/")
@@ -82,6 +86,7 @@ class RedditConfig(BaseModel):
 
     @field_validator("bot_name", "user_agent", "creator")
     @classmethod
+    @beartype
     def validate_non_empty(cls, v: str) -> str:
         """Validate string fields are non-empty."""
         if not v.strip():
@@ -91,6 +96,7 @@ class RedditConfig(BaseModel):
 
     @field_validator("post_mode")
     @classmethod
+    @beartype
     def validate_post_mode(cls, v: str) -> str:
         """Validate post_mode is valid."""
         valid_modes = {"rolling_update", "new_post"}
@@ -101,6 +107,7 @@ class RedditConfig(BaseModel):
 
     @field_validator("download_mode")
     @classmethod
+    @beartype
     def validate_download_mode(cls, v: str) -> str:
         """Validate download_mode is valid."""
         valid_modes = {"landing_page", "direct_link"}
@@ -130,9 +137,9 @@ class Config(BaseModel):
 
     @field_validator("safety", "timing")
     @classmethod
+    @beartype
     def validate_positive_ints(cls, v: dict[str, int]) -> dict[str, int]:
         """Validate numeric values are positive."""
-        _ = cls
         for key, val in v.items():
             if val < 0:
                 msg = f"{key} must be non-negative"

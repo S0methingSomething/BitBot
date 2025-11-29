@@ -49,6 +49,7 @@ class AccountState(BaseModel):
 
     @field_validator("current_interval_seconds")
     @classmethod
+    @beartype
     def validate_interval(cls, v: int | None) -> int | None:
         """Validate interval is positive."""
         if v is not None and v <= 0:
@@ -73,6 +74,7 @@ class PendingRelease(BaseModel):
 
     @field_validator("release_id")
     @classmethod
+    @beartype
     def validate_release_id(cls, v: int) -> int:
         """Validate release_id is positive."""
         if v <= 0:
@@ -82,6 +84,7 @@ class PendingRelease(BaseModel):
 
     @field_validator("tag", "app_id", "display_name", "version")
     @classmethod
+    @beartype
     def validate_non_empty(cls, v: str) -> str:
         """Validate string fields are non-empty."""
         if not v.strip():

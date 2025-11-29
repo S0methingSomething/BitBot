@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import toml
-from beartype import BeartypeConf, BeartypeStrategy, beartype
+from beartype import beartype
 from pydantic import ValidationError
 
 from bitbot import paths
@@ -11,11 +11,8 @@ from bitbot.config_models import Config
 from bitbot.core.errors import ConfigurationError
 from bitbot.core.result import Err, Ok, Result
 
-# Strict beartype configuration
-BEARTYPE_STRICT = BeartypeConf(strategy=BeartypeStrategy.On)
 
-
-@beartype(conf=BEARTYPE_STRICT)
+@beartype
 def load_config() -> Result[Config, ConfigurationError]:
     """Loads the main configuration file (config.toml)."""
     try:

@@ -9,6 +9,7 @@ from typing import NoReturn, TypeVar
 import deal
 from beartype import beartype
 
+# TypeVars for method signatures (class generics don't cover cross-type operations)
 T = TypeVar("T")
 E = TypeVar("E")
 U = TypeVar("U")
@@ -113,4 +114,4 @@ class Err[E]:
 
 
 # Type alias for Result
-Result = Ok[T] | Err[E]
+type Result[T, E] = Ok[T] | Err[E]

@@ -6,7 +6,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-import deal
 from beartype import beartype
 from rich.console import Console
 from rich.logging import RichHandler
@@ -66,7 +65,6 @@ class ErrorLogger:
             with self.log_file.open("a") as f:
                 f.write(json.dumps(error_dict) + "\n")
 
-    @deal.post(lambda result: len(result) > 0, message="Color string must be non-empty")
     @beartype
     def _get_color(self, level: LogLevel) -> str:
         """Get color for log level."""
@@ -78,10 +76,6 @@ class ErrorLogger:
             LogLevel.CRITICAL: "bold red",
         }
         return colors.get(level, "white")
-
-
-# Global logger instance
-_logger: ErrorLogger | None = None
 
 
 @beartype
@@ -116,10 +110,3 @@ def get_logger(
             logger.addHandler(file_handler)
 
     return logger
-
-
-@beartype
-def reset_logger() -> None:
-    """Reset the global logger (for testing)."""
-    global _logger
-    _logger = None

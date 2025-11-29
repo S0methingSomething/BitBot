@@ -40,14 +40,6 @@ class BitBotError(Exception):
         )
 
 
-class TransientError(BitBotError):
-    """Retry-able error (network, rate limits)."""
-
-
-class PermanentError(BitBotError):
-    """Not retry-able (404, validation)."""
-
-
 class ConfigurationError(BitBotError):
     """Configuration or setup error."""
 
@@ -56,15 +48,11 @@ class StateError(BitBotError):
     """State corruption or inconsistency."""
 
 
-class ExternalAPIError(BitBotError):
-    """Base for external API errors."""
-
-
-class RedditAPIError(ExternalAPIError):
+class RedditAPIError(BitBotError):
     """Reddit API error."""
 
 
-class GitHubAPIError(ExternalAPIError):
+class GitHubAPIError(BitBotError):
     """GitHub API error."""
 
 

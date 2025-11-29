@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import deal
 from beartype import beartype
 
 from bitbot import paths
@@ -86,7 +85,6 @@ def save_global_state(state: GlobalState) -> Result[None, StateError]:
         return Err(StateError(f"Failed to save global state: {e}"))
 
 
-@deal.pre(lambda state: hasattr(state, "model_dump"))
 @beartype
 def save_account_state(state: AccountState) -> Result[None, StateError]:
     """Save account-specific state (online versions, posts)."""

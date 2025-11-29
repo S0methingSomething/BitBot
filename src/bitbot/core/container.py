@@ -1,5 +1,6 @@
 """Dependency injection container for BitBot."""
 
+from beartype import beartype
 from dependency_injector import containers, providers
 from rich.console import Console
 
@@ -8,6 +9,7 @@ from bitbot.core.config import load_config
 from bitbot.core.error_logger import ErrorLogger
 
 
+@beartype
 def _load_config_or_exit() -> Config:
     """Load config and exit with error if it fails."""
     result = load_config()
