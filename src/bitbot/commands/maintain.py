@@ -63,6 +63,7 @@ def run(ctx: typer.Context) -> None:
 
                 bot_repo = config.github.bot_repo
                 outdated_prefix = config.outdated_post_handling.get("prefix", "[OUTDATED]")
+                configured_apps = {app["id"] for app in config.apps}
 
                 # Fetch releases
                 releases_result = get_github_data(f"/repos/{bot_repo}/releases")
@@ -93,38 +94,43 @@ def run(ctx: typer.Context) -> None:
                     app_id = _extract_app_id(release)
                     releases_by_app[app_id].append(release)
 
-                # For each app, find latest and mark others as outdated
                 updated_count = 0
-                for app_id, app_releases in releases_by_app.items():
-                    if len(app_releases) <= 1:
-                        continue  # Only one release, nothing to mark
 
+                for app_id, app_releases in releases_by_app.items():
                     # Sort by created_at descending (latest first)
                     app_releases.sort(
                         key=lambda r: r.get("created_at", ""),
                         reverse=True,
                     )
 
-                    # Mark older releases as outdated (skip first which is latest)
+                    # If app not in config, mark ALL its releases as outdated
+                    if app_id not in configured_apps:
+                        for release in app_releases:
+                            tag = release.get("tag_name", "")
+                            title = release.get("name", "")
+                            if not tag or not title or title.startswith(outdated_prefix):
+                                continue
+                            new_title = f"{outdated_prefix} {title}"
+                            update_result = update_release_title(bot_repo, tag, new_title)
+                            if update_result.is_ok():
+                                console.print(f"[cyan]✓[/cyan] Marked {tag} (unconfigured app)")
+                                updated_count += 1
+                        continue
+
+                    # For configured apps, mark older releases as outdated
+                    if len(app_releases) <= 1:
+                        continue
+
                     for release in app_releases[1:]:
                         tag = release.get("tag_name", "")
                         title = release.get("name", "")
-
-                        if not tag or not title:
+                        if not tag or not title or title.startswith(outdated_prefix):
                             continue
-
-                        # Skip if already marked
-                        if title.startswith(outdated_prefix):
-                            continue
-
                         new_title = f"{outdated_prefix} {title}"
                         update_result = update_release_title(bot_repo, tag, new_title)
-                        if update_result.is_err():
-                            console.print(f"[yellow]⚠[/yellow] Failed to update {tag}")
-                            continue
-
-                        console.print(f"[cyan]✓[/cyan] Marked {tag} as outdated ({app_id})")
-                        updated_count += 1
+                        if update_result.is_ok():
+                            console.print(f"[cyan]✓[/cyan] Marked {tag} as outdated")
+                            updated_count += 1
 
                 if updated_count == 0:
                     console.print("[green]✓[/green] All releases up to date")
