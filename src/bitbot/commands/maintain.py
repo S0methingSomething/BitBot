@@ -1,7 +1,8 @@
 """Maintain command for BitBot CLI."""
 
-from datetime import datetime
-from typing import TYPE_CHECKING
+import re
+from collections import defaultdict
+from typing import TYPE_CHECKING, Any
 
 import typer
 from beartype import beartype
@@ -23,10 +24,29 @@ app = typer.Typer()
 
 
 @beartype
+def _extract_app_id(release: dict[str, Any]) -> str:
+    """Extract app ID from release body or tag."""
+    body = release.get("body", "")
+    tag = release.get("tag_name", "")
+
+    # Try to extract from body (structured format)
+    for line in body.split("\n"):
+        if line.startswith("app:"):
+            return line.split(":", 1)[1].strip().lower().replace(" ", "_")
+
+    # Fallback: extract from tag (e.g., "bitlife-v1.0.0" -> "bitlife")
+    match = re.match(r"^([a-z_]+)-v", tag.lower())
+    if match:
+        return match.group(1)
+
+    # Last resort: use tag as-is
+    return tag.lower()
+
+
+@beartype
 @app.command()
 def run(ctx: typer.Context) -> None:
-    """Mark old releases as outdated."""
-    # Get dependencies from container
+    """Mark old releases as outdated (per app)."""
     container: Container = ctx.obj["container"]
     console: Console = container.console()
     logger = container.logger()
@@ -51,22 +71,15 @@ def run(ctx: typer.Context) -> None:
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {releases_result.unwrap_err()}")
                     raise typer.Exit(code=1) from None
-                releases_data = releases_result.unwrap()
 
+                releases_data = releases_result.unwrap()
                 if not isinstance(releases_data, list):
                     console.print("[yellow][i] Unexpected response format[/yellow]")
                     return
 
-                releases: list[dict] = releases_data
-
-                if not releases:
-                    console.print("[yellow][i] No releases found[/yellow]")
-                    return
-
-                # Filter to only stable releases (not draft, not prerelease)
+                # Filter to stable releases (not draft, not prerelease)
                 stable_releases = [
-                    r
-                    for r in releases
+                    r for r in releases_data
                     if not r.get("draft", False) and not r.get("prerelease", False)
                 ]
 
@@ -74,48 +87,44 @@ def run(ctx: typer.Context) -> None:
                     console.print("[yellow][i] No stable releases found[/yellow]")
                     return
 
-                # Find latest release using GitHub's latest flag, fallback to created_at
-                latest_release = next(
-                    (r for r in stable_releases if r.get("latest", False)),
-                    max(
-                        stable_releases,
-                        key=lambda r: datetime.fromisoformat(
-                            r.get("created_at", "1970-01-01T00:00:00Z")
-                        ),
-                    ),
-                )
-                latest_tag = latest_release.get("tag_name", "")
-
-                if not latest_tag:
-                    console.print("[yellow][i] Could not determine latest release[/yellow]")
-                    return
-
-                # Mark old releases as outdated
-                updated_count = 0
+                # Group releases by app
+                releases_by_app: dict[str, list[dict[str, Any]]] = defaultdict(list)
                 for release in stable_releases:
-                    tag = release.get("tag_name", "")
-                    title = release.get("name", "")
+                    app_id = _extract_app_id(release)
+                    releases_by_app[app_id].append(release)
 
-                    if not tag or not title:
-                        continue
+                # For each app, find latest and mark others as outdated
+                updated_count = 0
+                for app_id, app_releases in releases_by_app.items():
+                    if len(app_releases) <= 1:
+                        continue  # Only one release, nothing to mark
 
-                    # Skip latest release
-                    if tag == latest_tag:
-                        continue
+                    # Sort by created_at descending (latest first)
+                    app_releases.sort(
+                        key=lambda r: r.get("created_at", ""),
+                        reverse=True,
+                    )
 
-                    # Skip if already marked
-                    if title.startswith(outdated_prefix):
-                        continue
+                    # Mark older releases as outdated (skip first which is latest)
+                    for release in app_releases[1:]:
+                        tag = release.get("tag_name", "")
+                        title = release.get("name", "")
 
-                    # Update title
-                    new_title = f"{outdated_prefix} {title}"
-                    update_result = update_release_title(bot_repo, tag, new_title)
-                    if update_result.is_err():
-                        console.print(f"[yellow]⚠[/yellow] Failed to update {tag}")
-                        continue
+                        if not tag or not title:
+                            continue
 
-                    console.print(f"[cyan]✓[/cyan] Marked {tag} as outdated")
-                    updated_count += 1
+                        # Skip if already marked
+                        if title.startswith(outdated_prefix):
+                            continue
+
+                        new_title = f"{outdated_prefix} {title}"
+                        update_result = update_release_title(bot_repo, tag, new_title)
+                        if update_result.is_err():
+                            console.print(f"[yellow]⚠[/yellow] Failed to update {tag}")
+                            continue
+
+                        console.print(f"[cyan]✓[/cyan] Marked {tag} as outdated ({app_id})")
+                        updated_count += 1
 
                 if updated_count == 0:
                     console.print("[green]✓[/green] All releases up to date")
