@@ -14,6 +14,11 @@ from bitbot.core.errors import StateError
 
 DB_PATH = paths.DATABASE_FILE
 
+
+def db_fail(msg: str, e: sqlite3.Error) -> Failure[StateError]:
+    """Create a Failure with StateError for database errors."""
+    return Failure(StateError(f"{msg}: {e}"))
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS offline_versions (
     app_id TEXT PRIMARY KEY,
@@ -84,10 +89,11 @@ def init() -> Result[None, StateError]:
             c.executescript(_SCHEMA)
         return Success(None)
     except sqlite3.Error as e:
-        return Failure(StateError(f"DB init failed: {e}"))
+        return db_fail("DB init failed", e)
 
 
 from bitbot.core.db.accounts import (  # noqa: E402
+    AccountMeta,
     add_post_id,
     export_account_json,
     get_account,
@@ -98,6 +104,7 @@ from bitbot.core.db.accounts import (  # noqa: E402
     update_account,
 )
 from bitbot.core.db.releases import (  # noqa: E402
+    PendingRelease,
     add_pending_release,
     add_processed_release,
     clear_pending_releases,
@@ -110,6 +117,8 @@ from bitbot.core.db.releases import (  # noqa: E402
 
 __all__ = [
     "DB_PATH",
+    "AccountMeta",
+    "PendingRelease",
     "add_pending_release",
     "add_post_id",
     "add_processed_release",

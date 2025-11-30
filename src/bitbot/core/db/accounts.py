@@ -3,14 +3,23 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Any
+from typing import Any, TypedDict
 
 import icontract
 from beartype import beartype
 from returns.result import Failure, Result, Success
 
-from bitbot.core.db import conn
+from bitbot.core.db import conn, db_fail
 from bitbot.core.errors import StateError
+
+
+class AccountMeta(TypedDict):
+    """Account metadata from database."""
+
+    active_post_id: str | None
+    last_check_timestamp: str | None
+    check_interval_seconds: int | None
+    last_comment_count: int | None
 
 
 @icontract.require(lambda username: len(username) > 0)
@@ -20,19 +29,19 @@ def get_or_create_account(username: str, subreddit: str) -> Result[int, StateErr
     """Get or create account, return ID."""
     try:
         with conn() as c:
+            c.execute(
+                "INSERT OR IGNORE INTO accounts (username, subreddit) VALUES (?, ?)",
+                (username, subreddit),
+            )
             row = c.execute(
                 "SELECT id FROM accounts WHERE username = ? AND subreddit = ?",
                 (username, subreddit),
             ).fetchone()
-            if row:
-                return Success(row["id"])
-            cur = c.execute(
-                "INSERT INTO accounts (username, subreddit) VALUES (?, ?)",
-                (username, subreddit),
-            )
-            return Success(cur.lastrowid or 0)
+            if not row:
+                return Failure(StateError("Failed to create/get account"))
+            return Success(row["id"])
     except sqlite3.Error as e:
-        return Failure(StateError(f"Failed to get/create account: {e}"))
+        return db_fail("Failed to get/create account", e)
 
 
 @icontract.require(lambda account_id: account_id > 0)
@@ -47,7 +56,7 @@ def get_posted_versions(account_id: int) -> Result[dict[str, str], StateError]:
             ).fetchall()
         return Success({r["app_id"]: r["version"] for r in rows})
     except sqlite3.Error as e:
-        return Failure(StateError(f"Failed to get posted versions: {e}"))
+        return db_fail("Failed to get posted versions", e)
 
 
 @icontract.require(lambda account_id: account_id > 0)
@@ -63,12 +72,12 @@ def set_posted_version(account_id: int, app_id: str, version: str) -> Result[Non
             )
         return Success(None)
     except sqlite3.Error as e:
-        return Failure(StateError(f"Failed to set posted version: {e}"))
+        return db_fail("Failed to set posted version", e)
 
 
 @icontract.require(lambda account_id: account_id > 0)
 @beartype
-def get_account(account_id: int) -> Result[dict[str, Any], StateError]:
+def get_account(account_id: int) -> Result[AccountMeta, StateError]:
     """Get account metadata."""
     try:
         with conn() as c:
@@ -80,9 +89,22 @@ def get_account(account_id: int) -> Result[dict[str, Any], StateError]:
             ).fetchone()
         if not row:
             return Failure(StateError(f"Account {account_id} not found"))
-        return Success(dict(row))
+        return Success({
+            "active_post_id": row["active_post_id"],
+            "last_check_timestamp": row["last_check_timestamp"],
+            "check_interval_seconds": row["check_interval_seconds"],
+            "last_comment_count": row["last_comment_count"],
+        })
     except sqlite3.Error as e:
-        return Failure(StateError(f"Failed to get account: {e}"))
+        return db_fail("Failed to get account", e)
+
+
+_UPDATE_COLS = {
+    "active_post_id": "active_post_id = ?",
+    "last_check_timestamp": "last_check_timestamp = ?",
+    "check_interval_seconds": "check_interval_seconds = ?",
+    "last_comment_count": "last_comment_count = ?",
+}
 
 
 @icontract.require(lambda account_id: account_id > 0)
@@ -100,16 +122,16 @@ def update_account(
     params: list[Any] = []
 
     if active_post_id is not None:
-        updates.append("active_post_id = ?")
+        updates.append(_UPDATE_COLS["active_post_id"])
         params.append(active_post_id)
     if last_check_timestamp is not None:
-        updates.append("last_check_timestamp = ?")
+        updates.append(_UPDATE_COLS["last_check_timestamp"])
         params.append(last_check_timestamp)
     if check_interval_seconds is not None:
-        updates.append("check_interval_seconds = ?")
+        updates.append(_UPDATE_COLS["check_interval_seconds"])
         params.append(check_interval_seconds)
     if last_comment_count is not None:
-        updates.append("last_comment_count = ?")
+        updates.append(_UPDATE_COLS["last_comment_count"])
         params.append(last_comment_count)
 
     if not updates:
@@ -118,25 +140,25 @@ def update_account(
     try:
         params.append(account_id)
         with conn() as c:
-            c.execute(f"UPDATE accounts SET {', '.join(updates)} WHERE id = ?", params)  # noqa: S608
+            c.execute(f"UPDATE accounts SET {', '.join(updates)} WHERE id = ?", params)  # noqa: S608 - cols whitelisted
         return Success(None)
     except sqlite3.Error as e:
-        return Failure(StateError(f"Failed to update account: {e}"))
+        return db_fail("Failed to update account", e)
 
 
 @icontract.require(lambda account_id: account_id > 0)
 @beartype
 def get_post_ids(account_id: int) -> Result[list[str], StateError]:
-    """Get all post IDs for an account."""
+    """Get all post IDs for an account in insertion order."""
     try:
         with conn() as c:
             rows = c.execute(
-                "SELECT post_id FROM post_ids WHERE account_id = ?",
+                "SELECT post_id FROM post_ids WHERE account_id = ? ORDER BY rowid",
                 (account_id,),
             ).fetchall()
         return Success([r["post_id"] for r in rows])
     except sqlite3.Error as e:
-        return Failure(StateError(f"Failed to get post IDs: {e}"))
+        return db_fail("Failed to get post IDs", e)
 
 
 @icontract.require(lambda account_id: account_id > 0)
@@ -152,7 +174,7 @@ def add_post_id(account_id: int, post_id: str) -> Result[None, StateError]:
             )
         return Success(None)
     except sqlite3.Error as e:
-        return Failure(StateError(f"Failed to add post ID: {e}"))
+        return db_fail("Failed to add post ID", e)
 
 
 @icontract.require(lambda username: len(username) > 0)

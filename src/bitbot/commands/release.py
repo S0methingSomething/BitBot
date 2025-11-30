@@ -2,7 +2,7 @@
 
 import hashlib
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import typer
 from beartype import beartype
@@ -11,6 +11,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.core import db
 from bitbot.core.app_registry import AppRegistry
+from bitbot.core.db import PendingRelease
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
@@ -28,8 +29,8 @@ app = typer.Typer()
 
 
 @beartype
-def process_single_release(  # noqa: PLR0913 - release processing needs all params
-    release: dict[str, Any],
+def process_single_release(  # noqa: PLR0913
+    release: PendingRelease,
     source_repo: str,
     bot_repo: str,
     default_asset: str,
