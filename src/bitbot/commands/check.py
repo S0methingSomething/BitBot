@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING
 
-import icontract
 import typer
 from beartype import beartype
 from praw.models import Submission
@@ -13,11 +12,11 @@ from returns.result import Failure, Result, Success
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot.config_models import Config
+from bitbot.core import db
+from bitbot.core.credentials import get_reddit_username
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError, RedditAPIError
-from bitbot.core.state import load_bot_state, save_bot_state
-from bitbot.models import BotState
 from bitbot.reddit.client import init_reddit
 
 if TYPE_CHECKING:
@@ -35,7 +34,6 @@ class CheckResult(Enum):
     STATE_UNCHANGED = "unchanged"
 
 
-@icontract.ensure(lambda result: len(result) > 0)
 @beartype
 def _analyze_sentiment(comments: list, config: Config) -> str:
     """Analyze comment sentiment and return status."""
@@ -53,10 +51,6 @@ def _analyze_sentiment(comments: list, config: Config) -> str:
     return config.feedback["labels"]["unknown"]
 
 
-@icontract.require(
-    lambda status: len(status) > 0,
-    description="Status cannot be empty",
-)
 @beartype
 def _update_post_status(submission: Submission, status: str, config: Config) -> None:
     """Update post status line if needed."""
@@ -68,48 +62,27 @@ def _update_post_status(submission: Submission, status: str, config: Config) -> 
         submission.edit(body=updated_body)
 
 
-@icontract.require(
-    lambda comment_count: comment_count >= 0,
-    description="Comment count must be non-negative",
-)
 @beartype
-def _update_check_interval(state: BotState, comment_count: int, config: Config) -> CheckResult:
-    """Update check interval based on activity."""
-    last_count = int(state.online.get("lastCommentCount", "0"))
-    current_interval = state.current_interval_seconds or config.timing["firstCheck"]
-    changed = False
-
-    if comment_count > last_count:
-        state.current_interval_seconds = config.timing["firstCheck"]
-        changed = True
-    elif current_interval < config.timing["maxWait"]:
-        state.current_interval_seconds = min(
-            config.timing["maxWait"], current_interval + config.timing["increaseBy"]
-        )
-        changed = True
-
-    if last_count != comment_count:
-        state.online["lastCommentCount"] = str(comment_count)
-        changed = True
-
-    return CheckResult.STATE_CHANGED if changed else CheckResult.STATE_UNCHANGED
-
-
-@beartype
-def check_comments(config: Config) -> Result[CheckResult, BitBotError]:
+def check_comments(config: Config, account_id: int) -> Result[CheckResult, BitBotError]:
     """Check comments and update post status."""
-    state_result = load_bot_state()
-    if isinstance(state_result, Failure):
-        return Failure(state_result.failure())
+    # Get account metadata
+    meta_result = db.get_account(account_id)
+    if isinstance(meta_result, Failure):
+        return Failure(meta_result.failure())
 
-    state = state_result.unwrap()
+    meta = meta_result.unwrap()
+    active_post_id = meta.get("active_post_id")
+    last_check_str = meta.get("last_check_timestamp") or "2000-01-01T00:00:00Z"
+    current_interval = meta.get("check_interval_seconds") or config.timing["firstCheck"]
+
+    # Skip if no active post
+    if not active_post_id:
+        return Success(CheckResult.STATE_UNCHANGED)
+
+    # Skip if not time yet
     now = datetime.now(UTC)
-    last_check_str = state.last_check_timestamp or "2000-01-01T00:00:00Z"
     last_check = datetime.fromisoformat(last_check_str)
-    current_interval = state.current_interval_seconds or config.timing["firstCheck"]
-
-    # Skip check if no active post or not time yet
-    if not state.active_post_id or now < (last_check + timedelta(seconds=current_interval)):
+    if now < (last_check + timedelta(seconds=current_interval)):
         return Success(CheckResult.STATE_UNCHANGED)
 
     # Initialize reddit client
@@ -120,25 +93,38 @@ def check_comments(config: Config) -> Result[CheckResult, BitBotError]:
     reddit = reddit_result.unwrap()
 
     try:
-        submission = reddit.submission(id=state.active_post_id)
+        submission = reddit.submission(id=active_post_id)
         submission.comments.replace_more(limit=0)
         comments = submission.comments.list()
 
         status = _analyze_sentiment(comments, config)
         _update_post_status(submission, status, config)
-        state_changed = _update_check_interval(state, len(comments), config)
+
+        # Update interval based on activity
+        last_count = meta.get("last_comment_count") or 0
+        comment_count = len(comments)
+        new_interval = current_interval
+
+        if comment_count > last_count:
+            new_interval = config.timing["firstCheck"]
+        elif current_interval < config.timing["maxWait"]:
+            increase = config.timing["increaseBy"]
+            new_interval = min(config.timing["maxWait"], current_interval + increase)
+
+        # Update timestamp and comment count
+        new_timestamp = now.isoformat().replace("+00:00", "Z")
+        db.update_account(
+            account_id,
+            last_check_timestamp=new_timestamp,
+            check_interval_seconds=new_interval,
+            last_comment_count=comment_count,
+        )
+
+        changed = new_interval != current_interval
+        return Success(CheckResult.STATE_CHANGED if changed else CheckResult.STATE_UNCHANGED)
 
     except Exception as e:
         return Failure(RedditAPIError(f"Failed to check comments: {e}"))
-
-    # Update timestamp and save state
-    state.last_check_timestamp = now.isoformat().replace("+00:00", "Z")
-    if state_changed == CheckResult.STATE_CHANGED:
-        save_result = save_bot_state(state)
-        if isinstance(save_result, Failure):
-            return Failure(save_result.failure())
-
-    return Success(state_changed)
 
 
 @beartype
@@ -158,7 +144,21 @@ def run(ctx: typer.Context) -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Checking comments...", total=None)
-                result = check_comments(config)
+
+                # Initialize database
+                db.init()
+
+                # Get account
+                username = get_reddit_username()
+                account_result = db.get_or_create_account(username, config.reddit.subreddit)
+                if isinstance(account_result, Failure):
+                    error = BitBotError(f"DB error: {account_result.failure()}")
+                    logger.log_error(error, LogLevel.ERROR)
+                    console.print(f"[red]✗ Error:[/red] {error.message}")
+                    raise typer.Exit(code=1)
+                account_id = account_result.unwrap()
+
+                result = check_comments(config, account_id)
 
                 if isinstance(result, Failure):
                     error = result.failure()

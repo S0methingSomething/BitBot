@@ -2,22 +2,21 @@
 
 import hashlib
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import typer
 from beartype import beartype
 from returns.result import Failure
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from bitbot.core import db
 from bitbot.core.app_registry import AppRegistry
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
-from bitbot.core.release_queue import load_pending_releases, save_pending_releases
 from bitbot.gh.releases.creator import create_bot_release
 from bitbot.gh.releases.downloader import download_asset
 from bitbot.gh.releases.patcher import patch_file
-from bitbot.models import PendingRelease
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -29,8 +28,8 @@ app = typer.Typer()
 
 
 @beartype
-def process_single_release(  # noqa: PLR0913
-    release: PendingRelease,
+def process_single_release(  # noqa: PLR0913 - release processing needs all params
+    release: dict[str, Any],
     source_repo: str,
     bot_repo: str,
     default_asset: str,
@@ -38,21 +37,24 @@ def process_single_release(  # noqa: PLR0913
     registry: AppRegistry,
 ) -> tuple[bool, list[Path]]:
     """Process a single release. Returns (success, downloaded_files)."""
-    app_name = release.display_name
-    version = release.version
-    asset_name = release.asset_name or default_asset
+    app_id = release["app_id"]
+    app_name = release["display_name"]
+    version = release["version"]
+    asset_name = release.get("asset_name") or default_asset
+    release_id = release["release_id"]
+    tag = release["tag"]
     downloaded_files: list[Path] = []
 
     # Validate app_id exists in config
-    if not registry.exists(release.app_id):
+    if not registry.exists(app_id):
         console.print(
-            f"[red]✗[/red] {app_name}: Unknown app_id '{release.app_id}'. "
+            f"[red]✗[/red] {app_name}: Unknown app_id '{app_id}'. "
             f"Valid: {', '.join(registry.ids)}"
         )
         return (False, downloaded_files)
 
     # Download
-    download_result = download_asset(source_repo, release.release_id, asset_name)
+    download_result = download_asset(source_repo, release_id, asset_name)
     if isinstance(download_result, Failure):
         console.print(f"[red]✗[/red] {app_name}: {download_result.failure()}")
         return (False, downloaded_files)
@@ -66,10 +68,10 @@ def process_single_release(  # noqa: PLR0913
         return (False, downloaded_files)
 
     # Create release with canonical app_id from registry
-    matched_app = registry.get_or_raise(release.app_id)
+    matched_app = registry.get_or_raise(app_id)
     patched_path = patch_result.unwrap()
     downloaded_files.append(Path(patched_path))
-    release_tag = f"{release.tag}-{app_name.replace(' ', '-')}"
+    release_tag = f"{tag}-{app_name.replace(' ', '-')}"
     title = f"{app_name} {version}"
 
     # Calculate SHA256 of patched file
@@ -92,7 +94,6 @@ def process_single_release(  # noqa: PLR0913
 @app.command()
 def run(ctx: typer.Context) -> None:
     """Create GitHub releases from pending updates."""
-    # Get dependencies from container
     container: Container = ctx.obj["container"]
     console: Console = container.console()
     logger = container.logger()
@@ -112,13 +113,17 @@ def run(ctx: typer.Context) -> None:
                 bot_repo = config.github.bot_repo
                 default_asset = config.github.asset_file_name
 
+                # Initialize database
+                db.init()
+
                 # Load pending releases
-                queue_result = load_pending_releases()
+                queue_result = db.get_pending_releases()
                 if isinstance(queue_result, Failure):
                     error = BitBotError(f"Queue error: {queue_result.failure()}")
                     logger.log_error(error, LogLevel.ERROR)
                     console.print(f"[red]✗ Error:[/red] {queue_result.failure()}")
                     raise typer.Exit(code=1) from None
+
                 pending = queue_result.unwrap()
 
                 if not pending:
@@ -127,13 +132,12 @@ def run(ctx: typer.Context) -> None:
 
                 # Process each release
                 success_count = 0
-                failed_releases = []
-                all_downloaded_files = []
+                fail_count = 0
+                all_downloaded_files: list[Path] = []
 
                 for release in pending:
-                    progress.update(
-                        task, description=f"Processing {release.display_name} {release.version}..."
-                    )
+                    desc = f"Processing {release['display_name']} {release['version']}..."
+                    progress.update(task, description=desc)
 
                     success, downloaded_files = process_single_release(
                         release, source_repo, bot_repo, default_asset, console, registry
@@ -142,8 +146,10 @@ def run(ctx: typer.Context) -> None:
 
                     if success:
                         success_count += 1
+                        # Remove from queue on success
+                        db.remove_pending_release(release["release_id"])
                     else:
-                        failed_releases.append(release)
+                        fail_count += 1
 
                 # Clean up downloaded files
                 for file_path in all_downloaded_files:
@@ -151,32 +157,16 @@ def run(ctx: typer.Context) -> None:
                         if file_path.exists():
                             file_path.unlink()
                     except OSError:
-                        pass  # Ignore cleanup errors
+                        pass
 
-                # Update queue: keep only failed releases
-                if failed_releases:
-                    save_result = save_pending_releases(failed_releases)
-                    if isinstance(save_result, Failure):
-                        msg = f"Failed to save queue: {save_result.failure()}"
-                        console.print(f"[yellow]⚠[/yellow] {msg}")
-                else:
-                    # All succeeded, clear queue
-                    save_result = save_pending_releases([])
-                    if isinstance(save_result, Failure):
-                        msg = f"Failed to clear queue: {save_result.failure()}"
-                        console.print(f"[yellow]⚠[/yellow] {msg}")
-
+                total = len(pending)
                 if success_count == 0:
-                    console.print(f"[red]✗[/red] All {len(pending)} releases failed")
-                elif failed_releases:
-                    msg = (
-                        f"Processed {success_count}/{len(pending)} releases "
-                        f"({len(failed_releases)} failed, will retry)"
-                    )
+                    console.print(f"[red]✗[/red] All {total} releases failed")
+                elif fail_count > 0:
+                    msg = f"{success_count}/{total} succeeded ({fail_count} failed, will retry)"
                     console.print(f"[yellow]⚠[/yellow] {msg}")
                 else:
-                    msg = f"Processed {success_count}/{len(pending)} releases"
-                    console.print(f"[green]✓[/green] {msg}")
+                    console.print(f"[green]✓[/green] Processed {success_count}/{total} releases")
 
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")

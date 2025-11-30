@@ -2,6 +2,10 @@
 __pycache__/
 *.pyc
 
+# Database WAL files (not the db itself - that gets committed)
+bitbot.db-wal
+bitbot.db-shm
+
 # Node.js
 node_modules/
 dist/

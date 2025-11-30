@@ -2,16 +2,13 @@
 
 import string
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from pydantic import ValidationError
 from returns.result import Failure, Success
 
 from bitbot.crypto.cipher import decrypt, encrypt
 from bitbot.crypto.modifier import unlock_premium_features
 from bitbot.crypto.obfuscation import get_obfuscated_key
-from bitbot.models import PendingRelease
 from bitbot.reddit.posting.poster import count_outbound_links
 
 
@@ -126,30 +123,3 @@ def test_count_outbound_links_no_urls_zero(text):
     """Text without URLs has zero link count."""
     count = count_outbound_links(text)
     assert count == 0
-
-
-# Model validation properties
-@given(st.text(min_size=1).filter(lambda x: x.strip()))
-def test_pending_release_rejects_zero_id(tag):
-    """PendingRelease rejects release_id <= 0."""
-    with pytest.raises(ValidationError):
-        PendingRelease(
-            release_id=0,
-            tag=tag,
-            app_id="test",
-            display_name="Test",
-            version="1.0.0",
-        )
-
-
-@given(st.integers(min_value=1, max_value=1000000))
-def test_pending_release_accepts_positive_id(release_id):
-    """PendingRelease accepts positive release_id."""
-    release = PendingRelease(
-        release_id=release_id,
-        tag="v1.0.0",
-        app_id="test",
-        display_name="Test",
-        version="1.0.0",
-    )
-    assert release.release_id == release_id

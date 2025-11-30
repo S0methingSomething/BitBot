@@ -7,10 +7,11 @@ from beartype import beartype
 from returns.result import Failure
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from bitbot.core import db
+from bitbot.core.credentials import get_reddit_username
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
-from bitbot.core.state import load_bot_state, save_bot_state
 from bitbot.reddit.client import init_reddit
 from bitbot.reddit.parser import parse_versions_from_post
 from bitbot.reddit.posts import get_bot_posts
@@ -26,7 +27,7 @@ app = typer.Typer()
 @beartype
 @app.command()
 def run(ctx: typer.Context) -> None:
-    """Sync Reddit state with local bot_state.json."""
+    """Sync Reddit state with local database."""
     with error_context(operation="sync_reddit_history"):
         try:
             container: Container = ctx.obj["container"]
@@ -40,6 +41,19 @@ def run(ctx: typer.Context) -> None:
                 console=console,
             ) as progress:
                 progress.add_task(description="Syncing Reddit state...", total=None)
+
+                # Initialize database
+                db.init()
+
+                # Get account
+                username = get_reddit_username()
+                account_result = db.get_or_create_account(username, config.reddit.subreddit)
+                if isinstance(account_result, Failure):
+                    error = BitBotError(f"DB error: {account_result.failure()}")
+                    logger.log_error(error, LogLevel.ERROR)
+                    console.print(f"[red]✗ Error:[/red] {error.message}")
+                    raise typer.Exit(code=1) from None
+                account_id = account_result.unwrap()
 
                 # Initialize Reddit client
                 reddit_result = init_reddit(config)
@@ -61,7 +75,6 @@ def run(ctx: typer.Context) -> None:
 
                 bot_posts = posts_result.unwrap()
 
-                # Exit gracefully if no posts
                 if not bot_posts:
                     console.print("[yellow]⚠ No posts found on Reddit[/yellow]")
                     return
@@ -72,37 +85,18 @@ def run(ctx: typer.Context) -> None:
                 # Parse versions from post
                 versions = parse_versions_from_post(latest_post, config)
 
-                # Load bot state
-                state_result = load_bot_state()
-                if isinstance(state_result, Failure):
-                    error = BitBotError(f"Failed to load state: {state_result.failure()}")
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {error.message}")
-                    raise typer.Exit(code=1) from None
+                # Update database
+                db.update_account(account_id, active_post_id=latest_post.id)
+                db.add_post_id(account_id, latest_post.id)
 
-                bot_state = state_result.unwrap()
-
-                # Update state with versions from Reddit post
-                bot_state.online.update(versions)
-                bot_state.active_post_id = latest_post.id
-
-                # Add to all_post_ids if not present
-                if latest_post.id not in bot_state.all_post_ids:
-                    bot_state.all_post_ids.append(latest_post.id)
-
-                # Save state
-                save_result = save_bot_state(bot_state)
-                if isinstance(save_result, Failure):
-                    error = BitBotError(f"Failed to save state: {save_result.failure()}")
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[red]✗ Error:[/red] {error.message}")
-                    raise typer.Exit(code=1) from None
+                for app_id, version in versions.items():
+                    db.set_posted_version(account_id, app_id, version)
 
                 if versions:
                     msg = f"Synced {len(versions)} version(s) from post {latest_post.id}"
                     console.print(f"[green]✓[/green] {msg}")
                 else:
-                    msg = f"Synced post {latest_post.id} (no versions parsed - check post format)"
+                    msg = f"Synced post {latest_post.id} (no versions parsed)"
                     console.print(f"[yellow]⚠[/yellow] {msg}")
 
         except Exception as e:

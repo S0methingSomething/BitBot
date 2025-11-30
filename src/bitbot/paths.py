@@ -8,14 +8,12 @@ from beartype import beartype
 # Determine the absolute path to the project's root directory
 ROOT_DIR: Path = Path(__file__).parent.parent.parent.resolve()
 
-# Core Configuration and State Files
+# Core Configuration and Database
 CONFIG_FILE: Path = ROOT_DIR / "config.toml"
-BOT_STATE_FILE: Path = ROOT_DIR / "bot_state.json"
-RELEASE_STATE_FILE: Path = ROOT_DIR / "release_state.json"
+DATABASE_FILE: Path = ROOT_DIR / "bitbot.db"
 
 # Output and Artifact Directories
 DIST_DIR: Path = ROOT_DIR / "dist"
-RELEASE_QUEUE_FILE: Path = DIST_DIR / "release_queue.json"
 
 # Template Directory
 TEMPLATES_DIR: Path = ROOT_DIR / "templates"

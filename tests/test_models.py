@@ -1,60 +1,62 @@
 """Tests for Pydantic models."""
 
-from bitbot.models import AccountState, GlobalState, PendingRelease
+import pytest
+from pydantic import ValidationError
+
+from bitbot.models import App, ParsedRelease
 
 
-def test_global_state_validation():
-    """Test GlobalState model validation."""
-    state = GlobalState(offline={"app1": "1.0.0", "app2": "2.0.0"})
-    assert state.offline["app1"] == "1.0.0"
-    assert state.offline["app2"] == "2.0.0"
+def test_app_validation():
+    """Test App model validation."""
+    app = App(id="test_app", displayName="Test App")
+    assert app.id == "test_app"
+    assert app.display_name == "Test App"
 
 
-def test_global_state_empty():
-    """Test GlobalState with empty offline dict."""
-    state = GlobalState(offline={})
-    assert state.offline == {}
+def test_app_identifiers():
+    """Test App identifiers property."""
+    app = App(id="TestApp", displayName="Test Application")
+    ids = app.identifiers
+    assert "TestApp" in ids
+    assert "testapp" in ids
+    assert "Test Application" in ids
+    assert "test application" in ids
 
 
-def test_account_state_validation():
-    """Test AccountState model validation."""
-    state = AccountState(
-        online={"app1": "1.0.0"}, all_post_ids=["abc123", "def456"], active_post_id="abc123"
+def test_app_rejects_empty_id():
+    """Test App rejects empty id."""
+    with pytest.raises(ValidationError):
+        App(id="", displayName="Test")
+
+
+def test_app_rejects_empty_display_name():
+    """Test App rejects empty display_name."""
+    with pytest.raises(ValidationError):
+        App(id="test", displayName="")
+
+
+def test_parsed_release_complete():
+    """Test ParsedRelease is_complete property."""
+    release = ParsedRelease(app_id="test", version="1.0.0")
+    assert release.is_complete is True
+
+
+def test_parsed_release_incomplete():
+    """Test ParsedRelease is_complete when missing fields."""
+    release = ParsedRelease(app_id="test")
+    assert release.is_complete is False
+
+    release = ParsedRelease(version="1.0.0")
+    assert release.is_complete is False
+
+    release = ParsedRelease()
+    assert release.is_complete is False
+
+
+def test_parsed_release_optional_fields():
+    """Test ParsedRelease optional fields."""
+    release = ParsedRelease(
+        app_id="test", version="1.0.0", asset_name="file.apk", sha256="abc123"
     )
-    assert state.online["app1"] == "1.0.0"
-    assert len(state.all_post_ids) == 2
-    assert state.active_post_id == "abc123"
-
-
-def test_account_state_optional_fields():
-    """Test AccountState with optional fields."""
-    state = AccountState(online={})
-    assert state.online == {}
-    assert state.all_post_ids == []
-    assert state.active_post_id is None
-
-
-def test_pending_release_validation():
-    """Test PendingRelease model validation."""
-    release = PendingRelease(
-        release_id=123, tag="v1.0.0", app_id="test_app", display_name="Test App", version="1.0.0"
-    )
-    assert release.release_id == 123
-    assert release.tag == "v1.0.0"
-    assert release.app_id == "test_app"
-    assert release.display_name == "Test App"
-    assert release.version == "1.0.0"
-    assert release.asset_name is None
-
-
-def test_pending_release_with_asset_name():
-    """Test PendingRelease with optional asset_name."""
-    release = PendingRelease(
-        release_id=123,
-        tag="v1.0.0",
-        app_id="test_app",
-        display_name="Test App",
-        version="1.0.0",
-        asset_name="custom_asset.json",
-    )
-    assert release.asset_name == "custom_asset.json"
+    assert release.asset_name == "file.apk"
+    assert release.sha256 == "abc123"

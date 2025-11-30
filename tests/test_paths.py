@@ -14,7 +14,7 @@ def test_get_template_path():
 
 def test_get_template_path_empty_raises():
     """Test empty template name raises error."""
-    with pytest.raises(Exception):  # deal.PreContractError
+    with pytest.raises(Exception):  # icontract.ViolationError
         paths.get_template_path("")
 
 
@@ -22,7 +22,6 @@ def test_constants_exist():
     """Test all path constants are defined."""
     assert paths.ROOT_DIR
     assert paths.CONFIG_FILE
-    assert paths.BOT_STATE_FILE
-    assert paths.RELEASE_STATE_FILE
+    assert paths.DATABASE_FILE
     assert paths.DIST_DIR
     assert paths.TEMPLATES_DIR

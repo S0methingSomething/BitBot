@@ -156,9 +156,8 @@ class TestPostCommand:
     """Tests for post command helpers."""
 
     def test_build_changelog_data(self):
-        """Build changelog from releases vs state."""
+        """Build changelog from releases vs online versions."""
         from bitbot.commands.post import _build_changelog_data
-        from bitbot.models import AccountState
 
         releases = {
             "bitlife": {
@@ -170,9 +169,9 @@ class TestPostCommand:
                 "latest_release": {"version": "1.0", "url": "https://ex.com"},
             },
         }
-        state = AccountState(online={"bitlife": "3.20"})
+        online_versions = {"bitlife": "3.20"}
 
-        changelog = _build_changelog_data(releases, state)
+        changelog = _build_changelog_data(releases, online_versions)
 
         assert "new_app" in changelog["added"]
         assert "bitlife" in changelog["updated"]

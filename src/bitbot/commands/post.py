@@ -15,11 +15,11 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from bitbot import paths
 from bitbot.config_models import Config
+from bitbot.core import db
+from bitbot.core.credentials import get_reddit_username
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import ErrorLogger, LogLevel
 from bitbot.core.errors import BitBotError
-from bitbot.core.state import load_account_state, save_account_state
-from bitbot.models import AccountState
 from bitbot.reddit.client import init_reddit
 from bitbot.reddit.parser import parse_versions_from_post
 from bitbot.reddit.posting.body_builder import generate_post_body
@@ -35,37 +35,32 @@ app = typer.Typer()
 
 @beartype
 def _verify_account_state(
-    reddit: praw.Reddit,
-    config: Config,
-    state: AccountState,
-    console: Console,
-) -> AccountState:
+    reddit: praw.Reddit, config: Config, account_id: int, console: Console
+) -> None:
     """Verify account state against actual Reddit post."""
     console.print("[dim]Verifying state against Reddit...[/dim]")
     try:
         posts_result = get_bot_posts(reddit, config)
-        if isinstance(posts_result, Success):
-            posts = posts_result.unwrap()
-            if posts:
-                latest_post = posts[0]
-                reddit_versions = parse_versions_from_post(latest_post, config)
+        if isinstance(posts_result, Success) and posts_result.unwrap():
+            latest_post = posts_result.unwrap()[0]
+            reddit_versions = parse_versions_from_post(latest_post, config)
 
-                # Compare with local state
-                if reddit_versions != state.online:
-                    console.print(
-                        f"[yellow]⚠ State mismatch detected![/yellow]\n"
-                        f"  Local: {state.online}\n"
-                        f"  Reddit: {reddit_versions}\n"
-                        f"  Using Reddit as source of truth"
-                    )
-                    state.online = reddit_versions
-                    save_account_state(state)
-                else:
-                    console.print("[green]✓[/green] State verified")
+            local_result = db.get_posted_versions(account_id)
+            local_versions = local_result.unwrap() if isinstance(local_result, Success) else {}
+
+            if reddit_versions != local_versions:
+                console.print(
+                    f"[yellow]⚠ State mismatch![/yellow]\n"
+                    f"  Local: {local_versions}\n"
+                    f"  Reddit: {reddit_versions}\n"
+                    f"  Using Reddit as source of truth"
+                )
+                for app_id, version in reddit_versions.items():
+                    db.set_posted_version(account_id, app_id, version)
+            else:
+                console.print("[green]✓[/green] State verified")
     except Exception as e:
         console.print(f"[yellow]⚠ Verification failed: {e}[/yellow]")
-        # Continue with local state
-    return state
 
 
 @beartype
@@ -73,23 +68,21 @@ def _load_releases_data(console: Console, logger: ErrorLogger) -> dict[str, Any]
     """Load releases.json file."""
     releases_file = Path(paths.DIST_DIR) / "releases.json"
     if not releases_file.exists():
-        error = BitBotError(
-            "releases.json not found. Run 'bitbot gather' first to collect release data."
-        )
+        error = BitBotError("releases.json not found. Run 'bitbot gather' first.")
         logger.log_error(error, LogLevel.ERROR)
         console.print(f"[red]✗ Error:[/red] {error.message}")
         raise typer.Exit(code=1) from None
 
     with releases_file.open() as f:
-        all_releases_data = json.load(f)
+        data = json.load(f)
 
-    if not isinstance(all_releases_data, dict):
+    if not isinstance(data, dict):
         error = BitBotError("releases.json has invalid format")
         logger.log_error(error, LogLevel.ERROR)
         console.print(f"[red]✗ Error:[/red] {error.message}")
         raise typer.Exit(code=1) from None
 
-    return all_releases_data
+    return data
 
 
 @beartype
@@ -98,17 +91,14 @@ def should_create_new_post(
 ) -> bool:
     """Check if enough time has passed to create a new post."""
     if not existing_post_id:
-        return True  # No existing post, create new one
+        return True
 
     try:
         submission = reddit.submission(id=existing_post_id)
         post_created_at = datetime.fromtimestamp(submission.created_utc, tz=UTC)
-        now = datetime.now(UTC)
-        days_elapsed = (now - post_created_at).days
-
+        days_elapsed = (datetime.now(UTC) - post_created_at).days
         days_before_new = config.reddit.rolling.get("days_before_new_post", 7)
     except Exception:
-        # If can't get post info, assume we should update existing
         return False
     else:
         return days_elapsed >= days_before_new
@@ -116,40 +106,26 @@ def should_create_new_post(
 
 @beartype
 def post_or_update(
-    reddit: praw.Reddit,
-    title: str,
-    body: str,
-    config: Config,
-    existing_post_id: str | None,
+    reddit: praw.Reddit, title: str, body: str, config: Config, existing_post_id: str | None
 ) -> tuple[praw.models.Submission, bool] | None:
-    """Post new or update existing Reddit post.
-
-    Returns:
-        Tuple of (submission, was_updated) or None if shouldn't post.
-    """
-    post_mode = config.reddit.post_mode
-
-    if post_mode == "rolling_update":
-        # Check if we should create new post based on time
+    """Post new or update existing Reddit post."""
+    if config.reddit.post_mode == "rolling_update":
         if should_create_new_post(reddit, existing_post_id, config):
-            # Time to create new post
             result = post_new_release(reddit, title, body, config)
             if isinstance(result, Failure):
                 msg = f"Failed to create post: {result.failure()}"
                 raise BitBotError(msg)
             return (result.unwrap(), False)
 
-        # Update existing post
         if not existing_post_id:
-            return None  # No existing post to update
+            return None
 
         result = update_post(reddit, existing_post_id, body, config)
         if isinstance(result, Failure):
-            msg = f"Failed to update post {existing_post_id}: {result.failure()}"
+            msg = f"Failed to update post: {result.failure()}"
             raise BitBotError(msg)
         return (result.unwrap(), True)
 
-    # new_post mode: always create new post
     result = post_new_release(reddit, title, body, config)
     if isinstance(result, Failure):
         msg = f"Failed to create post: {result.failure()}"
@@ -159,68 +135,47 @@ def post_or_update(
 
 @beartype
 def _build_changelog_data(
-    all_releases_data: dict[str, Any], state: AccountState
+    all_releases_data: dict[str, Any], online_versions: dict[str, str]
 ) -> dict[str, dict[str, Any]]:
     """Build changelog data by comparing current releases vs posted versions."""
-    changelog_data: dict[str, dict[str, Any]] = {
-        "added": {},
-        "updated": {},
-        "removed": {},
-    }
+    changelog: dict[str, dict[str, Any]] = {"added": {}, "updated": {}, "removed": {}}
 
-    # Get current versions with full release info
-    current_releases = {}
+    current = {}
     for app_id, app_data in all_releases_data.items():
         latest = app_data.get("latest_release")
         if latest:
-            current_releases[app_id] = {
+            current[app_id] = {
                 "display_name": app_data.get("display_name", app_id),
                 "version": latest.get("version", "unknown"),
                 "url": latest.get("download_url", ""),
             }
 
-    # Check for new and updated apps
-    for app_id, release_info in current_releases.items():
-        if app_id not in state.online:
-            # New app
-            changelog_data["added"][app_id] = release_info
-        elif state.online[app_id] != release_info["version"]:
-            # Updated app - use OLD version from state
-            changelog_data["updated"][app_id] = {
-                "new": release_info,
-                "old": state.online[app_id],
-            }
+    for app_id, info in current.items():
+        if app_id not in online_versions:
+            changelog["added"][app_id] = info
+        elif online_versions[app_id] != info["version"]:
+            changelog["updated"][app_id] = {"new": info, "old": online_versions[app_id]}
 
-    # Check for removed apps
-    for app_id, old_version in state.online.items():
-        if app_id not in current_releases:
-            changelog_data["removed"][app_id] = {
-                "display_name": app_id,
-                "version": old_version,
-            }
+    for app_id, old_ver in online_versions.items():
+        if app_id not in current:
+            changelog["removed"][app_id] = {"display_name": app_id, "version": old_ver}
 
-    return changelog_data
+    return changelog
 
 
 @beartype
-def _has_new_releases(changelog_data: dict[str, dict[str, Any]], console: Console) -> bool:
+def _has_new_releases(changelog: dict[str, dict[str, Any]], console: Console) -> bool:
     """Check if changelog has any changes."""
     has_changes = False
-
-    for app_id, info in changelog_data["added"].items():
-        console.print(f"[cyan]→[/cyan] New app detected: {app_id} v{info['version']}")
+    for app_id, info in changelog["added"].items():
+        console.print(f"[cyan]→[/cyan] New app: {app_id} v{info['version']}")
         has_changes = True
-
-    for app_id, info in changelog_data["updated"].items():
-        console.print(
-            f"[cyan]→[/cyan] Version change: {app_id} {info['old']} → {info['new']['version']}"
-        )
+    for app_id, info in changelog["updated"].items():
+        console.print(f"[cyan]→[/cyan] Update: {app_id} {info['old']} → {info['new']['version']}")
         has_changes = True
-
-    for app_id in changelog_data["removed"]:
-        console.print(f"[cyan]→[/cyan] App removed: {app_id}")
+    for app_id in changelog["removed"]:
+        console.print(f"[cyan]→[/cyan] Removed: {app_id}")
         has_changes = True
-
     return has_changes
 
 
@@ -234,20 +189,15 @@ class PostContext:
 
 @beartype
 def _build_and_post(
-    reddit: "praw.Reddit",
+    reddit: praw.Reddit,
     context: PostContext,
-    changelog_data: dict[str, dict[str, Any]],
+    changelog: dict[str, dict[str, Any]],
     all_releases_data: dict[str, Any],
     existing_post_id: str | None,
-) -> tuple["praw.models.Submission", bool] | None:
+) -> tuple[praw.models.Submission, bool] | None:
     """Build post content and submit to Reddit."""
-    # Generate title and body
-    title = generate_dynamic_title(
-        context.config, changelog_data["added"], changelog_data["updated"]
-    )
-    body = generate_post_body(context.config, changelog_data, all_releases_data, context.page_url)
-
-    # Post or update
+    title = generate_dynamic_title(context.config, changelog["added"], changelog["updated"])
+    body = generate_post_body(context.config, changelog, all_releases_data, context.page_url)
     return post_or_update(reddit, title, body, context.config, existing_post_id)
 
 
@@ -255,11 +205,11 @@ def _build_and_post(
 @app.command()
 def run(
     ctx: typer.Context,
-    page_url: str = typer.Option(None, "--page-url", help="Landing page URL to post"),
-    verify: bool = typer.Option(  # noqa: FBT001
+    page_url: str = typer.Option(default=None, help="Landing page URL to post"),
+    verify: bool = typer.Option(  # noqa: FBT001 - Typer CLI flag
         default=False, help="Verify state against actual Reddit post"
     ),
-    force: bool = typer.Option(  # noqa: FBT001
+    force: bool = typer.Option(  # noqa: FBT001 - Typer CLI flag
         default=False, help="Force post even if no changes detected"
     ),
 ) -> None:
@@ -278,29 +228,36 @@ def run(
             ) as progress:
                 progress.add_task(description="Checking for new releases...", total=None)
 
+                # Initialize database
+                db.init()
+
+                # Get account
+                username = get_reddit_username()
+                account_result = db.get_or_create_account(username, config.reddit.subreddit)
+                if isinstance(account_result, Failure):
+                    error = BitBotError(f"DB error: {account_result.failure()}")
+                    logger.log_error(error, LogLevel.ERROR)
+                    console.print(f"[red]✗ Error:[/red] {error.message}")
+                    raise typer.Exit(code=1) from None
+                account_id = account_result.unwrap()
+
                 # Load releases data
                 all_releases_data = _load_releases_data(console, logger)
 
-                # Load state to check for changes
-                state_result = load_account_state()
-                if isinstance(state_result, Failure):
-                    console.print("[yellow]⚠[/yellow] No existing state, will create new post")
-                    state = AccountState()
+                # Get posted versions
+                versions_result = db.get_posted_versions(account_id)
+                if isinstance(versions_result, Success):
+                    online_versions = versions_result.unwrap()
                 else:
-                    state = state_result.unwrap()
+                    online_versions = {}
 
-                # Build changelog data by comparing current vs posted
-                changelog_data = _build_changelog_data(all_releases_data, state)
+                # Build changelog
+                changelog = _build_changelog_data(all_releases_data, online_versions)
 
-                # Check if there are actual changes
-                if not force and not _has_new_releases(changelog_data, console):
-                    console.print(
-                        "[dim]No new releases detected. Skipping post update.[/dim]\n"
-                        "[dim]Use --force to post anyway.[/dim]"
-                    )
+                if not force and not _has_new_releases(changelog, console):
+                    console.print("[dim]No new releases. Use --force to post anyway.[/dim]")
                     return
 
-                # Get landing page URL
                 if not page_url:
                     page_url = config.github.pages_url
 
@@ -313,48 +270,41 @@ def run(
                     raise typer.Exit(code=1) from None
                 reddit = reddit_result.unwrap()
 
-                # Optional verification against actual Reddit post
-                if verify and state.active_post_id:
-                    state = _verify_account_state(reddit, config, state, console)
+                # Get current active post
+                meta_result = db.get_account(account_id)
+                active_post_id = None
+                if isinstance(meta_result, Success):
+                    active_post_id = meta_result.unwrap().get("active_post_id")
+
+                # Optional verification
+                if verify and active_post_id:
+                    _verify_account_state(reddit, config, account_id, console)
 
                 # Build and post
-                existing_post_id = state.active_post_id if state else None
                 context = PostContext(config=config, page_url=page_url)
                 result = _build_and_post(
-                    reddit, context, changelog_data, all_releases_data, existing_post_id
+                    reddit, context, changelog, all_releases_data, active_post_id
                 )
 
                 if result is None:
-                    console.print(
-                        "[yellow][i] No existing post to update in rolling_update mode[/yellow]"
-                    )
+                    console.print("[yellow][i] No existing post to update[/yellow]")
                     return
 
                 submission, was_updated = result
 
                 if was_updated:
-                    console.print(f"[green]✓[/green] Updated existing post: {submission.url}")
+                    console.print(f"[green]✓[/green] Updated post: {submission.url}")
                 else:
-                    console.print(f"[green]✓[/green] Posted to Reddit: {submission.url}")
+                    console.print(f"[green]✓[/green] Posted: {submission.url}")
 
-                # Update state with post ID tracking and posted versions
-                state.active_post_id = submission.id
-                # Track all post IDs for robust detection
-                if submission.id not in state.all_post_ids:
-                    state.all_post_ids.append(submission.id)
+                # Update database
+                db.update_account(account_id, active_post_id=submission.id)
+                db.add_post_id(account_id, submission.id)
 
-                # Update posted versions to match what we just posted
                 for app_id, app_data in all_releases_data.items():
                     latest = app_data.get("latest_release")
                     if latest:
-                        state.online[app_id] = latest.get("version", "unknown")
-
-                save_result = save_account_state(state)
-                if isinstance(save_result, Failure):
-                    error = BitBotError(f"Failed to save state: {save_result.failure()}")
-                    logger.log_error(error, LogLevel.ERROR)
-                    console.print(f"[yellow]⚠[/yellow] {error.message}")
-                    # Don't fail - post was successful, state update is secondary
+                        db.set_posted_version(account_id, app_id, latest.get("version", "unknown"))
 
         except Exception as e:
             error = BitBotError(f"Unexpected error: {e}")
