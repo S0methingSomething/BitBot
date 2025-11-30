@@ -1,6 +1,5 @@
 """Maintain command for BitBot CLI."""
 
-import re
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
@@ -28,20 +27,14 @@ app = typer.Typer()
 def _extract_app_id(release: dict[str, Any]) -> str:
     """Extract app ID from release body or tag."""
     body = release.get("body", "")
-    tag = release.get("tag_name", "")
 
     # Try to extract from body (structured format)
     for line in body.split("\n"):
         if line.startswith("app:"):
-            return line.split(":", 1)[1].strip().lower().replace(" ", "_")
+            return line.split(":", 1)[1].strip()
 
-    # Fallback: extract from tag (e.g., "bitlife-v1.0.0" -> "bitlife")
-    match = re.match(r"^([a-z_]+)-v", tag.lower())
-    if match:
-        return match.group(1)
-
-    # Last resort: use tag as-is
-    return tag.lower()
+    # Fallback: use tag as-is
+    return release.get("tag_name", "").lower()
 
 
 @beartype
@@ -64,7 +57,11 @@ def run(ctx: typer.Context) -> None:
 
                 bot_repo = config.github.bot_repo
                 outdated_prefix = config.outdated_post_handling.get("prefix", "[OUTDATED]")
-                configured_apps = {app["id"] for app in config.apps}
+                # Build set of valid app identifiers (IDs and display names)
+                configured_apps: set[str] = set()
+                for app in config.apps:
+                    configured_apps.add(app["id"])
+                    configured_apps.add(app["displayName"])
 
                 # Fetch releases
                 releases_result = get_github_data(f"/repos/{bot_repo}/releases")

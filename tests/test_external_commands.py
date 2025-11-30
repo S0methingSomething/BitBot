@@ -139,12 +139,12 @@ class TestMaintainCommand:
         assert app_id == "intl_bitlife"
 
     def test_extract_app_id_from_tag(self):
-        """Extract app ID from tag when body doesn't have it."""
+        """Fallback to tag when body doesn't have app field."""
         from bitbot.commands.maintain import _extract_app_id
 
         release = {"body": "some notes", "tag_name": "bitlife-v3.21"}
         app_id = _extract_app_id(release)
-        assert app_id == "bitlife"
+        assert app_id == "bitlife-v3.21"  # Returns full tag as fallback
 
     def test_extract_app_id_fallback(self):
         """Fallback to tag when no app in body."""
