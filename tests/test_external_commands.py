@@ -66,7 +66,7 @@ class TestGatherCommand:
 
     def test_gather_fetches_from_both_repos(self):
         """Gather fetches from source and bot repos."""
-        from bitbot.commands.gather import _parse_release_metadata
+        from bitbot.core.release_parser import parse_release_body
 
         source_releases = [
             {"body": "app: BitLife\nversion: 3.21", "published_at": "2025-01-01"},
@@ -81,23 +81,23 @@ class TestGatherCommand:
 
         apps_data = {}
         for rel in source_releases:
-            app_id, ver = _parse_release_metadata(rel)
-            if app_id not in apps_config:
+            parsed = parse_release_body(rel["body"])
+            if parsed.app_id not in apps_config:
                 continue
 
             url = ""
             for bot in bot_releases:
                 if not bot.get("assets"):
                     continue
-                _, bot_ver = _parse_release_metadata(bot)
-                if bot_ver == ver:
+                bot_parsed = parse_release_body(bot["body"])
+                if bot_parsed.version == parsed.version:
                     url = bot["assets"][0]["browser_download_url"]
                     break
 
             if url:
-                apps_data[app_id] = {
-                    "display_name": apps_config[app_id],
-                    "latest_release": {"version": ver, "download_url": url},
+                apps_data[parsed.app_id] = {
+                    "display_name": apps_config[parsed.app_id],
+                    "latest_release": {"version": parsed.version, "download_url": url},
                 }
 
         assert "BitLife" in apps_data
@@ -114,7 +114,7 @@ class TestGatherCommand:
 
     def test_gather_skips_releases_without_version(self):
         """Releases without version field are skipped."""
-        from bitbot.commands.gather import _parse_release_metadata
+        from bitbot.core.release_parser import parse_release_body
 
         releases = [
             {"body": "app: BitLife"},
@@ -123,36 +123,33 @@ class TestGatherCommand:
         ]
 
         for rel in releases:
-            app_id, ver = _parse_release_metadata(rel)
-            assert app_id is None or ver is None
+            parsed = parse_release_body(rel["body"])
+            assert not parsed.is_complete
 
 
 class TestMaintainCommand:
-    """Tests for maintain command."""
+    """Tests for maintain command using unified release parser."""
 
     def test_extract_app_id_from_body(self):
         """Extract app ID from release body."""
-        from bitbot.commands.maintain import _extract_app_id
+        from bitbot.core.release_parser import parse_release_body
 
-        release = {"body": "app: intl_bitlife\nversion: 1.0", "tag_name": "v1.0"}
-        app_id = _extract_app_id(release)
-        assert app_id == "intl_bitlife"
+        parsed = parse_release_body("app: intl_bitlife\nversion: 1.0")
+        assert parsed.app_id == "intl_bitlife"
 
-    def test_extract_app_id_from_tag(self):
-        """Fallback to tag when body doesn't have app field."""
-        from bitbot.commands.maintain import _extract_app_id
+    def test_extract_app_id_missing(self):
+        """Returns None when body doesn't have app field."""
+        from bitbot.core.release_parser import parse_release_body
 
-        release = {"body": "some notes", "tag_name": "bitlife-v3.21"}
-        app_id = _extract_app_id(release)
-        assert app_id == "bitlife-v3.21"  # Returns full tag as fallback
+        parsed = parse_release_body("some notes")
+        assert parsed.app_id is None
 
-    def test_extract_app_id_fallback(self):
-        """Fallback to tag when no app in body."""
-        from bitbot.commands.maintain import _extract_app_id
+    def test_extract_app_id_empty(self):
+        """Returns None for empty body."""
+        from bitbot.core.release_parser import parse_release_body
 
-        release = {"body": "", "tag_name": "random-tag"}
-        app_id = _extract_app_id(release)
-        assert app_id == "random-tag"
+        parsed = parse_release_body("")
+        assert parsed.app_id is None
 
 
 class TestPostCommand:
@@ -228,12 +225,13 @@ class TestReleaseNotesFormat:
 
     def test_release_notes_format_matches_parser(self):
         """Release notes format should be parseable by gather."""
-        from bitbot.commands.gather import _parse_release_metadata
+        from bitbot.core.release_parser import parse_release_body
 
         notes = "app: intl_bitlife\nversion: 1.19.8\nasset_name: MonetizationVars\nsha256: abc123"
-        release = {"body": notes}
 
-        app_id, version = _parse_release_metadata(release)
+        parsed = parse_release_body(notes)
 
-        assert app_id == "intl_bitlife"
-        assert version == "1.19.8"
+        assert parsed.app_id == "intl_bitlife"
+        assert parsed.version == "1.19.8"
+        assert parsed.asset_name == "MonetizationVars"
+        assert parsed.sha256 == "abc123"

@@ -9,6 +9,7 @@ from beartype import beartype
 from returns.result import Failure
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from bitbot.core.app_registry import AppRegistry
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
@@ -28,18 +29,27 @@ app = typer.Typer()
 
 
 @beartype
-def process_single_release(
+def process_single_release(  # noqa: PLR0913
     release: PendingRelease,
     source_repo: str,
     bot_repo: str,
     default_asset: str,
     console: "Console",
+    registry: AppRegistry,
 ) -> tuple[bool, list[Path]]:
     """Process a single release. Returns (success, downloaded_files)."""
     app_name = release.display_name
     version = release.version
     asset_name = release.asset_name or default_asset
     downloaded_files: list[Path] = []
+
+    # Validate app_id exists in config
+    if not registry.exists(release.app_id):
+        console.print(
+            f"[red]✗[/red] {app_name}: Unknown app_id '{release.app_id}'. "
+            f"Valid: {', '.join(registry.ids)}"
+        )
+        return (False, downloaded_files)
 
     # Download
     download_result = download_asset(source_repo, release.release_id, asset_name)
@@ -55,7 +65,8 @@ def process_single_release(
         console.print(f"[red]✗[/red] {app_name}: {patch_result.failure()}")
         return (False, downloaded_files)
 
-    # Create release
+    # Create release with canonical app_id from registry
+    matched_app = registry.get_or_raise(release.app_id)
     patched_path = patch_result.unwrap()
     downloaded_files.append(Path(patched_path))
     release_tag = f"{release.tag}-{app_name.replace(' ', '-')}"
@@ -64,7 +75,7 @@ def process_single_release(
     # Calculate SHA256 of patched file
     file_hash = hashlib.sha256(Path(patched_path).read_bytes()).hexdigest()
     notes = (
-        f"app: {release.app_id}\nversion: {version}\n"
+        f"app: {matched_app.id}\nversion: {version}\n"
         f"asset_name: {asset_name}\nsha256: {file_hash}"
     )
 
@@ -86,6 +97,7 @@ def run(ctx: typer.Context) -> None:
     console: Console = container.console()
     logger = container.logger()
     config: Config = container.config()
+    registry: AppRegistry = container.app_registry()
 
     with error_context(command="release"):
         try:
@@ -124,7 +136,7 @@ def run(ctx: typer.Context) -> None:
                     )
 
                     success, downloaded_files = process_single_release(
-                        release, source_repo, bot_repo, default_asset, console
+                        release, source_repo, bot_repo, default_asset, console, registry
                     )
                     all_downloaded_files.extend(downloaded_files)
 

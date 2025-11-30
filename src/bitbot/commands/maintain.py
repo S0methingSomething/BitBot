@@ -8,9 +8,11 @@ from beartype import beartype
 from returns.result import Failure, Success
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from bitbot.core.app_registry import AppRegistry
 from bitbot.core.error_context import error_context
 from bitbot.core.error_logger import LogLevel
 from bitbot.core.errors import BitBotError
+from bitbot.core.release_parser import parse_release_body
 from bitbot.gh.releases.fetcher import get_github_data
 from bitbot.gh.releases.updater import update_release_title
 
@@ -24,20 +26,6 @@ app = typer.Typer()
 
 
 @beartype
-def _extract_app_id(release: dict[str, Any]) -> str:
-    """Extract app ID from release body or tag."""
-    body = release.get("body", "")
-
-    # Try to extract from body (structured format)
-    for line in body.split("\n"):
-        if line.startswith("app:"):
-            return line.split(":", 1)[1].strip()
-
-    # Fallback: use tag as-is
-    return release.get("tag_name", "").lower()
-
-
-@beartype
 @app.command()
 def run(ctx: typer.Context) -> None:
     """Mark old releases as outdated (per app)."""
@@ -45,6 +33,7 @@ def run(ctx: typer.Context) -> None:
     console: Console = container.console()
     logger = container.logger()
     config: Config = container.config()
+    registry: AppRegistry = container.app_registry()
 
     with error_context(command="maintain"):
         try:
@@ -57,11 +46,6 @@ def run(ctx: typer.Context) -> None:
 
                 bot_repo = config.github.bot_repo
                 outdated_prefix = config.outdated_post_handling.get("prefix", "[OUTDATED]")
-                # Build set of valid app identifiers (IDs and display names)
-                configured_apps: set[str] = set()
-                for app in config.apps:
-                    configured_apps.add(app["id"])
-                    configured_apps.add(app["displayName"])
 
                 # Fetch releases
                 releases_result = get_github_data(f"/repos/{bot_repo}/releases")
@@ -86,23 +70,32 @@ def run(ctx: typer.Context) -> None:
                     console.print("[yellow][i] No stable releases found[/yellow]")
                     return
 
-                # Group releases by app
+                # Group releases by app using unified parser + registry
                 releases_by_app: dict[str, list[dict[str, Any]]] = defaultdict(list)
                 for release in stable_releases:
-                    app_id = _extract_app_id(release)
-                    releases_by_app[app_id].append(release)
+                    parsed = parse_release_body(release.get("body", ""))
+                    # Use canonical app ID if found, otherwise use raw value for grouping
+                    if parsed.app_id:
+                        matched_app = registry.get(parsed.app_id)
+                        app_key = matched_app.id if matched_app else parsed.app_id
+                    else:
+                        app_key = release.get("tag_name", "unknown")
+                    releases_by_app[app_key].append(release)
 
                 updated_count = 0
 
-                for app_id, app_releases in releases_by_app.items():
+                for app_key, app_releases in releases_by_app.items():
                     # Sort by created_at descending (latest first)
                     app_releases.sort(
                         key=lambda r: r.get("created_at", ""),
                         reverse=True,
                     )
 
-                    # If app not in config, mark ALL its releases as outdated
-                    if app_id not in configured_apps:
+                    # Check if this is a configured app
+                    is_configured = registry.exists(app_key)
+
+                    if not is_configured:
+                        # Mark ALL releases for unconfigured apps as outdated
                         for release in app_releases:
                             tag = release.get("tag_name", "")
                             title = release.get("name", "")
