@@ -86,6 +86,71 @@ sha256: abc123def456"""
         assert parsed.version == "3.21"
         assert parsed.asset_name == "Test"
 
+    # BitBot-specific scenarios
+    def test_real_bitlife_release(self):
+        """Test parsing a real BitLife release format."""
+        body = """app: bitlife
+version: 3.21.1
+asset_name: MonetizationVars
+sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"""
+        parsed = parse_release_body(body)
+        assert parsed.app_id == "bitlife"
+        assert parsed.version == "3.21.1"
+        assert parsed.asset_name == "MonetizationVars"
+        assert len(parsed.sha256) == 64  # SHA256 hex length
+
+    def test_real_doglife_release(self):
+        """Test parsing a DogLife release format."""
+        body = """app: doglife
+version: 1.8.0
+asset_name: MonetizationVars"""
+        parsed = parse_release_body(body)
+        assert parsed.app_id == "doglife"
+        assert parsed.version == "1.8.0"
+        assert parsed.is_complete
+
+    def test_release_with_markdown_noise(self):
+        """Test parsing release body with markdown formatting."""
+        body = """# Release Notes
+
+app: bitlife
+version: 3.21
+
+## Changes
+- Fixed bugs
+- Added features"""
+        parsed = parse_release_body(body)
+        assert parsed.app_id == "bitlife"
+        assert parsed.version == "3.21"
+
+    def test_release_with_extra_colons_in_value(self):
+        """Test value containing colons."""
+        body = "app: bitlife\nversion: 3.21\nasset_name: file:name:test"
+        parsed = parse_release_body(body)
+        # partition splits on first colon, so value keeps remaining colons
+        assert parsed.asset_name == "file:name:test"
+
+    def test_semver_versions(self):
+        """Test various semver version formats."""
+        versions = ["1.0.0", "1.0", "1", "1.0.0-beta", "1.0.0+build123"]
+        for ver in versions:
+            parsed = parse_release_body(f"app: test\nversion: {ver}")
+            assert parsed.version == ver
+
+    def test_empty_value_ignored(self):
+        """Test empty values are treated as None."""
+        body = "app: bitlife\nversion:\nasset_name: test"
+        parsed = parse_release_body(body)
+        assert parsed.app_id == "bitlife"
+        assert parsed.version is None  # Empty value
+        assert parsed.asset_name == "test"
+
+    def test_duplicate_keys_last_wins(self):
+        """Test duplicate keys - last value wins."""
+        body = "app: first\nversion: 1.0\napp: second"
+        parsed = parse_release_body(body)
+        assert parsed.app_id == "second"
+
 
 class TestParseReleaseBodyStrict:
     """Tests for parse_release_body_strict."""
@@ -111,3 +176,11 @@ class TestParseReleaseBodyStrict:
         """Raises ValueError when both missing."""
         with pytest.raises(ValueError, match="app.*version|version.*app"):
             parse_release_body_strict("random text")
+
+    def test_strict_with_optional_fields(self):
+        """Strict mode allows missing optional fields."""
+        body = "app: bitlife\nversion: 3.21"
+        parsed = parse_release_body_strict(body)
+        assert parsed.is_complete
+        assert parsed.asset_name is None  # Optional, not required
+        assert parsed.sha256 is None  # Optional, not required

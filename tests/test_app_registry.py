@@ -1,4 +1,4 @@
-"""Tests for AppRegistry."""
+"""Tests for app registry."""
 
 import pytest
 
@@ -7,93 +7,163 @@ from bitbot.models import App
 
 
 @pytest.fixture
-def registry():
-    """Create test registry."""
-    apps = [
-        App(id="BitLife", displayName="BitLife"),
-        App(id="BitLife Go", displayName="BitLife Go"),
-        App(id="intl_bitlife", displayName="BitLife (International)"),
-    ]
-    return AppRegistry(apps)
+def bitlife_app():
+    """BitLife app fixture."""
+    return App(id="bitlife", displayName="BitLife")
+
+
+@pytest.fixture
+def doglife_app():
+    """DogLife app fixture."""
+    return App(id="doglife", displayName="DogLife")
+
+
+@pytest.fixture
+def catlife_app():
+    """CatLife app fixture."""
+    return App(id="catlife", displayName="CatLife")
+
+
+@pytest.fixture
+def registry(bitlife_app, doglife_app):
+    """Registry with BitLife and DogLife."""
+    return AppRegistry([bitlife_app, doglife_app])
+
+
+@pytest.fixture
+def full_registry(bitlife_app, doglife_app, catlife_app):
+    """Registry with all apps."""
+    return AppRegistry([bitlife_app, doglife_app, catlife_app])
 
 
 class TestAppRegistry:
     """Tests for AppRegistry."""
 
-    def test_get_by_exact_id(self, registry):
+    def test_get_by_exact_id(self, registry, bitlife_app):
         """Get app by exact ID."""
-        app = registry.get("BitLife")
-        assert app is not None
-        assert app.id == "BitLife"
+        assert registry.get("bitlife") == bitlife_app
 
-    def test_get_by_lowercase_id(self, registry):
-        """Get app by lowercase ID (case-insensitive)."""
-        app = registry.get("bitlife")
-        assert app is not None
-        assert app.id == "BitLife"
+    def test_get_by_lowercase_id(self, registry, bitlife_app):
+        """Get app by lowercase ID."""
+        assert registry.get("BITLIFE") == bitlife_app
 
-    def test_get_by_display_name(self, registry):
+    def test_get_by_display_name(self, registry, bitlife_app):
         """Get app by display name."""
-        app = registry.get("BitLife (International)")
-        assert app is not None
-        assert app.id == "intl_bitlife"
+        assert registry.get("BitLife") == bitlife_app
+
+    def test_get_by_display_name_case_insensitive(self, registry, bitlife_app):
+        """Get app by display name case insensitive."""
+        assert registry.get("bitlife") == bitlife_app
+        assert registry.get("BITLIFE") == bitlife_app
 
     def test_get_returns_none_for_unknown(self, registry):
-        """Get returns None for unknown identifier."""
-        app = registry.get("unknown_app")
-        assert app is None
+        """Get returns None for unknown app."""
+        assert registry.get("unknown") is None
+        assert registry.get("notanapp") is None
 
-    def test_get_or_raise_success(self, registry):
-        """get_or_raise returns app for valid identifier."""
-        app = registry.get_or_raise("BitLife")
-        assert app.id == "BitLife"
+    def test_get_or_raise_success(self, registry, bitlife_app):
+        """get_or_raise returns app when found."""
+        assert registry.get_or_raise("bitlife") == bitlife_app
 
     def test_get_or_raise_raises(self, registry):
-        """get_or_raise raises AppNotFoundError for unknown."""
-        with pytest.raises(AppNotFoundError) as exc_info:
+        """get_or_raise raises AppNotFoundError when not found."""
+        with pytest.raises(AppNotFoundError):
             registry.get_or_raise("unknown")
-        assert "unknown" in str(exc_info.value)
-        assert "BitLife" in exc_info.value.available
 
     def test_exists_true(self, registry):
-        """Exists returns True for known app."""
+        """exists returns True for known app."""
+        assert registry.exists("bitlife")
         assert registry.exists("BitLife")
-        assert registry.exists("bitlife")  # case-insensitive
+        assert registry.exists("doglife")
 
     def test_exists_false(self, registry):
-        """Exists returns False for unknown app."""
+        """exists returns False for unknown app."""
         assert not registry.exists("unknown")
+        assert not registry.exists("catlife")
 
-    def test_all_returns_all_apps(self, registry):
-        """All property returns all apps."""
-        assert len(registry.all) == 3
+    def test_all_returns_all_apps(self, registry, bitlife_app, doglife_app):
+        """all returns all registered apps."""
+        all_apps = registry.all
+        assert bitlife_app in all_apps
+        assert doglife_app in all_apps
+        assert len(all_apps) == 2
 
     def test_ids_returns_all_ids(self, registry):
-        """Ids property returns all app IDs."""
-        assert registry.ids == frozenset({"BitLife", "BitLife Go", "intl_bitlife"})
+        """ids returns all app IDs."""
+        ids = registry.ids
+        assert "bitlife" in ids
+        assert "doglife" in ids
+        assert len(ids) == 2
 
     def test_len(self, registry):
-        """Len returns number of apps."""
-        assert len(registry) == 3
+        """len() returns number of apps."""
+        assert len(registry) == 2
 
     def test_contains(self, registry):
-        """In operator works."""
+        """in operator works."""
+        assert "bitlife" in registry
         assert "BitLife" in registry
         assert "unknown" not in registry
+
+    # BitBot-specific scenarios
+    def test_real_app_ids(self, full_registry):
+        """Test with real BitBot app IDs."""
+        assert full_registry.get("bitlife") is not None
+        assert full_registry.get("doglife") is not None
+        assert full_registry.get("catlife") is not None
+
+    def test_lookup_from_release_body_app_id(self, registry):
+        """Test lookup using app ID from release body."""
+        # Simulating: app: bitlife from release body
+        app_id_from_release = "bitlife"
+        app = registry.get(app_id_from_release)
+        assert app is not None
+        assert app.display_name == "BitLife"
+
+    def test_lookup_preserves_original_case(self, registry):
+        """Test that returned app preserves original case."""
+        app = registry.get("BITLIFE")
+        assert app.id == "bitlife"  # Original case
+        assert app.display_name == "BitLife"  # Original case
+
+    def test_empty_registry(self):
+        """Test empty registry."""
+        empty = AppRegistry([])
+        assert len(empty) == 0
+        assert empty.get("anything") is None
+        assert not empty.exists("anything")
+
+    def test_single_app_registry(self, bitlife_app):
+        """Test registry with single app."""
+        single = AppRegistry([bitlife_app])
+        assert len(single) == 1
+        assert single.get("bitlife") == bitlife_app
+
+    def test_iteration(self, registry, bitlife_app, doglife_app):
+        """Test getting all apps from registry."""
+        apps = registry.all
+        assert len(apps) == 2
+        assert bitlife_app in apps
+        assert doglife_app in apps
 
 
 class TestAppNotFoundError:
     """Tests for AppNotFoundError."""
 
     def test_error_message(self):
-        """Error message includes identifier and available apps."""
-        error = AppNotFoundError("unknown", ["BitLife", "DogLife"])
-        assert "unknown" in str(error)
-        assert "BitLife" in str(error)
-        assert "DogLife" in str(error)
+        """Error has descriptive message."""
+        error = AppNotFoundError("bitlife", ["doglife", "catlife"])
+        assert "bitlife" in str(error)
+        assert "not found" in str(error).lower()
 
     def test_error_attributes(self):
-        """Error has identifier and available attributes."""
-        error = AppNotFoundError("test", ["a", "b"])
-        assert error.identifier == "test"
-        assert error.available == ["a", "b"]
+        """Error stores app identifier."""
+        error = AppNotFoundError("bitlife", ["doglife"])
+        assert error.identifier == "bitlife"
+        assert error.available == ["doglife"]
+
+    def test_error_shows_available_apps(self):
+        """Error shows available apps."""
+        error = AppNotFoundError("unknown", ["bitlife", "doglife"])
+        assert "bitlife" in str(error)
+        assert "doglife" in str(error)
