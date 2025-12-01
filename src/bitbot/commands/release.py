@@ -49,8 +49,7 @@ def process_single_release(  # noqa: PLR0913
     # Validate app_id exists in config
     if not registry.exists(app_id):
         console.print(
-            f"[red]✗[/red] {app_name}: Unknown app_id '{app_id}'. "
-            f"Valid: {', '.join(registry.ids)}"
+            f"[red]✗[/red] {app_name}: Unknown app_id '{app_id}'. Valid: {', '.join(registry.ids)}"
         )
         return (False, downloaded_files)
 
@@ -78,8 +77,7 @@ def process_single_release(  # noqa: PLR0913
     # Calculate SHA256 of patched file
     file_hash = hashlib.sha256(Path(patched_path).read_bytes()).hexdigest()
     notes = (
-        f"app: {matched_app.id}\nversion: {version}\n"
-        f"asset_name: {asset_name}\nsha256: {file_hash}"
+        f"app: {matched_app.id}\nversion: {version}\nasset_name: {asset_name}\nsha256: {file_hash}"
     )
 
     create_result = create_bot_release(bot_repo, release_tag, title, notes, patched_path)

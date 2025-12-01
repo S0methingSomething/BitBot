@@ -68,6 +68,7 @@ class TestOfflineVersions:
 
 class TestProcessedReleases:
     """Tests for processed_releases table operations."""
+
     def test_get_empty(self, temp_db):
         """get_processed_releases returns empty set initially."""
         result = db.get_processed_releases()
@@ -93,6 +94,7 @@ class TestProcessedReleases:
 
 class TestPendingReleases:
     """Tests for pending_releases table operations."""
+
     def test_get_empty(self, temp_db):
         """get_pending_releases returns empty list initially."""
         result = db.get_pending_releases()
@@ -137,6 +139,7 @@ class TestPendingReleases:
 
 class TestAccounts:
     """Tests for accounts table operations."""
+
     def test_create_account(self, temp_db):
         """get_or_create_account creates new account."""
         result = db.get_or_create_account("testuser", "testsubreddit")
@@ -170,6 +173,7 @@ class TestAccounts:
 
 class TestPostedVersions:
     """Tests for posted_versions table operations."""
+
     def test_get_empty(self, temp_db):
         """get_posted_versions returns empty dict initially."""
         account_id = db.get_or_create_account("testuser", "testsub").unwrap()
@@ -200,6 +204,7 @@ class TestPostedVersions:
 
 class TestPostIds:
     """Tests for post_ids table operations."""
+
     def test_get_empty(self, temp_db):
         """get_post_ids returns empty list initially."""
         account_id = db.get_or_create_account("testuser", "testsub").unwrap()
@@ -229,6 +234,7 @@ class TestPostIds:
 
 class TestExport:
     """Tests for export functionality."""
+
     def test_export_account_json(self, temp_db):
         """export_account_json returns complete state."""
         account_id = db.get_or_create_account("testuser", "testsub").unwrap()

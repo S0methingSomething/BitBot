@@ -62,7 +62,8 @@ def run(ctx: typer.Context) -> None:
 
                 # Filter to stable releases (not draft, not prerelease)
                 stable_releases = [
-                    r for r in releases_data
+                    r
+                    for r in releases_data
                     if not r.get("draft", False) and not r.get("prerelease", False)
                 ]
 

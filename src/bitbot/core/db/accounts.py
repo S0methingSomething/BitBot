@@ -89,12 +89,14 @@ def get_account(account_id: int) -> Result[AccountMeta, StateError]:
             ).fetchone()
         if not row:
             return Failure(StateError(f"Account {account_id} not found"))
-        return Success({
-            "active_post_id": row["active_post_id"],
-            "last_check_timestamp": row["last_check_timestamp"],
-            "check_interval_seconds": row["check_interval_seconds"],
-            "last_comment_count": row["last_comment_count"],
-        })
+        return Success(
+            {
+                "active_post_id": row["active_post_id"],
+                "last_check_timestamp": row["last_check_timestamp"],
+                "check_interval_seconds": row["check_interval_seconds"],
+                "last_comment_count": row["last_comment_count"],
+            }
+        )
     except sqlite3.Error as e:
         return db_fail("Failed to get account", e)
 
@@ -201,10 +203,12 @@ def export_account_json(username: str, subreddit: str) -> Result[dict[str, Any],
         return Failure(posts.failure())
 
     m = meta.unwrap()
-    return Success({
-        "online": versions.unwrap(),
-        "activePostId": m["active_post_id"],
-        "lastCheckTimestamp": m["last_check_timestamp"],
-        "currentIntervalSeconds": m["check_interval_seconds"],
-        "allPostIds": posts.unwrap(),
-    })
+    return Success(
+        {
+            "online": versions.unwrap(),
+            "activePostId": m["active_post_id"],
+            "lastCheckTimestamp": m["last_check_timestamp"],
+            "currentIntervalSeconds": m["check_interval_seconds"],
+            "allPostIds": posts.unwrap(),
+        }
+    )

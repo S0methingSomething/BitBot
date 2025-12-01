@@ -3,7 +3,6 @@
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import icontract
 from beartype import beartype
@@ -12,11 +11,12 @@ from jinja2 import Environment, FileSystemLoader
 from bitbot import paths
 from bitbot.config_models import Config
 from bitbot.reddit.posting.changelog import generate_changelog
+from bitbot.types import Changelog, ReleasesData
 
 
 @icontract.ensure(lambda result: len(result) > 0)
 @beartype
-def generate_available_list(config: Config, all_releases_data: dict[str, Any]) -> str:
+def generate_available_list(config: Config, all_releases_data: ReleasesData) -> str:
     """Generate available apps table."""
     formats: dict[str, str] = config.reddit.formats.table
     header = formats.get("header", "| App | Asset | Version |")
@@ -45,8 +45,8 @@ def generate_available_list(config: Config, all_releases_data: dict[str, Any]) -
 @beartype
 def generate_post_body(
     config: Config,
-    changelog_data: dict[str, Any],
-    all_releases_data: dict[str, Any],
+    changelog_data: Changelog,
+    all_releases_data: ReleasesData,
     page_url: str,
 ) -> str:
     """Generate complete post body."""
@@ -71,7 +71,12 @@ def generate_post_body(
         autoescape=False,  # noqa: S701
     )
     template = env.from_string(template_content)
-    changelog = generate_changelog(config, **changelog_data)
+    changelog = generate_changelog(
+        config,
+        changelog_data["added"],
+        changelog_data["updated"],
+        changelog_data["removed"],
+    )
     available_list = generate_available_list(config, all_releases_data)
 
     now = datetime.now(UTC)

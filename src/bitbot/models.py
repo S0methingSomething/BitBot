@@ -25,18 +25,21 @@ class App(BaseModel):
     @property
     def identifiers(self) -> frozenset[str]:
         """All identifiers that can match this app (case-insensitive)."""
-        return frozenset({
-            self.id,
-            self.id.lower(),
-            self.display_name,
-            self.display_name.lower(),
-        })
+        return frozenset(
+            {
+                self.id,
+                self.id.lower(),
+                self.display_name,
+                self.display_name.lower(),
+            }
+        )
 
 
 class ParsedRelease(BaseModel):
     """Parsed release metadata from a release body."""
 
     app_id: str | None = None
+    display_name: str | None = None
     version: str | None = None
     asset_name: str | None = None
     sha256: str | None = None

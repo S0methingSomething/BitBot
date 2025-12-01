@@ -13,9 +13,7 @@ class AppNotFoundError(ValueError):
         """Initialize with identifier and available apps."""
         self.identifier = identifier
         self.available = available
-        super().__init__(
-            f"App '{identifier}' not found. Available: {', '.join(available)}"
-        )
+        super().__init__(f"App '{identifier}' not found. Available: {', '.join(available)}")
 
 
 class AppRegistry:

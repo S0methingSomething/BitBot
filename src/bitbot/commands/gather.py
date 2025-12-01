@@ -130,11 +130,13 @@ def run(ctx: typer.Context) -> None:
                     if version == apps_data[app_id]["latest_release"]["version"]:
                         continue
 
-                    apps_data[app_id]["previous_releases"].append({
-                        "version": version,
-                        "download_url": release["assets"][0]["browser_download_url"],
-                        "published_at": release["published_at"],
-                    })
+                    apps_data[app_id]["previous_releases"].append(
+                        {
+                            "version": version,
+                            "download_url": release["assets"][0]["browser_download_url"],
+                            "published_at": release["published_at"],
+                        }
+                    )
 
                 # Save to releases.json
                 dist_dir = Path(paths.DIST_DIR)

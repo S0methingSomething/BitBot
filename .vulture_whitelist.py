@@ -39,9 +39,9 @@ load_global_state  # State management API
 save_global_state  # State management API
 load_release_state  # State management API
 save_release_state  # State management API
-parse_release_notes  # Parser API
+
 get_source_releases  # GitHub API
 check_if_bot_release_exists  # GitHub API
-parse_release_description  # Parser API
+
 update_older_posts  # Reddit API
 DEFAULT_LANDING_PAGE  # Path constant

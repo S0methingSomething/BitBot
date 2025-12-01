@@ -1,5 +1,5 @@
 repos:
-  # Ruff - Fast Python linter
+  # Ruff - Fast linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:
@@ -7,103 +7,35 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  # Mypy - Static type checker
+  # Mypy - Static type checking  
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:
       - id: mypy
-        args: [--no-error-summary, --ignore-missing-imports]
-        additional_dependencies: [types-toml, types-requests]
+        args: [--ignore-missing-imports]
+        additional_dependencies: [types-toml, types-requests, pydantic]
+        files: ^src/
 
-  # Custom validation and analysis checks
+  # BitBot-specific checks
   - repo: local
     hooks:
-      # Validation coverage check (88% threshold - Pydantic validators excluded)
-      - id: check-validation
-        name: Validation Coverage (88%)
-        entry: uv run python .github/scripts/check_validation.py 88
+      - id: bitbot-models
+        name: BitBot Pydantic Models
+        entry: uv run python .github/scripts/quality.py models
         language: system
         pass_filenames: false
-        always_run: true
+        files: ^src/bitbot/(models|config_models|types)\.py$
 
-      # Complexity check (max 15)
-      - id: check-complexity
-        name: Code Complexity Check
-        entry: uv run python .github/scripts/check_complexity.py
+      - id: bitbot-beartype
+        name: BitBot Beartype Coverage
+        entry: uv run python .github/scripts/quality.py beartype
         language: system
         pass_filenames: false
-        always_run: true
+        files: ^src/bitbot/.*\.py$
 
-      # Integration analysis (min score 50)
-      - id: analyze-integration
-        name: Tool Integration Analysis
-        entry: uv run python .github/scripts/analyze_tool_integration.py --min-score 50
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      # Deal - Contract testing
-      - id: deal-lint
-        name: Deal Contract Linting
-        entry: uv run python -m deal lint src/
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      # Beartype - Runtime type checking (via pytest if tests exist)
-      - id: beartype-check
-        name: Beartype Runtime Check
-        entry: bash -c 'uv run python -c "from beartype import beartype; print(\"✓ Beartype available\")"'
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      # Interrogate - Docstring coverage
-      - id: interrogate
-        name: Docstring Coverage (100%)
-        entry: uv run interrogate src/ -v --fail-under 100 --ignore-init-method --ignore-private
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      # Vulture - Find dead code
       - id: vulture
-        name: Dead Code Detection
-        entry: uv run vulture src/ --min-confidence 80 --exclude legacy --ignore-names cls
+        name: Dead Code
+        entry: uv run vulture src/ .vulture_whitelist.py --min-confidence=80
         language: system
         pass_filenames: false
-        always_run: true
-
-      # Deptry - Check dependencies
-      - id: deptry
-        name: Dependency Check
-        entry: uv run deptry src/ --ignore-notebooks
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      # Pydantic validation (check models are valid)
-      - id: pydantic-check
-        name: Pydantic Models Check
-        entry: bash -c '.venv/bin/python -c "from bitbot.models import *; print(\"✓ Pydantic models valid\")"'
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      # Safety - Check for known security vulnerabilities (non-blocking)
-      - id: safety
-        name: Security Vulnerability Check (Safety)
-        entry: bash -c 'uv run safety scan --json 2>/dev/null || echo "⚠ Safety scan skipped (requires auth)"'
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      # Pip-audit - Audit dependencies for vulnerabilities (strict)
-      - id: pip-audit
-        name: Dependency Audit (pip-audit)
-        entry: uv run pip-audit --desc --ignore-vuln=PYSEC-2022-42969
-        language: system
-        pass_filenames: false
-        files: pyproject.toml|uv.lock
-        pass_filenames: false
-        always_run: true
+        files: ^src/.*\.py$

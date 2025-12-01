@@ -48,12 +48,17 @@ def download_asset(
         output_path = Path(DOWNLOAD_DIR) / f"original_{asset_name}"
 
         # Use gh api for secure download - token handled internally by gh CLI
-        result = run_command([
-            "gh", "api",
-            f"/repos/{source_repo}/releases/assets/{asset_id}",
-            "-H", "Accept: application/octet-stream",
-            "--output", str(output_path),
-        ])
+        result = run_command(
+            [
+                "gh",
+                "api",
+                f"/repos/{source_repo}/releases/assets/{asset_id}",
+                "-H",
+                "Accept: application/octet-stream",
+                "--output",
+                str(output_path),
+            ]
+        )
 
         if isinstance(result, Failure):
             return Failure(GitHubAPIError(f"Failed to download asset: {result.failure()}"))

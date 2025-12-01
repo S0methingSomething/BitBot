@@ -1,30 +1,42 @@
 """Reddit post title generation."""
 
 from datetime import UTC, datetime
-from typing import Any
 
 import icontract
 from beartype import beartype
 
 from bitbot.config_models import Config
+from bitbot.types import ReleaseInfo, UpdatedReleaseInfo
 
 
 @beartype
-def create_app_list(app_dict: dict[str, Any]) -> str:
+def create_app_list(
+    app_dict: dict[str, ReleaseInfo] | dict[str, UpdatedReleaseInfo],
+) -> str:
     """Create formatted list of app names from dictionary."""
     parts = []
     for info in app_dict.values():
-        display_name = info.get("display_name") or info.get("new", {}).get(
-            "display_name", "Unknown App"
-        )
-        version = info.get("version") or info.get("new", {}).get("version", "?.?.?")
+        if "new" in info:
+            # UpdatedReleaseInfo
+            updated: UpdatedReleaseInfo = info  # type: ignore[assignment]
+            display_name = updated["new"]["display_name"]
+            version = updated["new"]["version"]
+        else:
+            # ReleaseInfo
+            added: ReleaseInfo = info  # type: ignore[assignment]
+            display_name = added["display_name"]
+            version = added["version"]
         parts.append(f"{display_name} v{version}")
     return ", ".join(parts)
 
 
 @icontract.ensure(lambda result: len(result) > 0)
 @beartype
-def generate_dynamic_title(config: Config, added: dict[str, Any], updated: dict[str, Any]) -> str:
+def generate_dynamic_title(
+    config: Config,
+    added: dict[str, ReleaseInfo],
+    updated: dict[str, UpdatedReleaseInfo],
+) -> str:
     """Generate dynamic title based on changes."""
     num_added = len(added)
     num_updated = len(updated)

@@ -58,7 +58,9 @@ def migrate_account_state(filepath: Path) -> None:
     for post_id in data.get("allPostIds", []):
         db.add_post_id(account_id, post_id)
 
-    print(f"  ✓ {username}/{subreddit}: {len(online)} versions, {len(data.get('allPostIds', []))} posts")
+    print(
+        f"  ✓ {username}/{subreddit}: {len(online)} versions, {len(data.get('allPostIds', []))} posts"
+    )
 
 
 def migrate_release_state(filepath: Path) -> None:

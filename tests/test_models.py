@@ -55,8 +55,6 @@ def test_parsed_release_incomplete():
 
 def test_parsed_release_optional_fields():
     """Test ParsedRelease optional fields."""
-    release = ParsedRelease(
-        app_id="test", version="1.0.0", asset_name="file.apk", sha256="abc123"
-    )
+    release = ParsedRelease(app_id="test", version="1.0.0", asset_name="file.apk", sha256="abc123")
     assert release.asset_name == "file.apk"
     assert release.sha256 == "abc123"

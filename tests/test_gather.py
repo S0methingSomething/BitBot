@@ -1,6 +1,5 @@
 """Tests for gather command and release parser."""
 
-
 import pytest
 
 from bitbot.core.app_registry import AppRegistry
@@ -132,10 +131,7 @@ class TestGatherIntegration:
         """Source releases without bot download are skipped."""
         bot = [make_release("BitLife", "3.21", "url")]
 
-        found = any(
-            parse_release_body(b["body"]).version == "9.99"
-            for b in bot if b.get("assets")
-        )
+        found = any(parse_release_body(b["body"]).version == "9.99" for b in bot if b.get("assets"))
         assert not found
 
     def test_no_duplicate_versions(self):

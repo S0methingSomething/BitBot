@@ -19,6 +19,7 @@ def db_fail(msg: str, e: sqlite3.Error) -> Failure[StateError]:
     """Create a Failure with StateError for database errors."""
     return Failure(StateError(f"{msg}: {e}"))
 
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS offline_versions (
     app_id TEXT PRIMARY KEY,

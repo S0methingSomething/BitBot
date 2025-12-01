@@ -1,11 +1,10 @@
 """Reddit post changelog generation."""
 
-from typing import Any
-
 import icontract
 from beartype import beartype
 
 from bitbot.config_models import Config
+from bitbot.types import ReleaseInfo, RemovedReleaseInfo, UpdatedReleaseInfo
 
 
 @icontract.require(
@@ -15,7 +14,7 @@ from bitbot.config_models import Config
 @beartype
 def create_section(
     title: str,
-    data: dict[str, Any],
+    data: dict[str, ReleaseInfo] | dict[str, UpdatedReleaseInfo] | dict[str, RemovedReleaseInfo],
     key_format: str,
     formats: dict[str, str],
     asset_name: str,
@@ -28,25 +27,28 @@ def create_section(
             return None
 
         if title == "Added":
+            info_added: ReleaseInfo = info  # type: ignore[assignment]
             line = (
-                line_format.replace("{{display_name}}", info["display_name"])
+                line_format.replace("{{display_name}}", info_added["display_name"])
                 .replace("{{asset_name}}", asset_name)
-                .replace("{{version}}", info["version"])
-                .replace("{{download_url}}", info["url"])
+                .replace("{{version}}", info_added["version"])
+                .replace("{{download_url}}", info_added["url"])
             )
         elif title == "Updated":
+            info_updated: UpdatedReleaseInfo = info  # type: ignore[assignment]
             line = (
-                line_format.replace("{{display_name}}", info["new"]["display_name"])
+                line_format.replace("{{display_name}}", info_updated["new"]["display_name"])
                 .replace("{{asset_name}}", asset_name)
-                .replace("{{new_version}}", info["new"]["version"])
-                .replace("{{old_version}}", info["old"])
-                .replace("{{download_url}}", info["new"]["url"])
+                .replace("{{new_version}}", info_updated["new"]["version"])
+                .replace("{{old_version}}", info_updated["old"])
+                .replace("{{download_url}}", info_updated["new"]["url"])
             )
         elif title == "Removed":
+            info_removed: RemovedReleaseInfo = info  # type: ignore[assignment]
             line = (
-                line_format.replace("{{display_name}}", info["display_name"])
+                line_format.replace("{{display_name}}", info_removed["display_name"])
                 .replace("{{asset_name}}", asset_name)
-                .replace("{{old_version}}", info["version"])
+                .replace("{{old_version}}", info_removed["version"])
             )
         else:
             continue
@@ -59,9 +61,9 @@ def create_section(
 @beartype
 def generate_changelog(
     config: Config,
-    added: dict[str, Any],
-    updated: dict[str, Any],
-    removed: dict[str, Any],
+    added: dict[str, ReleaseInfo],
+    updated: dict[str, UpdatedReleaseInfo],
+    removed: dict[str, RemovedReleaseInfo],
 ) -> str:
     """Generate changelog section."""
     download_mode = config.reddit.download_mode

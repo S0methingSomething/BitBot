@@ -1,39 +1,43 @@
-.PHONY: check lint type test coverage format clean all
+.PHONY: all quick check lint format type test models beartype coverage clean
 
-# Run all checks
-all: lint type test
+# Full CI suite (all checks)
+all:
+	@uv run python .github/scripts/quality.py all
 
-# Run all checks with coverage
-check: lint type coverage
+# Quick checks (pre-commit style)
+quick:
+	@uv run python .github/scripts/quality.py quick
 
-# Linting
+# Individual checks
 lint:
-	@echo "Running ruff..."
-	uv run ruff check src/ tests/
+	@uv run python .github/scripts/quality.py lint
 
-# Type checking
-type:
-	@echo "Running mypy..."
-	uv run mypy src/
-
-# Run tests
-test:
-	@echo "Running pytest..."
-	uv run pytest tests/ -v
-
-# Run tests with coverage
-coverage:
-	@echo "Running pytest with coverage..."
-	uv run pytest tests/ -v --cov=src --cov-report=term-missing
-
-# Format code
 format:
-	@echo "Formatting with ruff..."
-	uv run ruff check --fix src/ tests/
-	uv run ruff format src/ tests/
+	@uv run ruff check --fix src/ tests/
+	@uv run ruff format src/ tests/
+
+type:
+	@uv run python .github/scripts/quality.py type
+
+test:
+	@uv run python .github/scripts/quality.py test
+
+models:
+	@uv run python .github/scripts/quality.py models
+
+beartype:
+	@uv run python .github/scripts/quality.py beartype
+
+# Tests with coverage
+coverage:
+	@uv run pytest tests/ -v --cov=src --cov-report=term-missing
+
+# Pre-commit
+pre-commit:
+	@uv run pre-commit run --all-files
 
 # Clean cache files
 clean:
-	@echo "Cleaning cache files..."
-	rm -rf .mypy_cache .pytest_cache .ruff_cache .coverage htmlcov
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@rm -rf .mypy_cache .pytest_cache .ruff_cache .coverage htmlcov dist/
+	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@echo "✓ Cleaned"

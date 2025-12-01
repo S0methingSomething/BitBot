@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 import praw
 import typer
@@ -26,6 +26,7 @@ from bitbot.reddit.posting.body_builder import generate_post_body
 from bitbot.reddit.posting.poster import post_new_release, update_post
 from bitbot.reddit.posting.title_generator import generate_dynamic_title
 from bitbot.reddit.posts import get_bot_posts
+from bitbot.types import Changelog, ReleaseInfo, ReleasesData, UpdatedReleaseInfo
 
 if TYPE_CHECKING:
     from bitbot.core.container import Container
@@ -64,7 +65,7 @@ def _verify_account_state(
 
 
 @beartype
-def _load_releases_data(console: Console, logger: ErrorLogger) -> dict[str, Any]:
+def _load_releases_data(console: Console, logger: ErrorLogger) -> ReleasesData:
     """Load releases.json file."""
     releases_file = Path(paths.DIST_DIR) / "releases.json"
     if not releases_file.exists():
@@ -82,7 +83,7 @@ def _load_releases_data(console: Console, logger: ErrorLogger) -> dict[str, Any]
         console.print(f"[red]✗ Error:[/red] {error.message}")
         raise typer.Exit(code=1) from None
 
-    return data
+    return data  # type: ignore[return-value]
 
 
 @beartype
@@ -135,26 +136,31 @@ def post_or_update(
 
 @beartype
 def _build_changelog_data(
-    all_releases_data: dict[str, Any], online_versions: dict[str, str]
-) -> dict[str, dict[str, Any]]:
+    all_releases_data: ReleasesData, online_versions: dict[str, str]
+) -> Changelog:
     """Build changelog data by comparing current releases vs posted versions."""
-    changelog: dict[str, dict[str, Any]] = {"added": {}, "updated": {}, "removed": {}}
+    changelog: Changelog = {"added": {}, "updated": {}, "removed": {}}
 
-    current = {}
+    current: dict[str, ReleaseInfo] = {}
     for app_id, app_data in all_releases_data.items():
         latest = app_data.get("latest_release")
         if latest:
-            current[app_id] = {
-                "display_name": app_data.get("display_name", app_id),
-                "version": latest.get("version", "unknown"),
-                "url": latest.get("download_url", ""),
-            }
+            current[app_id] = cast(
+                "ReleaseInfo",
+                {
+                    "display_name": app_data.get("display_name", app_id),
+                    "version": latest.get("version", "unknown"),
+                    "url": latest.get("download_url", ""),
+                },
+            )
 
     for app_id, info in current.items():
         if app_id not in online_versions:
             changelog["added"][app_id] = info
         elif online_versions[app_id] != info["version"]:
-            changelog["updated"][app_id] = {"new": info, "old": online_versions[app_id]}
+            changelog["updated"][app_id] = cast(
+                "UpdatedReleaseInfo", {"new": info, "old": online_versions[app_id]}
+            )
 
     for app_id, old_ver in online_versions.items():
         if app_id not in current:
@@ -164,16 +170,19 @@ def _build_changelog_data(
 
 
 @beartype
-def _has_new_releases(changelog: dict[str, dict[str, Any]], console: Console) -> bool:
+def _has_new_releases(changelog: Changelog, console: Console) -> bool:
     """Check if changelog has any changes."""
     has_changes = False
-    for app_id, info in changelog["added"].items():
+    added = changelog["added"]
+    updated = changelog["updated"]
+    removed = changelog["removed"]
+    for app_id, info in added.items():
         console.print(f"[cyan]→[/cyan] New app: {app_id} v{info['version']}")
         has_changes = True
-    for app_id, info in changelog["updated"].items():
-        console.print(f"[cyan]→[/cyan] Update: {app_id} {info['old']} → {info['new']['version']}")
+    for app_id, upd in updated.items():
+        console.print(f"[cyan]→[/cyan] Update: {app_id} {upd['old']} → {upd['new']['version']}")
         has_changes = True
-    for app_id in changelog["removed"]:
+    for app_id in removed:
         console.print(f"[cyan]→[/cyan] Removed: {app_id}")
         has_changes = True
     return has_changes
@@ -191,8 +200,8 @@ class PostContext:
 def _build_and_post(
     reddit: praw.Reddit,
     context: PostContext,
-    changelog: dict[str, dict[str, Any]],
-    all_releases_data: dict[str, Any],
+    changelog: Changelog,
+    all_releases_data: ReleasesData,
     existing_post_id: str | None,
 ) -> tuple[praw.models.Submission, bool] | None:
     """Build post content and submit to Reddit."""

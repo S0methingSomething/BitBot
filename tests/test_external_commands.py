@@ -213,10 +213,7 @@ class TestReleaseNotesFormat:
         asset_name = "MonetizationVars"
         file_hash = hashlib.sha256(b"test").hexdigest()
 
-        notes = (
-            f"app: {app_id}\nversion: {version}\n"
-            f"asset_name: {asset_name}\nsha256: {file_hash}"
-        )
+        notes = f"app: {app_id}\nversion: {version}\nasset_name: {asset_name}\nsha256: {file_hash}"
 
         assert "app: intl_bitlife" in notes
         assert "BitLife International" not in notes

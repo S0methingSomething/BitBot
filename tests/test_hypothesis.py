@@ -58,12 +58,14 @@ def test_failure_is_failure(error):
 
 
 # Crypto properties
-@given(st.dictionaries(
-    st.text(alphabet=string.ascii_letters + string.digits, min_size=1, max_size=20),
-    st.booleans(),
-    min_size=1,
-    max_size=10,
-))
+@given(
+    st.dictionaries(
+        st.text(alphabet=string.ascii_letters + string.digits, min_size=1, max_size=20),
+        st.booleans(),
+        min_size=1,
+        max_size=10,
+    )
+)
 @settings(max_examples=50)
 def test_encrypt_decrypt_roundtrip_booleans(data):
     """Encrypt then decrypt returns original boolean data."""
@@ -73,12 +75,14 @@ def test_encrypt_decrypt_roundtrip_booleans(data):
     assert decrypted == data
 
 
-@given(st.dictionaries(
-    st.text(alphabet=string.ascii_letters, min_size=1, max_size=10),
-    st.booleans(),
-    min_size=1,
-    max_size=5,
-))
+@given(
+    st.dictionaries(
+        st.text(alphabet=string.ascii_letters, min_size=1, max_size=10),
+        st.booleans(),
+        min_size=1,
+        max_size=5,
+    )
+)
 @settings(max_examples=30)
 def test_unlock_premium_features_all_true(data):
     """unlock_premium_features sets all False values to True."""
@@ -106,11 +110,19 @@ def test_count_outbound_links_non_negative(text):
     assert count >= 0
 
 
-@given(st.lists(st.sampled_from([
-    "https://example.com",
-    "http://test.org",
-    "https://a.b.c",
-]), min_size=0, max_size=10))
+@given(
+    st.lists(
+        st.sampled_from(
+            [
+                "https://example.com",
+                "http://test.org",
+                "https://a.b.c",
+            ]
+        ),
+        min_size=0,
+        max_size=10,
+    )
+)
 def test_count_outbound_links_upper_bound(urls):
     """Link count is at most the number of unique URLs."""
     text = " ".join(urls)
