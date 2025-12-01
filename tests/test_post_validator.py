@@ -1,6 +1,45 @@
 """Tests for post validation."""
 
-from bitbot.reddit.posting.validator import ValidationResult, validate_post
+from bitbot.reddit.posting.validator import ValidationResult, validate_post, validate_url
+
+
+class TestValidateUrl:
+    """Tests for URL validation."""
+
+    def test_valid_https_url(self):
+        """Valid HTTPS URL passes."""
+        issues = validate_url("https://github.com/user/repo")
+        assert issues == []
+
+    def test_valid_http_url(self):
+        """Valid HTTP URL passes."""
+        issues = validate_url("http://example.com/path")
+        assert issues == []
+
+    def test_empty_url(self):
+        """Empty URL fails."""
+        issues = validate_url("")
+        assert "URL is empty" in issues
+
+    def test_double_protocol(self):
+        """Double protocol detected."""
+        issues = validate_url("https://https://example.com")
+        assert any("multiple protocols" in i for i in issues)
+
+    def test_typo_htttps(self):
+        """Typo htttps detected."""
+        issues = validate_url("htttps://example.com")
+        assert any("typo" in i.lower() for i in issues)
+
+    def test_missing_scheme(self):
+        """Missing scheme detected."""
+        issues = validate_url("example.com/path")
+        assert any("scheme" in i.lower() for i in issues)
+
+    def test_missing_domain(self):
+        """Missing domain detected."""
+        issues = validate_url("https://")
+        assert any("domain" in i.lower() for i in issues)
 
 
 class TestValidatePost:
@@ -85,6 +124,22 @@ Download: https://example.com/download
         result = validate_post(title, body, config)
         assert result.has_errors
         assert any("40000" in i.message for i in result.issues)
+
+    def test_malformed_url_double_protocol(self, config):
+        """Test double protocol URL detected."""
+        title = "Valid Title"
+        body = "Download from https://https://example.com v1.0.0 ## Section"
+        result = validate_post(title, body, config)
+        assert result.has_errors
+        assert any("double protocol" in i.message.lower() for i in result.issues)
+
+    def test_malformed_url_typo_htttps(self, config):
+        """Test htttps typo detected."""
+        title = "Valid Title"
+        body = "Download from htttps://example.com v1.0.0 ## Section"
+        result = validate_post(title, body, config)
+        assert result.has_errors
+        assert any("typo" in i.message.lower() for i in result.issues)
 
     def test_multiple_issues(self, config):
         """Test multiple issues detected."""

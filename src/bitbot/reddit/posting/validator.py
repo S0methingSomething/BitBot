@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from beartype import beartype
 
@@ -44,6 +45,97 @@ class ValidationResult:
         return not self.has_errors
 
 
+# Patterns for malformed URLs
+_MALFORMED_URL_PATTERNS = [
+    (r"https?://https?://", "Double protocol (https://https://)"),
+    (r"htttps://", "Typo in protocol (htttps)"),
+    (r"httttp://", "Typo in protocol (httttp)"),
+    (r"httpss://", "Typo in protocol (httpss)"),
+    (r"htp://", "Typo in protocol (htp)"),
+    (r"\(https?://\s*\)", "Empty URL in markdown link"),
+    (r"https?://\s+", "URL with trailing whitespace"),
+    (r"https?://[^)\s]*\s+[^)\s]+\)", "URL with space in middle"),
+    (r"https?://$", "URL with no domain"),
+    (r"https?://\)", "URL immediately followed by )"),
+]
+
+# Pattern to extract all URLs
+_URL_PATTERN = re.compile(r'https?://[^\s\)\]"\'<>]+')
+
+
+@beartype
+def _validate_urls(body: str, issues: list[ValidationIssue]) -> None:
+    """Validate all URLs in the body."""
+    # Check for known malformed patterns
+    for pattern, description in _MALFORMED_URL_PATTERNS:
+        if re.search(pattern, body, re.IGNORECASE):
+            issues.append(ValidationIssue("error", f"Malformed URL detected: {description}"))
+
+    # Extract and validate each URL
+    urls = _URL_PATTERN.findall(body)
+    for url in urls:
+        # Clean trailing punctuation that might have been captured
+        url = url.rstrip(".,;:!?")
+        
+        try:
+            parsed = urlparse(url)
+            
+            # Check for valid scheme
+            if parsed.scheme not in ("http", "https"):
+                issues.append(ValidationIssue("error", f"Invalid URL scheme: {url[:50]}"))
+                continue
+            
+            # Check for valid netloc (domain)
+            if not parsed.netloc:
+                issues.append(ValidationIssue("error", f"URL missing domain: {url[:50]}"))
+                continue
+            
+            # Check for suspicious patterns in domain
+            if "https" in parsed.netloc.lower() or "http" in parsed.netloc.lower():
+                issues.append(ValidationIssue("error", f"URL has protocol in domain: {url[:50]}"))
+                continue
+            
+            # Check for double slashes in path (excluding the protocol)
+            if "//" in parsed.path:
+                issues.append(ValidationIssue("warning", f"URL has double slashes in path: {url[:50]}"))
+            
+            # Check for common typos in known domains
+            domain = parsed.netloc.lower()
+            if "githbu" in domain or "guthub" in domain:
+                issues.append(ValidationIssue("error", f"Typo in GitHub domain: {url[:50]}"))
+            if "redidt" in domain or "redit" in domain:
+                issues.append(ValidationIssue("error", f"Typo in Reddit domain: {url[:50]}"))
+                
+        except Exception:
+            issues.append(ValidationIssue("error", f"Invalid URL format: {url[:50]}"))
+
+
+@beartype
+def _validate_markdown_links(body: str, issues: list[ValidationIssue]) -> None:
+    """Validate markdown link syntax."""
+    # Find all markdown links: [text](url)
+    link_pattern = re.compile(r'\[([^\]]*)\]\(([^)]*)\)')
+    
+    for match in link_pattern.finditer(body):
+        text, url = match.groups()
+        
+        # Check for empty text
+        if not text.strip():
+            issues.append(ValidationIssue("warning", f"Link with empty text: [{text}]({url[:30]}...)"))
+        
+        # Check for empty URL
+        if not url.strip():
+            issues.append(ValidationIssue("error", f"Link with empty URL: [{text[:20]}]()"))
+            continue
+        
+        # Check URL starts with valid protocol or is relative
+        url_stripped = url.strip()
+        if url_stripped and not url_stripped.startswith(("http://", "https://", "/", "#")):
+            # Could be a relative URL or malformed
+            if "." in url_stripped and not url_stripped.startswith("."):
+                issues.append(ValidationIssue("warning", f"Link may be missing protocol: {url_stripped[:50]}"))
+
+
 @beartype
 def validate_post(title: str, body: str, config: Config) -> ValidationResult:
     """Validate a post for common issues."""
@@ -61,6 +153,12 @@ def validate_post(title: str, body: str, config: Config) -> ValidationResult:
 
     # Body checks
     _validate_body(body, issues, body_min, body_max)
+    
+    # URL validation (critical!)
+    _validate_urls(body, issues)
+    
+    # Markdown link validation
+    _validate_markdown_links(body, issues)
 
     return ValidationResult(issues=issues)
 
@@ -110,6 +208,13 @@ def _validate_body(body: str, issues: list[ValidationIssue], min_len: int, max_l
     # Check section headers
     if "###" not in body and "##" not in body:
         issues.append(ValidationIssue("warning", "No section headers found"))
+    
+    # Check for common template issues
+    if "None" in body and ("version" in body.lower() or "url" in body.lower()):
+        issues.append(ValidationIssue("warning", "Possible None value in template output"))
+    
+    if "undefined" in body.lower():
+        issues.append(ValidationIssue("warning", "Possible undefined value in template output"))
 
 
 @beartype
@@ -127,3 +232,34 @@ def validate_posted(submission: praw.models.Submission) -> ValidationResult:
         issues.append(ValidationIssue("warning", f"Post has negative score: {submission.score}"))
 
     return ValidationResult(issues=issues)
+
+
+@beartype
+def validate_url(url: str) -> list[str]:
+    """Validate a single URL and return list of issues."""
+    issues: list[str] = []
+    
+    if not url:
+        issues.append("URL is empty")
+        return issues
+    
+    # Check for double protocol
+    if url.count("://") > 1:
+        issues.append("URL has multiple protocols")
+    
+    # Check for typos
+    if "htttps" in url.lower() or "htttp" in url.lower():
+        issues.append("URL has typo in protocol")
+    
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme:
+            issues.append("URL missing scheme (http/https)")
+        if not parsed.netloc:
+            issues.append("URL missing domain")
+        if parsed.scheme and parsed.scheme not in ("http", "https"):
+            issues.append(f"Invalid scheme: {parsed.scheme}")
+    except Exception as e:
+        issues.append(f"URL parse error: {e}")
+    
+    return issues

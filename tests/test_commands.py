@@ -98,7 +98,7 @@ class TestPostCommandHelpers:
 
     def test_build_changelog_data_added(self):
         """Test changelog detects added apps."""
-        from bitbot.commands.post import _build_changelog_data
+        from bitbot.commands.post import _build_changelog
 
         releases_data = {
             "newapp": {
@@ -109,14 +109,14 @@ class TestPostCommandHelpers:
         }
         online_versions: dict[str, str] = {}
 
-        changelog = _build_changelog_data(releases_data, online_versions)
+        changelog = _build_changelog(releases_data, online_versions)
 
         assert "newapp" in changelog["added"]
         assert changelog["added"]["newapp"]["version"] == "1.0.0"
 
     def test_build_changelog_data_updated(self):
         """Test changelog detects updated apps."""
-        from bitbot.commands.post import _build_changelog_data
+        from bitbot.commands.post import _build_changelog
 
         releases_data = {
             "app1": {
@@ -127,7 +127,7 @@ class TestPostCommandHelpers:
         }
         online_versions = {"app1": "1.0.0"}
 
-        changelog = _build_changelog_data(releases_data, online_versions)
+        changelog = _build_changelog(releases_data, online_versions)
 
         assert "app1" in changelog["updated"]
         assert changelog["updated"]["app1"]["old"] == "1.0.0"
@@ -135,18 +135,18 @@ class TestPostCommandHelpers:
 
     def test_build_changelog_data_removed(self):
         """Test changelog detects removed apps."""
-        from bitbot.commands.post import _build_changelog_data
+        from bitbot.commands.post import _build_changelog
 
         releases_data: dict = {}
         online_versions = {"oldapp": "1.0.0"}
 
-        changelog = _build_changelog_data(releases_data, online_versions)
+        changelog = _build_changelog(releases_data, online_versions)
 
         assert "oldapp" in changelog["removed"]
 
     def test_build_changelog_data_no_changes(self):
         """Test changelog with no changes."""
-        from bitbot.commands.post import _build_changelog_data
+        from bitbot.commands.post import _build_changelog
 
         releases_data = {
             "app1": {
@@ -157,7 +157,7 @@ class TestPostCommandHelpers:
         }
         online_versions = {"app1": "1.0.0"}
 
-        changelog = _build_changelog_data(releases_data, online_versions)
+        changelog = _build_changelog(releases_data, online_versions)
 
         assert len(changelog["added"]) == 0
         assert len(changelog["updated"]) == 0

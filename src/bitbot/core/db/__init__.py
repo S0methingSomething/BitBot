@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     last_check_timestamp TEXT,
     check_interval_seconds INTEGER,
     last_comment_count INTEGER DEFAULT 0,
+    content_hash TEXT,
     UNIQUE(username, subreddit)
 );
 
@@ -62,6 +63,11 @@ CREATE TABLE IF NOT EXISTS post_ids (
     account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE
 );
 """
+
+# Migration to add content_hash column if missing
+_MIGRATIONS = [
+    "ALTER TABLE accounts ADD COLUMN content_hash TEXT",
+]
 
 
 @contextmanager
@@ -83,14 +89,52 @@ def conn() -> Iterator[sqlite3.Connection]:
 
 
 @beartype
+def _run_migrations(c: sqlite3.Connection) -> None:
+    """Run schema migrations."""
+    for migration in _MIGRATIONS:
+        try:
+            c.execute(migration)
+        except sqlite3.OperationalError:
+            # Column already exists or migration already applied
+            pass
+
+
+@beartype
 def init() -> Result[None, StateError]:
     """Initialize database schema."""
     try:
         with conn() as c:
             c.executescript(_SCHEMA)
+            _run_migrations(c)
         return Success(None)
     except sqlite3.Error as e:
         return db_fail("DB init failed", e)
+
+
+@beartype
+def clear_posted_versions(account_id: int) -> Result[None, StateError]:
+    """Clear all posted versions for an account (for reset)."""
+    try:
+        with conn() as c:
+            c.execute("DELETE FROM posted_versions WHERE account_id = ?", (account_id,))
+        return Success(None)
+    except sqlite3.Error as e:
+        return db_fail("Failed to clear posted versions", e)
+
+
+@beartype
+def reset_account_state(account_id: int) -> Result[None, StateError]:
+    """Reset account state (clear versions, post ID, hash)."""
+    try:
+        with conn() as c:
+            c.execute("DELETE FROM posted_versions WHERE account_id = ?", (account_id,))
+            c.execute(
+                "UPDATE accounts SET active_post_id = NULL, content_hash = NULL WHERE id = ?",
+                (account_id,),
+            )
+        return Success(None)
+    except sqlite3.Error as e:
+        return db_fail("Failed to reset account state", e)
 
 
 from bitbot.core.db.accounts import (  # noqa: E402
@@ -124,6 +168,7 @@ __all__ = [
     "add_post_id",
     "add_processed_release",
     "clear_pending_releases",
+    "clear_posted_versions",
     "conn",
     "export_account_json",
     "get_account",
@@ -135,6 +180,7 @@ __all__ = [
     "get_processed_releases",
     "init",
     "remove_pending_release",
+    "reset_account_state",
     "set_offline_version",
     "set_posted_version",
     "update_account",

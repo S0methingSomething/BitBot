@@ -7,6 +7,16 @@ on:
         required: false
         type: boolean
         default: false
+      refresh_post:
+        description: 'Force refresh Reddit post content'
+        required: false
+        type: boolean
+        default: false
+      reset_state:
+        description: 'Reset state and announce all as new'
+        required: false
+        type: boolean
+        default: false
   schedule:
     - cron: '0 */12 * * *' # Run every 12 hours
 concurrency:
@@ -16,6 +26,8 @@ concurrency:
 jobs:
   gather_releases:
     runs-on: ubuntu-latest
+    outputs:
+      has_pending: ${{ steps.gather.outputs.has_pending }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -27,10 +39,18 @@ jobs:
         run: |
           pip install uv
           uv sync
-      - name: Gather New Releases
+      - name: Gather and Queue New Releases
+        id: gather
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run python -m bitbot.cli gather run
+        run: |
+          output=$(uv run python -m bitbot.cli gather run 2>&1)
+          echo "$output"
+          if echo "$output" | grep -q "Queued.*new release"; then
+            echo "has_pending=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_pending=false" >> $GITHUB_OUTPUT
+          fi
       - name: Upload release data artifact
         uses: actions/upload-artifact@v4
         with:
@@ -69,18 +89,9 @@ jobs:
             dist/
             bitbot.db
 
-  generate_page:
+  re_gather_releases:
     needs: create_releases
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
-      cloudflare_url: ${{ steps.cloudflare.outputs.url }}
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -96,11 +107,48 @@ jobs:
         run: |
           pip install uv
           uv sync
+      - name: Re-gather releases (include newly created)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run python -m bitbot.cli gather run
+      - name: Upload final release data
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-data-final
+          path: |
+            dist/
+            bitbot.db
+
+  generate_page:
+    needs: re_gather_releases
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Download release data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-data-final
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Dependencies
+        run: |
+          pip install uv
+          uv sync
       - name: Generate Landing Page
         run: uv run python -m bitbot.cli page run
       
       - name: Deploy to Cloudflare Pages
-        id: cloudflare
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -108,14 +156,13 @@ jobs:
           npm install -g wrangler
           wrangler pages project create rebitbot --production-branch=main || true
           
-          # Retry deployment up to 3 times with exponential backoff
           max_attempts=3
           attempt=1
           while [ $attempt -le $max_attempts ]; do
             echo "Deployment attempt $attempt of $max_attempts..."
             if wrangler pages deploy dist --project-name=rebitbot --commit-dirty=true; then
               echo "Deployment successful!"
-              exit 0
+              break
             fi
             
             if [ $attempt -lt $max_attempts ]; then
@@ -125,9 +172,6 @@ jobs:
             fi
             attempt=$((attempt + 1))
           done
-          
-          echo "Deployment failed after $max_attempts attempts"
-          exit 1
       
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
@@ -138,8 +182,7 @@ jobs:
         uses: actions/deploy-pages@v4
   
   post_to_reddit:
-    needs: [create_releases, generate_page]
-    if: ${{ github.event.inputs.dry_run != 'true' }}
+    needs: [re_gather_releases, generate_page]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -147,7 +190,7 @@ jobs:
       - name: Download release data artifact
         uses: actions/download-artifact@v4
         with:
-          name: release-data-updated
+          name: release-data-final
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -163,9 +206,33 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
-        run: uv run python -m bitbot.cli post run --page-url "${{ needs.generate_page.outputs.page_url }}"
+        run: |
+          FLAGS="--verify"
+          
+          if [ "${{ github.event.inputs.refresh_post }}" = "true" ]; then
+            FLAGS="$FLAGS --refresh"
+          fi
+          
+          if [ "${{ github.event.inputs.reset_state }}" = "true" ]; then
+            FLAGS="$FLAGS --reset"
+          fi
+          
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            FLAGS="$FLAGS --preview"
+            echo "=== DRY RUN MODE - Preview only ==="
+          fi
+          
+          uv run python -m bitbot.cli post run --page-url "${{ needs.generate_page.outputs.page_url }}" $FLAGS
+          
+          # Show preview file if it exists
+          if [ -f "dist/post_preview.md" ]; then
+            echo ""
+            echo "=== POST PREVIEW ==="
+            cat dist/post_preview.md
+          fi
       
       - name: Commit state file
+        if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -178,3 +245,30 @@ jobs:
         with:
           name: final-state
           path: bitbot.db
+
+  verify_state:
+    needs: post_to_reddit
+    if: always() && needs.post_to_reddit.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Download final state
+        uses: actions/download-artifact@v4
+        with:
+          name: final-state
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Dependencies
+        run: |
+          pip install uv
+          uv sync
+      - name: Verify Reddit State
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+        run: uv run python -m bitbot.cli sync run

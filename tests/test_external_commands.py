@@ -157,7 +157,7 @@ class TestPostCommand:
 
     def test_build_changelog_data(self):
         """Build changelog from releases vs online versions."""
-        from bitbot.commands.post import _build_changelog_data
+        from bitbot.commands.post import _build_changelog
 
         releases = {
             "bitlife": {
@@ -171,33 +171,33 @@ class TestPostCommand:
         }
         online_versions = {"bitlife": "3.20"}
 
-        changelog = _build_changelog_data(releases, online_versions)
+        changelog = _build_changelog(releases, online_versions)
 
         assert "new_app" in changelog["added"]
         assert "bitlife" in changelog["updated"]
 
-    def test_has_new_releases_detects_changes(self):
+    def test_print_changelog_detects_changes(self):
         """Detect when there are new releases."""
-        from bitbot.commands.post import _has_new_releases
+        from bitbot.commands.post import _print_changelog
 
         changelog = {
-            "added": {"app1": {"version": "1.0", "display_name": "App1"}},
+            "added": {"app1": {"version": "1.0", "display_name": "App1", "url": ""}},
             "updated": {},
             "removed": {},
         }
         console = Console(quiet=True)
 
-        has_changes = _has_new_releases(changelog, console)
+        has_changes = _print_changelog(changelog, console)
         assert has_changes
 
-    def test_has_new_releases_no_changes(self):
+    def test_print_changelog_no_changes(self):
         """Detect when there are no changes."""
-        from bitbot.commands.post import _has_new_releases
+        from bitbot.commands.post import _print_changelog
 
         changelog = {"added": {}, "updated": {}, "removed": {}}
         console = Console(quiet=True)
 
-        has_changes = _has_new_releases(changelog, console)
+        has_changes = _print_changelog(changelog, console)
         assert not has_changes
 
 

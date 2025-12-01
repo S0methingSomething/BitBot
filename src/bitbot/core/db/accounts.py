@@ -20,6 +20,7 @@ class AccountMeta(TypedDict):
     last_check_timestamp: str | None
     check_interval_seconds: int | None
     last_comment_count: int | None
+    content_hash: str | None
 
 
 @icontract.require(lambda username: len(username) > 0)
@@ -83,7 +84,7 @@ def get_account(account_id: int) -> Result[AccountMeta, StateError]:
         with conn() as c:
             row = c.execute(
                 """SELECT active_post_id, last_check_timestamp,
-                          check_interval_seconds, last_comment_count
+                          check_interval_seconds, last_comment_count, content_hash
                    FROM accounts WHERE id = ?""",
                 (account_id,),
             ).fetchone()
@@ -95,6 +96,7 @@ def get_account(account_id: int) -> Result[AccountMeta, StateError]:
                 "last_check_timestamp": row["last_check_timestamp"],
                 "check_interval_seconds": row["check_interval_seconds"],
                 "last_comment_count": row["last_comment_count"],
+                "content_hash": row["content_hash"],
             }
         )
     except sqlite3.Error as e:
@@ -106,6 +108,7 @@ _UPDATE_COLS = {
     "last_check_timestamp": "last_check_timestamp = ?",
     "check_interval_seconds": "check_interval_seconds = ?",
     "last_comment_count": "last_comment_count = ?",
+    "content_hash": "content_hash = ?",
 }
 
 
@@ -118,6 +121,7 @@ def update_account(
     last_check_timestamp: str | None = None,
     check_interval_seconds: int | None = None,
     last_comment_count: int | None = None,
+    content_hash: str | None = None,
 ) -> Result[None, StateError]:
     """Update account metadata."""
     updates: list[str] = []
@@ -135,6 +139,9 @@ def update_account(
     if last_comment_count is not None:
         updates.append(_UPDATE_COLS["last_comment_count"])
         params.append(last_comment_count)
+    if content_hash is not None:
+        updates.append(_UPDATE_COLS["content_hash"])
+        params.append(content_hash)
 
     if not updates:
         return Success(None)
@@ -209,6 +216,7 @@ def export_account_json(username: str, subreddit: str) -> Result[dict[str, Any],
             "activePostId": m["active_post_id"],
             "lastCheckTimestamp": m["last_check_timestamp"],
             "currentIntervalSeconds": m["check_interval_seconds"],
+            "contentHash": m["content_hash"],
             "allPostIds": posts.unwrap(),
         }
     )
