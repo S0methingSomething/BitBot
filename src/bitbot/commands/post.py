@@ -25,6 +25,7 @@ from bitbot.reddit.parser import parse_versions_from_post
 from bitbot.reddit.posting.body_builder import generate_post_body
 from bitbot.reddit.posting.poster import post_new_release, update_post
 from bitbot.reddit.posting.title_generator import generate_dynamic_title
+from bitbot.reddit.posting.validator import validate_post, validate_posted
 from bitbot.reddit.posts import get_bot_posts
 from bitbot.types import Changelog, ReleaseInfo, ReleasesData, UpdatedReleaseInfo
 
@@ -194,6 +195,7 @@ class PostContext:
 
     config: Config
     page_url: str
+    console: Console
 
 
 @beartype
@@ -204,10 +206,34 @@ def _build_and_post(
     all_releases_data: ReleasesData,
     existing_post_id: str | None,
 ) -> tuple[praw.models.Submission, bool] | None:
-    """Build post content and submit to Reddit."""
+    """Build post content, validate, and submit to Reddit."""
     title = generate_dynamic_title(context.config, changelog["added"], changelog["updated"])
     body = generate_post_body(context.config, changelog, all_releases_data, context.page_url)
-    return post_or_update(reddit, title, body, context.config, existing_post_id)
+
+    # Validate before posting
+    validation = validate_post(title, body, context.config)
+    if validation.issues:
+        for issue in validation.issues:
+            color = "red" if issue.severity == "error" else "yellow"
+            context.console.print(f"[{color}]{issue.severity.upper()}:[/{color}] {issue.message}")
+
+        if validation.has_errors:
+            msg = "Post validation failed - fix errors before posting"
+            raise BitBotError(msg)
+
+    result = post_or_update(reddit, title, body, context.config, existing_post_id)
+    if result is None:
+        return None
+
+    submission, was_updated = result
+
+    # Validate after posting
+    post_validation = validate_posted(submission)
+    for issue in post_validation.issues:
+        color = "red" if issue.severity == "error" else "yellow"
+        context.console.print(f"[{color}]POST {issue.severity.upper()}:[/{color}] {issue.message}")
+
+    return (submission, was_updated)
 
 
 @beartype
@@ -290,7 +316,7 @@ def run(
                     _verify_account_state(reddit, config, account_id, console)
 
                 # Build and post
-                context = PostContext(config=config, page_url=page_url)
+                context = PostContext(config=config, page_url=page_url, console=console)
                 result = _build_and_post(
                     reddit, context, changelog, all_releases_data, active_post_id
                 )

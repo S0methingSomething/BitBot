@@ -1,6 +1,5 @@
 """Tests for GitHub releases operations (patcher)."""
 
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest

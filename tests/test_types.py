@@ -1,6 +1,6 @@
 """Tests for BitBot type definitions."""
 
-from bitbot.types import (
+from bitbot.types import (  # noqa: TC001 - testing these types
     AppReleaseData,
     Changelog,
     LatestRelease,

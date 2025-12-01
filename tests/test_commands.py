@@ -1,9 +1,7 @@
 """Tests for BitBot CLI commands."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from returns.result import Failure, Success
 from typer.testing import CliRunner
 

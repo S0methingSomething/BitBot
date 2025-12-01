@@ -148,7 +148,10 @@ class TestGenerateDynamicTitle:
 
     def test_generic_fallback_many_changes(self, config):
         """Test title falls back to generic for many changes."""
-        added = {f"app{i}": {"display_name": f"App{i}", "version": "1.0", "url": "http://x.com"} for i in range(5)}
+        added = {
+            f"app{i}": {"display_name": f"App{i}", "version": "1.0", "url": "http://x.com"}
+            for i in range(5)
+        }
         result = generate_dynamic_title(config, added, {})
         assert "[BitBot]" in result
 
@@ -164,7 +167,13 @@ class TestGenerateChangelog:
 
     def test_added_single_app(self, config):
         """Test changelog with single added app."""
-        added = {"bitlife": {"display_name": "BitLife", "version": "3.21.0", "url": "http://example.com/dl"}}
+        added = {
+            "bitlife": {
+                "display_name": "BitLife",
+                "version": "3.21.0",
+                "url": "http://example.com/dl",
+            }
+        }
         result = generate_changelog(config, added=added, updated={}, removed={})
         assert "### Added" in result
         assert "BitLife" in result
@@ -225,7 +234,12 @@ class TestGenerateChangelog:
     def test_changelog_sections_order(self, config):
         """Test changelog sections appear in correct order."""
         added = {"a": {"display_name": "A", "version": "1.0", "url": "http://x.com"}}
-        updated = {"b": {"new": {"display_name": "B", "version": "2.0", "url": "http://x.com"}, "old": "1.0"}}
+        updated = {
+            "b": {
+                "new": {"display_name": "B", "version": "2.0", "url": "http://x.com"},
+                "old": "1.0",
+            }
+        }
         removed = {"c": {"display_name": "C", "version": "1.0"}}
 
         result = generate_changelog(config, added=added, updated=updated, removed=removed)

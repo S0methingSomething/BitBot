@@ -71,25 +71,25 @@ class TestAppRegistry:
             registry.get_or_raise("unknown")
 
     def test_exists_true(self, registry):
-        """exists returns True for known app."""
+        """Exists returns True for known app."""
         assert registry.exists("bitlife")
         assert registry.exists("BitLife")
         assert registry.exists("doglife")
 
     def test_exists_false(self, registry):
-        """exists returns False for unknown app."""
+        """Exists returns False for unknown app."""
         assert not registry.exists("unknown")
         assert not registry.exists("catlife")
 
     def test_all_returns_all_apps(self, registry, bitlife_app, doglife_app):
-        """all returns all registered apps."""
+        """All returns all registered apps."""
         all_apps = registry.all
         assert bitlife_app in all_apps
         assert doglife_app in all_apps
         assert len(all_apps) == 2
 
     def test_ids_returns_all_ids(self, registry):
-        """ids returns all app IDs."""
+        """Ids returns all app IDs."""
         ids = registry.ids
         assert "bitlife" in ids
         assert "doglife" in ids
@@ -100,7 +100,7 @@ class TestAppRegistry:
         assert len(registry) == 2
 
     def test_contains(self, registry):
-        """in operator works."""
+        """In operator works."""
         assert "bitlife" in registry
         assert "BitLife" in registry
         assert "unknown" not in registry

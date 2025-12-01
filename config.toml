@@ -55,6 +55,11 @@ custom_landing = "templates/custom_landing_page.example.html" # Optional
 
 # Safety features to prevent account flagging.
 [safety]
+# Post validation limits
+title_max_length = 300
+title_min_length = 10
+body_min_length = 50
+body_max_length = 40000
 max_outbound_links_warn = 5
 max_outbound_links_error = 8
 
