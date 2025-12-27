@@ -52,7 +52,7 @@ jobs:
             echo "has_pending=false" >> $GITHUB_OUTPUT
           fi
       - name: Upload release data artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-data
           path: |
@@ -82,7 +82,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: uv run python -m bitbot.cli release run
       - name: Upload updated data
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-data-updated
           path: |
@@ -112,7 +112,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: uv run python -m bitbot.cli gather run
       - name: Upload final release data
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-data-final
           path: |
@@ -241,7 +241,7 @@ jobs:
           git push
       
       - name: Upload final state
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: final-state
           path: bitbot.db
