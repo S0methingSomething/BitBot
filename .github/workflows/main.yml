@@ -18,7 +18,7 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: '0 */12 * * *' # Run every 12 hours
+    - cron: ' 
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: true
